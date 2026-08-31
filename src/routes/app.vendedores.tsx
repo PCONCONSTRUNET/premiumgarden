@@ -141,6 +141,29 @@ function VendedoresAdmin() {
 
   useEffect(() => {
     fetchData();
+
+    // Supabase Realtime para atualizar a tela automaticamente
+    const channel = supabase
+      .channel("admin-vendedores-room")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendedores" },
+        () => {
+          fetchData();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendas" },
+        () => {
+          fetchData();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const vendasPendentes = todasVendas.filter(

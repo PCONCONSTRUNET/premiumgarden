@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect, Link, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, Link, useRouterState, isRedirect } from "@tanstack/react-router";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { VivaverdeLogo } from "@/components/vivaverde-logo";
 import { Home, Calculator, LogOut } from "lucide-react";
@@ -59,7 +59,7 @@ export const Route = createFileRoute("/parceiro")({
       // Não bloqueia o acesso globalmente aqui para não deslogar o usuário.
     } catch (err: any) {
       // Se o erro é um redirect do TanStack Router, repassa normalmente
-      if (err?.isRedirect || err?.message === "redirect") throw err;
+      if (isRedirect(err)) throw err;
       // Qualquer outro erro de rede/DB: deixa passar sem bloquear o acesso
       console.warn("[parceiro beforeLoad] erro ao verificar status:", err);
     }

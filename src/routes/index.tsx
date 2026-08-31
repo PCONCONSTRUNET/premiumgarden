@@ -84,7 +84,7 @@ function Login() {
       {/* Background Image */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/vasos-foto.jpeg')" }}
+        style={{ backgroundImage: "url('/bg-login.jpg')" }}
       />
 
       {/* Dark overlay for better contrast */}

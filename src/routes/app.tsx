@@ -17,7 +17,7 @@ export const Route = createFileRoute("/app")({
 
     // Lista de e-mails permitidos como Administrador (Dono)
     // Se a variável VITE_ADMIN_EMAIL não existir no servidor (ex: Vercel), usa o e-mail padrão do dono.
-    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "douglasalmeida156@hotmail.com";
+    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "senalandia2@gmail.com";
     const ADMIN_EMAILS = adminEmail
       .split(",")
       .map((e: string) => e.trim().toLowerCase())

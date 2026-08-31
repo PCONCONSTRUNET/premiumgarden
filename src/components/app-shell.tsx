@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard,
@@ -92,10 +92,10 @@ const NAV = [
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const { pathname } = useRouterState({ select: (s) => s.location });
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(false);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-
   const [notifications, setNotifications] = useState<any[]>([]);
 
   const fetchNotifications = async () => {
@@ -125,13 +125,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   const markAllAsRead = async () => {
-    await supabase.from("notificacoes").update({ lida: true }).eq("lida", false);
-    fetchNotifications();
+    const unreadIds = notifications.filter((n) => !n.lida).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+    await supabase.from("notificacoes").update({ lida: true }).in("id", unreadIds);
+    setNotifications((prev) => prev.map((n) => ({ ...n, lida: true })));
   };
 
   const markAsRead = async (id: string) => {
     await supabase.from("notificacoes").update({ lida: true }).eq("id", id);
     fetchNotifications();
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/" });
   };
 
   const unreadCount = notifications.filter((n) => !n.lida).length;
@@ -142,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background text-foreground">
       {/* Sidebar desktop */}
       <aside className="sticky top-0 h-screen hidden md:flex print:hidden w-64 shrink-0 flex-col bg-gradient-sidebar text-sidebar-foreground border-r border-sidebar-border">
         <div className="p-5 border-b border-sidebar-border">
@@ -354,11 +361,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Sair
-                </Link>
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sair
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

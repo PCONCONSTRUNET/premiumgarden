@@ -233,7 +233,7 @@ function Dashboard() {
     <>
       <PageHeader
         title="Visão Geral"
-        subtitle={`${new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date())} — bom dia, Douglas 👋`}
+        subtitle={`${new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date())} — bom dia, Senalandia 👋`}
         actions={
           <>
             <Button

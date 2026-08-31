@@ -421,7 +421,7 @@ function PDV() {
     <>
       <PageHeader
         title="PDV — Frente de Caixa"
-        subtitle="Operador: Douglas de Almeida · Caixa 01"
+        subtitle="Operador: Senalandia · Caixa 01"
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">

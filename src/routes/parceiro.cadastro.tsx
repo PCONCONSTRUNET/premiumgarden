@@ -4,7 +4,7 @@ import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { VivaverdeLogo } from "@/components/SENALANDIA 2 ERP-logo";
+import { VivaverdeLogo } from "@/components/vivaverde-logo";
 
 export const Route = createFileRoute("/parceiro/cadastro")({
   beforeLoad: async () => {

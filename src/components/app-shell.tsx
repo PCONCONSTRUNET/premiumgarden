@@ -31,7 +31,7 @@ import {
   CheckCheck,
   TrendingUp,
 } from "lucide-react";
-import { VivaverdeLogo } from "./SENALANDIA 2 ERP-logo";
+import { VivaverdeLogo } from "./vivaverde-logo";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

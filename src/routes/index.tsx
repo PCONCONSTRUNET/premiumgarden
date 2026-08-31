@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import logoImg from "@/assets/SENALANDIA 2 ERP-logo.png";
+import logoImg from "@/assets/logo-senalandia.png";
 import { supabase } from "@/lib/supabase";
 
 const authSchema = z.object({

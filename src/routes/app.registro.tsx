@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/command";
 
 export const Route = createFileRoute("/app/registro")({
-  head: () => ({ meta: [{ title: "Registro Rapido - VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Registro Rapido - SENALANDIA 2 ERP ERP" }] }),
   component: RegistroRapido,
 });
 

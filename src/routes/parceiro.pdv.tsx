@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/parceiro/pdv")({
-  head: () => ({ meta: [{ title: "Nova Venda — VIVAVERDE" }] }),
+  head: () => ({ meta: [{ title: "Nova Venda — SENALANDIA 2 ERP" }] }),
   component: ParceiroPDV,
 });
 
@@ -371,7 +371,7 @@ function ParceiroPDV() {
   const handleShareWhatsApp = () => {
     if (!davGeradoId) return;
 
-    let msg = `*ORÇAMENTO - VIVAVERDE VASOS*\n`;
+    let msg = `*ORÇAMENTO - SENALANDIA 2 ERP VASOS*\n`;
     msg += `Nº do Orçamento: ${davGeradoNumero || davGeradoId.substring(0, 8).toUpperCase()}\n\n`;
     msg += `Olá ${clientForm.nome}, aqui está o seu orçamento detalhado!\n\n`;
 

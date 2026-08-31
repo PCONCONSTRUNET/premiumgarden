@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ShoppingCart, Trash2, Search, Check, ChevronsUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { VivaverdeLogo } from "@/components/vivaverde-logo";
+import { VivaverdeLogo } from "@/components/SENALANDIA 2 ERP-logo";
 import { ColorDock } from "@/components/color-dock";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/catalogo")({
-  head: () => ({ meta: [{ title: "Catálogo — VivaVerde" }] }),
+  head: () => ({ meta: [{ title: "Catálogo — SENALANDIA 2 ERP" }] }),
   component: PublicCatalogo,
 });
 

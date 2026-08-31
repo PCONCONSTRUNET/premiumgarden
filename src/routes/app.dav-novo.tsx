@@ -37,7 +37,7 @@ export const Route = createFileRoute("/app/dav-novo")({
   validateSearch: (search: Record<string, unknown>): { id?: string } => ({
     id: search.id as string | undefined,
   }),
-  head: () => ({ meta: [{ title: "Novo DAV — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Novo DAV — SENALANDIA 2 ERP ERP" }] }),
   component: NovoDAV,
 });
 
@@ -50,7 +50,7 @@ function NovoDAV() {
 
   const [cliente, setCliente] = useState({ nome: "", cnpj: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", uf: "", telefone: "" });
   const [emissor, setEmissor] = useState({
-    nome: "VIVAVERDE",
+    nome: "SENALANDIA 2 ERP",
     cnpj: "",
     endereco: "",
     telefone: "",
@@ -107,7 +107,7 @@ function NovoDAV() {
           .single();
         if (data && !error) {
           setEmissor({
-            nome: data.razao_social || "VIVAVERDE",
+            nome: data.razao_social || "SENALANDIA 2 ERP",
             cnpj: data.cnpj || "",
             endereco: data.endereco || "",
             telefone: data.telefone || "",
@@ -143,7 +143,7 @@ function NovoDAV() {
               telefone: dav.cliente_telefone || "",
             });
             setEmissor({
-              nome: dav.emissor_nome || "VIVAVERDE",
+              nome: dav.emissor_nome || "SENALANDIA 2 ERP",
               cnpj: dav.emissor_cnpj || "",
               endereco: dav.emissor_endereco || "",
               telefone: dav.emissor_telefone || "",
@@ -494,7 +494,7 @@ function NovoDAV() {
               <Input
                 value={emissor.nome}
                 onChange={(e) => setEmissor({ ...emissor, nome: e.target.value })}
-                placeholder="Ex: VivaVerde Vasos"
+                placeholder="Ex: SENALANDIA 2 ERP Vasos"
               />
             </div>
             <div className="space-y-2">

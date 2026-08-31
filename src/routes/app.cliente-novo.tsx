@@ -19,7 +19,7 @@ export const Route = createFileRoute("/app/cliente-novo")({
       id: search.id as string | undefined,
     };
   },
-  head: () => ({ meta: [{ title: "Novo Cliente — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Novo Cliente — SENALANDIA 2 ERP ERP" }] }),
   component: NovoCliente,
 });
 

@@ -15,7 +15,7 @@ import {
 import { Wallet, Clock, CheckCircle2, TrendingUp, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/parceiro/dashboard")({
-  head: () => ({ meta: [{ title: "Meu Painel — VIVAVERDE" }] }),
+  head: () => ({ meta: [{ title: "Meu Painel — SENALANDIA 2 ERP" }] }),
   component: ParceiroDashboard,
 });
 

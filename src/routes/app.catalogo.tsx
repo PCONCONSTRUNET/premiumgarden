@@ -31,7 +31,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 
 export const Route = createFileRoute("/app/catalogo")({
-  head: () => ({ meta: [{ title: "Catálogo Digital — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Catálogo Digital — SENALANDIA 2 ERP ERP" }] }),
   component: Catalogo,
 });
 
@@ -57,14 +57,14 @@ function Catalogo() {
 
   const handleShare = (nome: string) => {
     const text = encodeURIComponent(
-      `Confira nosso produto: *${nome}* na VivaVerde!\nAcesse nosso catálogo: ${window.location.origin}/catalogo`,
+      `Confira nosso produto: *${nome}* na SENALANDIA 2 ERP!\nAcesse nosso catálogo: ${window.location.origin}/catalogo`,
     );
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
   const handleShareCatalog = () => {
     const text = encodeURIComponent(
-      `Veja nosso catálogo completo de produtos VivaVerde: ${window.location.origin}/catalogo`,
+      `Veja nosso catálogo completo de produtos SENALANDIA 2 ERP: ${window.location.origin}/catalogo`,
     );
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
@@ -122,7 +122,7 @@ function Catalogo() {
     let yPos = 15;
     doc.setFontSize(18);
     doc.setTextColor(22, 163, 74);
-    doc.text("Catálogo de Produtos — VivaVerde", margin, yPos);
+    doc.text("Catálogo de Produtos — SENALANDIA 2 ERP", margin, yPos);
     yPos += 12;
 
     const categorias = Array.from(new Set(filtrados.map((p) => p.categoria || "Outros")));
@@ -222,7 +222,7 @@ function Catalogo() {
       if (yPos > pageHeight - 10) { doc.addPage(); yPos = 15; }
     }
 
-    doc.save("catalogo-vivaverde.pdf");
+    doc.save("catalogo-SENALANDIA 2 ERP.pdf");
   };
 
   const categoriasUnicas = [

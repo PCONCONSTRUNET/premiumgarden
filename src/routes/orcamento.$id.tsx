@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { VivaverdeLogo } from "@/components/vivaverde-logo";
+import { VivaverdeLogo } from "@/components/SENALANDIA 2 ERP-logo";
 
 export const Route = createFileRoute("/orcamento/$id")({
   head: () => ({ meta: [{ title: "Orçamento (DAV) - Impressão" }] }),
@@ -60,7 +60,7 @@ function ImprimirDAV() {
              subtotal: v.valor_total,
              total: v.valor_total,
              vendedor: "",
-             emissor_nome: "VIVAVERDE VASOS",
+             emissor_nome: "SENALANDIA 2 ERP VASOS",
              isVenda: v.tipo !== "DAV"
           };
           setDav(d);
@@ -121,7 +121,7 @@ function ImprimirDAV() {
         <div>
           <VivaverdeLogo size="small" />
           <div className="mt-4 text-sm text-slate-600">
-            <p className="font-bold text-slate-900">{dav.emissor_nome || "VIVAVERDE VASOS"}</p>
+            <p className="font-bold text-slate-900">{dav.emissor_nome || "SENALANDIA 2 ERP VASOS"}</p>
             {dav.emissor_cnpj && <p>CNPJ: {dav.emissor_cnpj}</p>}
             {dav.emissor_endereco && <p>{dav.emissor_endereco}</p>}
             {dav.emissor_telefone && <p>Tel: {dav.emissor_telefone.replace(/99733-?1112/g, '99714-1112').replace('997331112', '997141112')}</p>}

@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/app/fornecedor-novo")({
-  head: () => ({ meta: [{ title: "Novo Fornecedor — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Novo Fornecedor — SENALANDIA 2 ERP ERP" }] }),
   component: NovoFornecedor,
 });
 

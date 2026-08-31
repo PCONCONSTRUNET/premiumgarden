@@ -4,7 +4,7 @@ import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { VivaverdeLogo } from "@/components/vivaverde-logo";
+import { VivaverdeLogo } from "@/components/SENALANDIA 2 ERP-logo";
 
 export const Route = createFileRoute("/parceiro/login")({
   beforeLoad: async () => {
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/parceiro/login")({
       await supabase.auth.signOut();
     }
   },
-  head: () => ({ meta: [{ title: "Login Parceiro — VIVAVERDE" }] }),
+  head: () => ({ meta: [{ title: "Login Parceiro — SENALANDIA 2 ERP" }] }),
   component: LoginParceiro,
 });
 

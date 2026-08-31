@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { testarConexao, BRASIL_NFE_TOKEN, labelAmbiente } from "@/lib/brasilnfe";
 
 export const Route = createFileRoute("/app/configuracoes")({
-  head: () => ({ meta: [{ title: "Configurações — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Configurações — SENALANDIA 2 ERP ERP" }] }),
   component: Configuracoes,
 });
 
@@ -161,7 +161,7 @@ function Configuracoes() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `backup_vivaverde_${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `backup_SENALANDIA 2 ERP_${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -310,7 +310,7 @@ function Configuracoes() {
                   <Input
                     value={novoUserEmail}
                     onChange={(e) => setNovoUserEmail(e.target.value)}
-                    placeholder="joao@vivaverde.com.br"
+                    placeholder="joao@SENALANDIA 2 ERP.com.br"
                     type="email"
                   />
                 </div>

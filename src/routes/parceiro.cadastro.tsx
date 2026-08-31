@@ -4,7 +4,7 @@ import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { VivaverdeLogo } from "@/components/vivaverde-logo";
+import { VivaverdeLogo } from "@/components/SENALANDIA 2 ERP-logo";
 
 export const Route = createFileRoute("/parceiro/cadastro")({
   beforeLoad: async () => {
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/parceiro/cadastro")({
       await supabase.auth.signOut();
     }
   },
-  head: () => ({ meta: [{ title: "Cadastro de Parceiro — VIVAVERDE" }] }),
+  head: () => ({ meta: [{ title: "Cadastro de Parceiro — SENALANDIA 2 ERP" }] }),
   component: CadastroParceiro,
 });
 
@@ -91,7 +91,7 @@ function CadastroParceiro() {
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold font-display text-slate-800">Criar Conta</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Seja um vendedor parceiro e fature com a VivaVerde.
+              Seja um vendedor parceiro e fature com a SENALANDIA 2 ERP.
             </p>
           </div>
 

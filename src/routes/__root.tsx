@@ -81,35 +81,35 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "google", content: "notranslate" },
-      { title: "VIVAVERDE ERP — Sistema Interno" },
+      { title: "SENALANDIA 2 ERP ERP — Sistema Interno" },
       {
         name: "description",
         content:
-          "Sistema ERP interno da VIVAVERDE para gestão de estoque, vendas, financeiro e logística.",
+          "Sistema ERP interno da SENALANDIA 2 ERP para gestão de estoque, vendas, financeiro e logística.",
       },
-      { property: "og:title", content: "VIVAVERDE ERP — Sistema Interno" },
+      { property: "og:title", content: "SENALANDIA 2 ERP ERP — Sistema Interno" },
       {
         property: "og:description",
         content:
-          "Sistema ERP interno da VIVAVERDE para gestão de estoque, vendas, financeiro e logística.",
+          "Sistema ERP interno da SENALANDIA 2 ERP para gestão de estoque, vendas, financeiro e logística.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "VIVAVERDE ERP — Sistema Interno" },
+      { name: "twitter:title", content: "SENALANDIA 2 ERP ERP — Sistema Interno" },
       {
         name: "twitter:description",
         content:
-          "Sistema ERP interno da VIVAVERDE para gestão de estoque, vendas, financeiro e logística.",
+          "Sistema ERP interno da SENALANDIA 2 ERP para gestão de estoque, vendas, financeiro e logística.",
       },
       {
         property: "og:image",
         content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/b1puNI2cwJQSkSR9bqtGJNLTTeo2/social-images/social-1781777493114-VIVAVERDE.webp",
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/b1puNI2cwJQSkSR9bqtGJNLTTeo2/social-images/social-1781777493114-SENALANDIA 2 ERP.webp",
       },
       {
         name: "twitter:image",
         content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/b1puNI2cwJQSkSR9bqtGJNLTTeo2/social-images/social-1781777493114-VIVAVERDE.webp",
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/b1puNI2cwJQSkSR9bqtGJNLTTeo2/social-images/social-1781777493114-SENALANDIA 2 ERP.webp",
       },
     ],
     links: [
@@ -121,8 +121,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.json" },
-      { rel: "apple-touch-icon", href: "/vivaverdelogo.png" },
-      { rel: "icon", href: "/vivaverdelogo.png" },
+      { rel: "apple-touch-icon", href: "/SENALANDIA 2 ERPlogo.png" },
+      { rel: "icon", href: "/SENALANDIA 2 ERPlogo.png" },
     ],
   }),
   shellComponent: RootShell,

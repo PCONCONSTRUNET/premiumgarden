@@ -1,12 +1,12 @@
 {
-  "name": "VIVAVERDE ERP",
-  "short_name": "VIVAVERDE",
+  "name": "SENALANDIA 2 ERP",
+  "short_name": "SENALANDIA 2",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#166534",
+  "theme_color": "#D4AF37",
   "icons": [
     {
-      "src": "/vivaverdelogo.png",
+      "src": "/logo-senalandia.png",
       "sizes": "192x192 512x512",
       "type": "image/png",
       "purpose": "any maskable"

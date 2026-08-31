@@ -66,7 +66,7 @@ import {
 } from "@/lib/brasilnfe";
 
 export const Route = createFileRoute("/app/fiscal")({
-  head: () => ({ meta: [{ title: "Fiscal — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Fiscal — SENALANDIA 2 ERP ERP" }] }),
   component: Fiscal,
 });
 

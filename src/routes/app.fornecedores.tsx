@@ -17,7 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
 export const Route = createFileRoute("/app/fornecedores")({
-  head: () => ({ meta: [{ title: "Fornecedores — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Fornecedores — SENALANDIA 2 ERP ERP" }] }),
   component: Fornecedores,
 });
 

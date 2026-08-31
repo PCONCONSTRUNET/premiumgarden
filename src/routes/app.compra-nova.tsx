@@ -17,7 +17,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/compra-nova")({
-  head: () => ({ meta: [{ title: "Nova Compra — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Nova Compra — SENALANDIA 2 ERP ERP" }] }),
   component: NovaCompra,
 });
 

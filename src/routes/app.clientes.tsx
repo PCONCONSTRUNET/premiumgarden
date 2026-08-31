@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/app/clientes")({
-  head: () => ({ meta: [{ title: "Clientes — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Clientes — SENALANDIA 2 ERP ERP" }] }),
   component: Clientes,
 });
 

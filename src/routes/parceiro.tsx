@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useRouterState } from "@tanstack/react-router";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
-import { VivaverdeLogo } from "@/components/vivaverde-logo";
+import { VivaverdeLogo } from "@/components/SENALANDIA 2 ERP-logo";
 import { Home, Calculator, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 

@@ -50,7 +50,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/app/vendedores")({
-  head: () => ({ meta: [{ title: "Vendedores Parceiros — VIVAVERDE ERP" }] }),
+  head: () => ({ meta: [{ title: "Vendedores Parceiros — SENALANDIA 2 ERP ERP" }] }),
   component: VendedoresAdmin,
 });
 

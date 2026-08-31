@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -94,7 +95,7 @@ function NovaVenda() {
     if (!prod) return;
 
     if (tipo === "VENDA" && prod.estoque < quantidade) {
-      alert(`Estoque insuficiente! Você tem apenas ${prod.estoque} unidades de ${prod.nome}.`);
+      toast.info(`Estoque insuficiente! Você tem apenas ${prod.estoque} unidades de ${prod.nome}.`);
       return;
     }
 
@@ -129,7 +130,7 @@ function NovaVenda() {
 
   const handleSalvar = async () => {
     if (itens.length === 0) {
-      alert("Adicione pelo menos um item.");
+      toast.info("Adicione pelo menos um item.");
       return;
     }
 
@@ -144,7 +145,7 @@ function NovaVenda() {
 
   const handleSalvarNovoCliente = async () => {
     if (!novoCliente.nome) {
-      alert("O nome da empresa/cliente é obrigatório!");
+      toast.info("O nome da empresa/cliente é obrigatório!");
       return;
     }
 
@@ -173,7 +174,7 @@ function NovaVenda() {
       await executarSalvamentoVenda(data.id);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao criar novo cliente: " + err.message);
+      toast.error("Erro ao criar novo cliente: " + err.message);
     } finally {
       setLoadingCliente(false);
     }
@@ -256,11 +257,11 @@ function NovaVenda() {
         ]);
       }
 
-      alert("Venda finalizada com sucesso!");
+      toast.success("Venda finalizada com sucesso!");
       navigate({ to: "/app/vendas" });
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao salvar: " + err.message);
+      toast.error("Erro ao salvar: " + err.message);
     } finally {
       setLoading(false);
     }

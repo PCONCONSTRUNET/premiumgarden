@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -108,7 +109,7 @@ function NovoProduto() {
           }
         } catch (err) {
           console.error(err);
-          alert("Erro ao carregar os dados do produto.");
+          toast.error("Erro ao carregar os dados do produto.");
         } finally {
           setIsFetchingInfo(false);
         }
@@ -165,12 +166,12 @@ function NovoProduto() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith("image/")) return alert("Por favor, selecione uma imagem.");
+      if (!file.type.startsWith("image/")) return toast.info("Por favor, selecione uma imagem.");
       try {
         const compressed = await compressImage(file);
         setProduto((prev) => ({ ...prev, imagem: compressed }));
       } catch (err) {
-        alert("Erro ao processar imagem.");
+        toast.error("Erro ao processar imagem.");
       }
     }
   };
@@ -187,7 +188,7 @@ function NovoProduto() {
               const compressed = await compressImage(file);
               setProduto((prev) => ({ ...prev, imagem: compressed }));
             } catch (err) {
-              alert("Erro ao processar imagem colada.");
+              toast.error("Erro ao processar imagem colada.");
             }
           }
         }
@@ -202,7 +203,7 @@ function NovoProduto() {
       setProduto((prev) => ({ ...prev, imagem: imageUrlInput.trim() }));
       setImageUrlInput("");
     } else {
-      alert("Insira uma URL válida começando com http:// ou https://");
+      toast.info("Insira uma URL válida começando com http:// ou https://");
     }
   };
 
@@ -229,13 +230,13 @@ function NovoProduto() {
   // ---------- SAVE LOGIC ----------
   const handleSalvar = async () => {
     if (!produto.nome || !produto.codigo) {
-      alert("Preencha o código e o nome do produto.");
+      toast.error("Preencha o código e o nome do produto.");
       return;
     }
 
     const categoriaFinal = isNovaCategoria ? novaCategoria.trim() : produto.categoria;
     if (isNovaCategoria && !categoriaFinal) {
-      alert("Digite o nome da nova categoria.");
+      toast.info("Digite o nome da nova categoria.");
       return;
     }
 
@@ -274,7 +275,7 @@ function NovoProduto() {
       navigate({ to: "/app/produtos" });
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao salvar produto: " + err.message);
+      toast.error("Erro ao salvar produto: " + err.message);
     } finally {
       setLoading(false);
     }

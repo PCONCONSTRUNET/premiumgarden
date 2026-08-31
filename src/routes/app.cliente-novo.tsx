@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -132,7 +133,7 @@ function NovoCliente() {
 
   const handleSalvar = async () => {
     if (!cliente.nome) {
-      alert("Preencha o nome do cliente.");
+      toast.error("Preencha o nome do cliente.");
       return;
     }
 
@@ -166,7 +167,7 @@ function NovoCliente() {
       navigate({ to: "/app/clientes" });
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao salvar cliente: " + err.message);
+      toast.error("Erro ao salvar cliente: " + err.message);
     } finally {
       setLoading(false);
     }

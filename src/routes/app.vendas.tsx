@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -62,7 +63,7 @@ function Vendas() {
       setVendas(data || []);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao buscar vendas.");
+      toast.error("Erro ao buscar vendas.");
     } finally {
       setLoading(false);
     }
@@ -117,7 +118,7 @@ function Vendas() {
       window.open(url, "_blank");
     } catch (err) {
       console.error(err);
-      alert("Erro ao gerar mensagem do WhatsApp");
+      toast.error("Erro ao gerar mensagem do WhatsApp");
     }
   };
 
@@ -157,7 +158,7 @@ function Vendas() {
       if (error) throw error;
       fetchVendas();
     } catch (err: any) {
-      alert("Erro ao deletar: " + err.message);
+      toast.error("Erro ao deletar: " + err.message);
     }
   };
 
@@ -178,7 +179,7 @@ function Vendas() {
       setSelectedVenda((prev: any) => ({ ...prev, status: newStatus }));
       setVendas((prev) => prev.map((v) => (v.id === id ? { ...v, status: newStatus } : v)));
     } catch (err: any) {
-      alert("Erro ao atualizar status: " + err.message);
+      toast.error("Erro ao atualizar status: " + err.message);
     }
   };
 
@@ -190,7 +191,7 @@ function Vendas() {
   const handleSaveTotal = async () => {
     const val = parseFloat(newTotalValue);
     if (isNaN(val) || val < 0) {
-      alert("Valor inválido");
+      toast.info("Valor inválido");
       return;
     }
     try {
@@ -205,7 +206,7 @@ function Vendas() {
       setVendas((prev) => prev.map((v) => (v.id === selectedVenda.id ? { ...v, valor_total: val } : v)));
       setIsEditingTotal(false);
     } catch (err: any) {
-      alert("Erro ao atualizar valor: " + err.message);
+      toast.error("Erro ao atualizar valor: " + err.message);
     }
   };
 

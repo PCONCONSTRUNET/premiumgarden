@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,7 +122,7 @@ function VendasParceiros() {
 
       fetchVendas();
     } catch (err: any) {
-      alert("Erro ao pagar comissão: " + err.message);
+      toast.error("Erro ao pagar comissão: " + err.message);
     }
   };
 

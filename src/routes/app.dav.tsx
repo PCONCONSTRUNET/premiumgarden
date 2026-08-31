@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -56,7 +57,7 @@ function DAVList() {
       setDavs(data || []);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao buscar orçamentos.");
+      toast.error("Erro ao buscar orçamentos.");
     } finally {
       setLoading(false);
     }
@@ -96,7 +97,7 @@ function DAVList() {
       if (error) throw error;
       fetchDAVs();
     } catch (err: any) {
-      alert("Erro ao deletar: " + err.message);
+      toast.error("Erro ao deletar: " + err.message);
     }
   };
 
@@ -128,7 +129,7 @@ function DAVList() {
       window.open(url, "_blank");
     } catch (err) {
       console.error(err);
-      alert("Erro ao gerar mensagem do WhatsApp");
+      toast.error("Erro ao gerar mensagem do WhatsApp");
     }
   };
 

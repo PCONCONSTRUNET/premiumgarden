@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,7 +152,7 @@ function PDV() {
 
         if (error) {
           console.error(error);
-          alert("Erro ao puxar itens: " + error.message);
+          toast.error("Erro ao puxar itens: " + error.message);
           return;
         }
         if (data && data.length > 0) {
@@ -174,7 +175,7 @@ function PDV() {
           }
           setIsOrcamentoModalOpen(false);
         } else {
-          alert("Nenhum item encontrado.");
+          toast.info("Nenhum item encontrado.");
         }
       } else {
         const { data, error } = await supabase
@@ -184,7 +185,7 @@ function PDV() {
 
         if (error) {
           console.error(error);
-          alert("Erro no banco de dados ao puxar os itens: " + error.message);
+          toast.error("Erro no banco de dados ao puxar os itens: " + error.message);
           return;
         }
 
@@ -208,11 +209,11 @@ function PDV() {
           }
           setIsOrcamentoModalOpen(false);
         } else {
-          alert("Nenhum item encontrado neste orçamento.");
+          toast.info("Nenhum item encontrado neste orçamento.");
         }
       }
     } catch (e: any) {
-      alert("Erro ao puxar itens do orçamento: " + e.message);
+      toast.error("Erro ao puxar itens do orçamento: " + e.message);
     }
   };
 
@@ -226,7 +227,7 @@ function PDV() {
 
   const addToCart = (produto: any) => {
     if (produto.estoque <= 0) {
-      alert("Produto sem estoque!");
+      toast.info("Produto sem estoque!");
       return;
     }
 
@@ -234,7 +235,7 @@ function PDV() {
       const existing = prev.find((i) => i.id === produto.id);
       if (existing) {
         if (existing.q >= produto.estoque) {
-          alert("Estoque insuficiente!");
+          toast.info("Estoque insuficiente!");
           return prev;
         }
         return prev.map((i) =>
@@ -264,7 +265,7 @@ function PDV() {
           const newQ = i.q + delta;
           if (newQ <= 0) return i;
           if (newQ > i.max) {
-            alert("Estoque insuficiente!");
+            toast.info("Estoque insuficiente!");
             return i;
           }
           return { ...i, q: newQ, t: newQ * i.u };
@@ -280,7 +281,7 @@ function PDV() {
         if (i.id === id) {
           if (newQ <= 0) return i;
           if (newQ > i.max) {
-            alert("Estoque insuficiente!");
+            toast.info("Estoque insuficiente!");
             return i;
           }
           return { ...i, q: newQ, t: newQ * i.u };
@@ -411,7 +412,7 @@ function PDV() {
       limparCaixa();
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao finalizar venda: " + err.message);
+      toast.error("Erro ao finalizar venda: " + err.message);
     } finally {
       setLoading(false);
     }

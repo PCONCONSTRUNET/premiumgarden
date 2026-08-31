@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,7 +53,7 @@ function Produtos() {
       setProducts(data || []);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao buscar produtos.");
+      toast.error("Erro ao buscar produtos.");
     } finally {
       setLoading(false);
     }
@@ -75,7 +76,7 @@ function Produtos() {
       if (error) throw error;
       fetchProducts(); // recarrega a lista
     } catch (err: any) {
-      alert("Erro ao deletar: " + err.message);
+      toast.error("Erro ao deletar: " + err.message);
     }
   };
 

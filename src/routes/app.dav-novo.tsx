@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -183,7 +184,7 @@ function NovoDAV() {
           }
         } catch (err: any) {
           console.error(err);
-          alert("Erro ao carregar orçamento: " + err.message);
+          toast.error("Erro ao carregar orçamento: " + err.message);
         } finally {
           setIsFetchingInfo(false);
         }
@@ -276,11 +277,11 @@ function NovoDAV() {
 
   const handleSalvar = async () => {
     if (!cliente.nome) {
-      alert("Preencha o nome do cliente.");
+      toast.error("Preencha o nome do cliente.");
       return;
     }
     if (itens.length === 0 || !itens[0].produto) {
-      alert("Adicione pelo menos um produto.");
+      toast.info("Adicione pelo menos um produto.");
       return;
     }
 
@@ -376,7 +377,7 @@ function NovoDAV() {
       navigate({ to: "/app/dav" });
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao salvar o DAV: " + err.message);
+      toast.error("Erro ao salvar o DAV: " + err.message);
     } finally {
       setLoading(false);
     }

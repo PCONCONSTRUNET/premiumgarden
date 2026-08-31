@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -301,7 +302,7 @@ function Fiscal() {
 
   const handleBuscarIBGE = async () => {
     if (!configEmissao.nomeMunicipio || !configEmissao.uf) {
-      alert("Preencha o Município e a UF primeiro para buscar o código.");
+      toast.error("Preencha o Município e a UF primeiro para buscar o código.");
       return;
     }
     try {
@@ -318,10 +319,10 @@ function Fiscal() {
       if (encontrada) {
         setConfigEmissao((p) => ({ ...p, codigoMunicipio: String(encontrada.codigo_ibge) }));
       } else {
-        alert("Município não encontrado nesta UF. Verifique se o nome está correto (ex: São Paulo).");
+        toast.error("Município não encontrado nesta UF. Verifique se o nome está correto (ex: São Paulo).");
       }
     } catch (err) {
-      alert("Erro ao buscar código IBGE. Tente digitar manualmente.");
+      toast.error("Erro ao buscar código IBGE. Tente digitar manualmente.");
     }
   };
 
@@ -479,7 +480,7 @@ function Fiscal() {
         downloadBase64File(base64, `danfe_${nota.numero}.pdf`, "application/pdf");
       }
     } catch (err: any) {
-      alert("Erro ao baixar DANFE: " + err.message);
+      toast.error("Erro ao baixar DANFE: " + err.message);
     } finally {
       setDownloadingId(null);
     }
@@ -496,7 +497,7 @@ function Fiscal() {
         downloadBase64File(base64, `nfe_${nota.numero}.xml`, "application/xml");
       }
     } catch (err: any) {
-      alert("Erro ao baixar XML: " + err.message);
+      toast.error("Erro ao baixar XML: " + err.message);
     } finally {
       setDownloadingId(null);
     }

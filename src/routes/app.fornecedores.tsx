@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -37,7 +38,7 @@ function Fornecedores() {
       setFornecedores(data || []);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao buscar fornecedores.");
+      toast.error("Erro ao buscar fornecedores.");
     } finally {
       setLoading(false);
     }
@@ -61,7 +62,7 @@ function Fornecedores() {
       if (selected?.id === id) setSelected(null);
       fetchFornecedores();
     } catch (err: any) {
-      alert("Erro ao deletar: " + err.message);
+      toast.error("Erro ao deletar: " + err.message);
     }
   };
 

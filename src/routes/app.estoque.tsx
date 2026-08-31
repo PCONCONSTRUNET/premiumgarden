@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,7 +92,7 @@ function Estoque() {
 
   const handleSalvarMovimentacao = async () => {
     if (!produtoSelecionado || quantidade === 0) {
-      alert("Selecione um produto e informe uma quantidade (diferente de zero).");
+      toast.info("Selecione um produto e informe uma quantidade (diferente de zero).");
       return;
     }
 
@@ -122,7 +123,7 @@ function Estoque() {
       await fetchData();
       setOpenModal(false);
     } catch (err: any) {
-      alert("Erro ao salvar: " + err.message);
+      toast.error("Erro ao salvar: " + err.message);
     } finally {
       setSalvando(false);
     }
@@ -131,7 +132,7 @@ function Estoque() {
   const handleGerarPedidoCompra = async () => {
     const criticos = produtos.filter((p) => Number(p.estoque) <= 10);
     if (criticos.length === 0) {
-      alert("Não há produtos com estoque crítico para gerar pedido!");
+      toast.error("Não há produtos com estoque crítico para gerar pedido!");
       return;
     }
 
@@ -165,10 +166,10 @@ function Estoque() {
       const totalCompra = itens.reduce((acc, curr) => acc + curr.subtotal, 0);
       await supabase.from("compras").update({ valor_total: totalCompra }).eq("id", compra.id);
 
-      alert("Pedido de compra gerado com sucesso! Redirecionando...");
+      toast.success("Pedido de compra gerado com sucesso! Redirecionando...");
       navigate({ to: "/app/compras" });
     } catch (e: any) {
-      alert("Erro ao gerar pedido: " + e.message);
+      toast.error("Erro ao gerar pedido: " + e.message);
     }
   };
 

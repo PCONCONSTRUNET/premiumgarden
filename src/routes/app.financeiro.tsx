@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -117,7 +118,7 @@ function Financeiro() {
 
       fetchFinanceiro();
     } catch (err) {
-      alert("Erro ao dar baixa.");
+      toast.error("Erro ao dar baixa.");
     }
   };
 
@@ -134,12 +135,12 @@ function Financeiro() {
       await supabase.from(tabela).delete().eq("id", id);
       fetchFinanceiro();
     } catch (err) {
-      alert("Erro ao excluir lançamento.");
+      toast.error("Erro ao excluir lançamento.");
     }
   };
 
   const handleSalvarLancamento = async () => {
-    if (!descricao || !valor || !vencimento) return alert("Preencha todos os campos.");
+    if (!descricao || !valor || !vencimento) return toast.error("Preencha todos os campos.");
     setSalvando(true);
     try {
       const tabela = tipoLancamento === "receita" ? "contas_receber" : "contas_pagar";
@@ -161,7 +162,7 @@ function Financeiro() {
       fetchFinanceiro();
     } catch (error) {
       console.error(error);
-      alert("Erro ao salvar lançamento.");
+      toast.error("Erro ao salvar lançamento.");
     } finally {
       setSalvando(false);
     }

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -236,7 +237,7 @@ function ParceiroDashboard() {
       // Recarrega a página para puxar os dados atualizados
       window.location.reload();
     } catch (err: any) {
-      alert("Erro ao concluir o cadastro: " + err.message);
+      toast.error("Erro ao concluir o cadastro: " + err.message);
       setLoading(false);
     }
   };
@@ -326,10 +327,10 @@ function ParceiroDashboard() {
           mensagem: `O parceiro reenviou o pedido #${selectedSaleForDetails.id.substring(0, 6)} para aprovação.`,
         },
       ]);
-      alert("Pedido enviado para o dono com sucesso!");
+      toast.success("Pedido enviado para o dono com sucesso!");
       setIsSaleDetailsOpen(false);
     } catch (err: any) {
-      alert("Erro ao enviar pedido: " + err.message);
+      toast.error("Erro ao enviar pedido: " + err.message);
     } finally {
       setLoadingSaleDetails(false);
     }
@@ -371,10 +372,10 @@ function ParceiroDashboard() {
       }));
       setVendas((prev) => prev.map(v => v.id === selectedSaleForDetails.id ? { ...v, cliente: { ...v.cliente, ...editClientData } } : v));
       
-      alert("Informações do cliente atualizadas!");
+      toast.info("Informações do cliente atualizadas!");
       setIsEditingClient(false);
     } catch (err: any) {
-      alert("Erro ao atualizar cliente: " + err.message);
+      toast.error("Erro ao atualizar cliente: " + err.message);
     } finally {
       setSavingClient(false);
     }
@@ -403,7 +404,7 @@ function ParceiroDashboard() {
             const primeiroNome = nome.split(" ")[0].replace(/[^a-zA-ZÀ-ÿ]/g, "");
             const link = `${window.location.origin}/catalogo?v=${primeiroNome}`;
             navigator.clipboard.writeText(link);
-            alert("Link do catálogo copiado!\n\n" + link);
+            toast.info("Link do catálogo copiado!\n\n" + link);
           }}
         >
           Copiar Link
@@ -611,7 +612,7 @@ function ParceiroDashboard() {
                     setVendas((prev) => prev.filter(v => v.id !== selectedSaleForDetails.id));
                     setIsSaleDetailsOpen(false);
                   } catch (err: any) {
-                    alert("Erro ao excluir pedido: " + err.message);
+                    toast.error("Erro ao excluir pedido: " + err.message);
                   } finally {
                     setDeletingOrder(false);
                   }

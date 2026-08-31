@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -129,7 +130,7 @@ function VendedoresAdmin() {
         setTodasVendas(mappedData);
       } else if (error) {
         console.error("Erro ao buscar vendas:", error);
-        alert("Erro ao buscar vendas dos parceiros: " + error.message);
+        toast.error("Erro ao buscar vendas dos parceiros: " + error.message);
       }
     } catch (e) {
       console.warn("Erro:", e);
@@ -221,10 +222,10 @@ function VendedoresAdmin() {
         }
       }
 
-      alert("Venda aprovada com sucesso! Financeiro e Comissão gerados, e estoque atualizado.");
+      toast.success("Venda aprovada com sucesso! Financeiro e Comissão gerados, e estoque atualizado.");
       fetchData();
     } catch (err: any) {
-      alert("Erro ao aprovar: " + err.message);
+      toast.error("Erro ao aprovar: " + err.message);
     }
   };
 
@@ -241,7 +242,7 @@ function VendedoresAdmin() {
             .eq("id", id);
           fetchData();
         } catch (err: any) {
-          alert("Erro ao rejeitar: " + err.message);
+          toast.error("Erro ao rejeitar: " + err.message);
         }
       },
     });
@@ -260,7 +261,7 @@ function VendedoresAdmin() {
 
     const v = parseFloat(commissionValue.replace(",", "."));
     if (isNaN(v) || v < 0) {
-      alert("Valor numérico inválido.");
+      toast.info("Valor numérico inválido.");
       return;
     }
 
@@ -279,7 +280,7 @@ function VendedoresAdmin() {
       setIsCommissionModalOpen(false);
       fetchData();
     } catch (err: any) {
-      alert("Erro ao salvar configuração: " + err.message);
+      toast.error("Erro ao salvar configuração: " + err.message);
     }
   };
 
@@ -296,7 +297,7 @@ function VendedoresAdmin() {
             .eq("id", vendaId);
           fetchData();
         } catch (err: any) {
-          alert("Erro ao pagar comissão: " + err.message);
+          toast.error("Erro ao pagar comissão: " + err.message);
         }
       },
     });
@@ -337,7 +338,7 @@ function VendedoresAdmin() {
 
           fetchData();
         } catch (err: any) {
-          alert("Erro ao excluir venda: " + err.message);
+          toast.error("Erro ao excluir venda: " + err.message);
         }
       },
     });
@@ -356,7 +357,7 @@ function VendedoresAdmin() {
           setIsSheetOpen(false);
           fetchData();
         } catch (err: any) {
-          alert(
+          toast.error(
             "Erro ao excluir parceiro: " +
               err.message +
               "\n\nVocê precisa rodar o script SQL de deleção no painel do Supabase primeiro!",
@@ -379,7 +380,7 @@ function VendedoresAdmin() {
           if (error) throw error;
           fetchData();
         } catch (err: any) {
-          alert(
+          toast.error(
             "Erro ao rejeitar parceiro: " +
               err.message +
               "\n\nVocê precisa rodar o script SQL de deleção no painel do Supabase primeiro!",

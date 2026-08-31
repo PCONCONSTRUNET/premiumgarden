@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -245,7 +246,7 @@ function Dashboard() {
                   .order("created_at", { ascending: false })
                   .limit(100);
                 if (!data || data.length === 0) {
-                  alert("Nenhuma venda encontrada para exportar.");
+                  toast.info("Nenhuma venda encontrada para exportar.");
                   return;
                 }
                 const rows = [

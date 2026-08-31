@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -57,7 +58,7 @@ function Compras() {
       setCompras(data || []);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao buscar compras.");
+      toast.error("Erro ao buscar compras.");
     } finally {
       setLoading(false);
     }
@@ -80,7 +81,7 @@ function Compras() {
       if (error) throw error;
       fetchCompras();
     } catch (err: any) {
-      alert("Erro ao deletar: " + err.message);
+      toast.error("Erro ao deletar: " + err.message);
     }
   };
 
@@ -116,7 +117,7 @@ function Compras() {
       setSelectedCompra((prev: any) => ({ ...prev, status: newStatus }));
       setCompras((prev) => prev.map((c) => (c.id === id ? { ...c, status: newStatus } : c)));
     } catch (err: any) {
-      alert("Erro ao atualizar status: " + err.message);
+      toast.error("Erro ao atualizar status: " + err.message);
     }
   };
 

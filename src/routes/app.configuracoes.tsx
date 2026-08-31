@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -94,10 +95,10 @@ function Configuracoes() {
 
       setNovoUserNome("");
       setNovoUserEmail("");
-      alert("Usuário convidado com sucesso! Um e-mail foi enviado para ele.");
+      toast.success("Usuário convidado com sucesso! Um e-mail foi enviado para ele.");
       fetchUsers();
     } catch (err: any) {
-      alert("Erro ao adicionar usuário: " + err.message);
+      toast.error("Erro ao adicionar usuário: " + err.message);
     }
   };
 
@@ -112,7 +113,7 @@ function Configuracoes() {
         await supabase.from("usuarios").delete().eq("id", id);
         fetchUsers();
       } catch (err: any) {
-        alert("Erro ao remover usuário: " + err.message);
+        toast.error("Erro ao remover usuário: " + err.message);
       }
     }
   };
@@ -122,9 +123,9 @@ function Configuracoes() {
     try {
       const { error } = await supabase.from("configuracoes").upsert([{ id: 1, ...perfil }]);
       if (error) throw error;
-      alert("Configurações salvas com sucesso!");
+      toast.success("Configurações salvas com sucesso!");
     } catch (err: any) {
-      alert(
+      toast.error(
         "Erro ao salvar configurações: " +
           err.message +
           "\n\nSe a tabela 'configuracoes' não existir no banco, execute o script SQL para criá-la.",
@@ -168,9 +169,9 @@ function Configuracoes() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      alert("Backup baixado com sucesso!");
+      toast.success("Backup baixado com sucesso!");
     } catch (err: any) {
-      alert("Erro ao gerar backup: " + err.message);
+      toast.error("Erro ao gerar backup: " + err.message);
     } finally {
       setIsBackingUp(false);
     }

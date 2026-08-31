@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
@@ -211,7 +212,7 @@ function ParceiroPDV() {
   const submitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientForm.nome) {
-      alert("Por favor, preencha o nome do cliente.");
+      toast.error("Por favor, preencha o nome do cliente.");
       return;
     }
 
@@ -274,7 +275,7 @@ function ParceiroPDV() {
           finalClienteId = clienteData.id;
         } else if (clienteError) {
           console.error("Erro ao criar cliente pelo parceiro:", clienteError);
-          alert("Não foi possível salvar o cliente: " + clienteError.message);
+          toast.error("Não foi possível salvar o cliente: " + clienteError.message);
           setLoading(false);
           return;
         }
@@ -341,7 +342,7 @@ function ParceiroPDV() {
         await supabase.from("vendas_itens").insert(davItensToInsert);
       } else if (davError) {
         console.error("Erro ao gerar DAV:", davError);
-        alert(
+        toast.success(
           "Aviso: O pedido foi enviado, mas o Orçamento (DAV) não pôde ser gerado: " +
             davError.message,
         );
@@ -358,7 +359,7 @@ function ParceiroPDV() {
 
       setIsSuccessModalOpen(true);
     } catch (err: any) {
-      alert("Erro ao enviar venda: " + err.message);
+      toast.error("Erro ao enviar venda: " + err.message);
     } finally {
       setLoading(false);
     }

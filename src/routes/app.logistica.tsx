@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,7 +83,7 @@ function Logistica() {
 
   const handleNovaRota = async () => {
     if (!motoristaRota || !veiculoRota || pedidosSelecionados.length === 0) {
-      alert("Preencha motorista, veículo e selecione pelo menos um pedido.");
+      toast.error("Preencha motorista, veículo e selecione pelo menos um pedido.");
       return;
     }
 
@@ -112,7 +113,7 @@ function Logistica() {
       fetchRotas();
     } catch (err) {
       console.error(err);
-      alert(
+      toast.error(
         "Atenção: Ocorreu um erro ao criar a rota. Se for o primeiro uso, verifique o console.",
       );
     }
@@ -141,7 +142,7 @@ function Logistica() {
       await supabase.from("vendas").update({ status: "Entregue" }).eq("id", id);
       fetchVendas();
     } catch (err) {
-      alert("Erro ao atualizar status.");
+      toast.error("Erro ao atualizar status.");
     }
   };
 
@@ -150,7 +151,7 @@ function Logistica() {
       await supabase.from("vendas").update({ status: "Em Transporte" }).eq("id", id);
       fetchVendas();
     } catch (err) {
-      alert("Erro ao atualizar status.");
+      toast.error("Erro ao atualizar status.");
     }
   };
 
@@ -167,7 +168,7 @@ function Logistica() {
       await supabase.from("vendas").delete().eq("id", id);
       fetchVendas();
     } catch (err) {
-      alert("Erro ao excluir pedido.");
+      toast.error("Erro ao excluir pedido.");
     }
   };
 

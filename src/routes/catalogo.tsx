@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -162,7 +163,7 @@ function PublicCatalogo() {
     e.preventDefault();
     if (cart.length === 0) return;
     if (!empresaData.nome || !empresaData.cnpj) {
-      alert("Preencha os campos obrigatórios (Nome da Empresa e CNPJ).");
+      toast.error("Preencha os campos obrigatórios (Nome da Empresa e CNPJ).");
       return;
     }
 

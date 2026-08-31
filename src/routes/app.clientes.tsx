@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,7 +50,7 @@ function Clientes() {
       setClientes(data || []);
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao buscar clientes.");
+      toast.error("Erro ao buscar clientes.");
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,7 @@ function Clientes() {
       if (error) throw error;
       fetchClientes();
     } catch (err: any) {
-      alert("Erro ao deletar: " + err.message);
+      toast.error("Erro ao deletar: " + err.message);
     }
   };
 

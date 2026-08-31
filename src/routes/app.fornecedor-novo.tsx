@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -31,7 +32,7 @@ function NovoFornecedor() {
 
   const handleSalvar = async () => {
     if (!fornecedor.empresa) {
-      alert("Preencha o nome da empresa.");
+      toast.error("Preencha o nome da empresa.");
       return;
     }
 
@@ -43,7 +44,7 @@ function NovoFornecedor() {
       navigate({ to: "/app/fornecedores" });
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao salvar fornecedor: " + err.message);
+      toast.error("Erro ao salvar fornecedor: " + err.message);
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -87,11 +88,11 @@ function NovaCompra() {
 
   const handleSalvar = async () => {
     if (!fornecedorId) {
-      alert("Selecione um fornecedor.");
+      toast.info("Selecione um fornecedor.");
       return;
     }
     if (itens.length === 0) {
-      alert("Adicione pelo menos um produto.");
+      toast.info("Adicione pelo menos um produto.");
       return;
     }
 
@@ -152,11 +153,11 @@ function NovaCompra() {
         },
       ]);
 
-      alert("Compra finalizada com sucesso!");
+      toast.success("Compra finalizada com sucesso!");
       navigate({ to: "/app/compras" });
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao salvar: " + err.message);
+      toast.error("Erro ao salvar: " + err.message);
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -562,7 +563,7 @@ function PublicCatalogo() {
                   id="cnpj"
                   required
                   value={empresaData.cnpj}
-                  onChange={(e) => setEmpresaData({ ...empresaData, cnpj: e.target.value })}
+                  onChange={(e) => setEmpresaData({ ...empresaData, cnpj: formatCpfCnpj(e.target.value) })}
                   placeholder="00.000.000/0000-00"
                 />
               </div>
@@ -642,7 +643,7 @@ function PublicCatalogo() {
                 <Input
                   id="telefone"
                   value={empresaData.telefone}
-                  onChange={(e) => setEmpresaData({ ...empresaData, telefone: e.target.value })}
+                  onChange={(e) => setEmpresaData({ ...empresaData, telefone: formatPhone(e.target.value) })}
                   placeholder="(00) 00000-0000"
                 />
               </div>

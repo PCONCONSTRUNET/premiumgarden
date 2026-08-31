@@ -79,7 +79,6 @@ const NAV = [
     items: [
       { to: "/app/financeiro", label: "Financeiro", icon: Wallet },
       { to: "/app/logistica", label: "Logística", icon: Map },
-      { to: "/app/fiscal", label: "Fiscal", icon: Receipt },
       { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
     ],
   },

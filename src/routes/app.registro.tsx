@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { cn } from "@/lib/utils";
+import { cn, formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -452,7 +452,7 @@ function RegistroRapido() {
                           <Input
                             placeholder="(00) 00000-0000"
                             value={clienteTelCad}
-                            onChange={(e) => setClienteTelCad(e.target.value)}
+                            onChange={(e) => setClienteTelCad(formatPhone(e.target.value))}
                           />
                         </div>
                         <div className="grid gap-2">
@@ -460,7 +460,7 @@ function RegistroRapido() {
                           <Input
                             placeholder="000.000.000-00"
                             value={clienteCpfCad}
-                            onChange={(e) => setClienteCpfCad(e.target.value)}
+                            onChange={(e) => setClienteCpfCad(formatCpfCnpj(e.target.value))}
                           />
                         </div>
                       </>

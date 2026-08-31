@@ -1,3 +1,4 @@
+import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -531,7 +532,7 @@ function NovaVenda() {
               <Label>CPF / CNPJ</Label>
               <Input
                 value={novoCliente.cpf_cnpj}
-                onChange={(e) => setNovoCliente({ ...novoCliente, cpf_cnpj: e.target.value })}
+                onChange={(e) => setNovoCliente({ ...novoCliente, cpf_cnpj: formatCpfCnpj(e.target.value) })}
                 placeholder="000.000.000-00 ou 00.000.000/0000-00"
               />
             </div>
@@ -539,7 +540,7 @@ function NovaVenda() {
               <Label>Telefone</Label>
               <Input
                 value={novoCliente.telefone}
-                onChange={(e) => setNovoCliente({ ...novoCliente, telefone: e.target.value })}
+                onChange={(e) => setNovoCliente({ ...novoCliente, telefone: formatPhone(e.target.value) })}
                 placeholder="(00) 00000-0000"
               />
             </div>

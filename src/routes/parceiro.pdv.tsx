@@ -1,3 +1,4 @@
+import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
@@ -579,7 +580,7 @@ function ParceiroPDV() {
                   <Input
                     placeholder="(00) 00000-0000"
                     value={clientForm.telefone}
-                    onChange={(e) => setClientForm({ ...clientForm, telefone: e.target.value })}
+                    onChange={(e) => setClientForm({ ...clientForm, telefone: formatPhone(e.target.value) })}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">

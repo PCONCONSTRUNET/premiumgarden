@@ -1,3 +1,4 @@
+import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -86,7 +87,7 @@ function NovoFornecedor() {
               <Label>CPF ou CNPJ (Opcional)</Label>
               <Input
                 value={fornecedor.cpf_cnpj}
-                onChange={(e) => setFornecedor({ ...fornecedor, cpf_cnpj: e.target.value })}
+                onChange={(e) => setFornecedor({ ...fornecedor, cpf_cnpj: formatCpfCnpj(e.target.value) })}
                 placeholder="00.000.000/0001-00"
               />
             </div>
@@ -105,7 +106,7 @@ function NovoFornecedor() {
               <Label>Telefone (Opcional)</Label>
               <Input
                 value={fornecedor.telefone}
-                onChange={(e) => setFornecedor({ ...fornecedor, telefone: e.target.value })}
+                onChange={(e) => setFornecedor({ ...fornecedor, telefone: formatPhone(e.target.value) })}
                 placeholder="(00) 00000-0000"
               />
             </div>

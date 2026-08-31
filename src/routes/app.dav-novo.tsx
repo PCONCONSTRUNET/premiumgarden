@@ -1,3 +1,4 @@
+import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -422,7 +423,7 @@ function NovoDAV() {
               <Label>CNPJ / CPF</Label>
               <Input
                 value={cliente.cnpj}
-                onChange={(e) => setCliente({ ...cliente, cnpj: e.target.value })}
+                onChange={(e) => setCliente({ ...cliente, cnpj: formatCpfCnpj(e.target.value) })}
                 placeholder="00.000.000/0000-00"
               />
             </div>
@@ -481,7 +482,7 @@ function NovoDAV() {
               <Label>Telefone</Label>
               <Input
                 value={cliente.telefone}
-                onChange={(e) => setCliente({ ...cliente, telefone: e.target.value })}
+                onChange={(e) => setCliente({ ...cliente, telefone: formatPhone(e.target.value) })}
                 placeholder="(00) 00000-0000"
               />
             </div>
@@ -501,7 +502,7 @@ function NovoDAV() {
               <Label>CNPJ / CPF</Label>
               <Input
                 value={emissor.cnpj}
-                onChange={(e) => setEmissor({ ...emissor, cnpj: e.target.value })}
+                onChange={(e) => setEmissor({ ...emissor, cnpj: formatCpfCnpj(e.target.value) })}
                 placeholder="00.000.000/0000-00"
               />
             </div>
@@ -517,7 +518,7 @@ function NovoDAV() {
               <Label>Telefone</Label>
               <Input
                 value={emissor.telefone}
-                onChange={(e) => setEmissor({ ...emissor, telefone: e.target.value })}
+                onChange={(e) => setEmissor({ ...emissor, telefone: formatPhone(e.target.value) })}
                 placeholder="(00) 00000-0000"
               />
             </div>

@@ -1,3 +1,4 @@
+import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
@@ -648,14 +649,14 @@ function ParceiroDashboard() {
               <label className="text-sm font-medium">CPF/CNPJ</label>
               <Input 
                 value={editClientData.cpf_cnpj} 
-                onChange={(e) => setEditClientData(p => ({ ...p, cpf_cnpj: e.target.value }))}
+                onChange={(e) => setEditClientData(p => ({ ...p, cpf_cnpj: formatCpfCnpj(e.target.value) }))}
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Telefone</label>
               <Input 
                 value={editClientData.telefone} 
-                onChange={(e) => setEditClientData(p => ({ ...p, telefone: e.target.value }))}
+                onChange={(e) => setEditClientData(p => ({ ...p, telefone: formatPhone(e.target.value) }))}
               />
             </div>
           </div>

@@ -1,3 +1,4 @@
+import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -200,10 +201,6 @@ function Configuracoes() {
             <Cog className="mr-1.5 h-4 w-4" />
             Preferências
           </TabsTrigger>
-          <TabsTrigger value="fiscal">
-            <FileText className="mr-1.5 h-4 w-4" />
-            Fiscal / NFe
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="perfil">
@@ -232,7 +229,7 @@ function Configuracoes() {
                 <Input
                   className="mt-1.5"
                   value={perfil.cnpj || ""}
-                  onChange={(e) => setPerfil((p) => ({ ...p, cnpj: e.target.value }))}
+                  onChange={(e) => setPerfil((p) => ({ ...p, cnpj: formatCpfCnpj(e.target.value) }))}
                 />
               </div>
               <div>
@@ -264,7 +261,7 @@ function Configuracoes() {
                 <Input
                   className="mt-1.5"
                   value={perfil.telefone || ""}
-                  onChange={(e) => setPerfil((p) => ({ ...p, telefone: e.target.value }))}
+                  onChange={(e) => setPerfil((p) => ({ ...p, telefone: formatPhone(e.target.value) }))}
                 />
               </div>
               <div>
@@ -428,11 +425,6 @@ function Configuracoes() {
               ))}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* ── Aba Fiscal / NFe ── */}
-        <TabsContent value="fiscal">
-          <FiscalTab />
         </TabsContent>
       </Tabs>
     </>

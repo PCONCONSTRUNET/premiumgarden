@@ -132,8 +132,8 @@ function NovoCliente() {
     return v.replace(/(\d{5})(\d{3})/, "$1-$2").substring(0, 9);
   };
 
-  const buscarCNPJ = async () => {
-    const cnpj = cliente.cpf_cnpj.replace(/\D/g, "");
+  const buscarCNPJ = async (cnpjValue?: string) => {
+    const cnpj = (cnpjValue ?? cliente.cpf_cnpj).replace(/\D/g, "");
     if (cnpj.length !== 14) return;
     
     setLoadingCnpj(true);
@@ -248,7 +248,7 @@ function NovoCliente() {
                     const formatted = formatCpfCnpj(e.target.value);
                     setCliente({ ...cliente, cpf_cnpj: formatted });
                     if (formatted.replace(/\D/g, "").length === 14) {
-                      buscarCNPJ();
+                      buscarCNPJ(formatted);
                     }
                   }}
                   placeholder="000.000.000-00 ou 00.000.000/0000-00"
@@ -257,7 +257,7 @@ function NovoCliente() {
                   type="button" 
                   variant="outline" 
                   size="icon"
-                  onClick={buscarCNPJ} 
+                  onClick={() => buscarCNPJ(cliente.cpf_cnpj)} 
                   disabled={loadingCnpj || cliente.cpf_cnpj.replace(/\D/g, "").length !== 14}
                   title="Buscar dados do CNPJ"
                 >

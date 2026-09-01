@@ -13,6 +13,7 @@ import { Route as ParceiroRouteImport } from './routes/parceiro'
 import { Route as CatalogoRouteImport } from './routes/catalogo'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ParceiroIndexRouteImport } from './routes/parceiro.index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as ParceiroPdvRouteImport } from './routes/parceiro.pdv'
 import { Route as ParceiroPagamentosRouteImport } from './routes/parceiro.pagamentos'
@@ -20,8 +21,6 @@ import { Route as ParceiroLoginRouteImport } from './routes/parceiro.login'
 import { Route as ParceiroDashboardRouteImport } from './routes/parceiro.dashboard'
 import { Route as ParceiroCatalogoRouteImport } from './routes/parceiro.catalogo'
 import { Route as ParceiroCadastroRouteImport } from './routes/parceiro.cadastro'
-import { Route as ParceiroCatalogoRouteImport } from './routes/parceiro.catalogo'
-import { Route as ParceiroPagamentosRouteImport } from './routes/parceiro.pagamentos'
 import { Route as OrcamentoIdRouteImport } from './routes/orcamento.$id'
 import { Route as DeclaracaoIdRouteImport } from './routes/declaracao.$id'
 import { Route as AppVendedoresRouteImport } from './routes/app.vendedores'
@@ -71,6 +70,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ParceiroIndexRoute = ParceiroIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ParceiroRoute,
+} as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -104,16 +108,6 @@ const ParceiroCatalogoRoute = ParceiroCatalogoRouteImport.update({
 const ParceiroCadastroRoute = ParceiroCadastroRouteImport.update({
   id: '/cadastro',
   path: '/cadastro',
-  getParentRoute: () => ParceiroRoute,
-} as any)
-const ParceiroCatalogoRoute = ParceiroCatalogoRouteImport.update({
-  id: '/catalogo',
-  path: '/catalogo',
-  getParentRoute: () => ParceiroRoute,
-} as any)
-const ParceiroPagamentosRoute = ParceiroPagamentosRouteImport.update({
-  id: '/pagamentos',
-  path: '/pagamentos',
   getParentRoute: () => ParceiroRoute,
 } as any)
 const OrcamentoIdRoute = OrcamentoIdRouteImport.update({
@@ -297,11 +291,11 @@ export interface FileRoutesByFullPath {
   '/parceiro/pagamentos': typeof ParceiroPagamentosRoute
   '/parceiro/pdv': typeof ParceiroPdvRoute
   '/app/': typeof AppIndexRoute
+  '/parceiro/': typeof ParceiroIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/catalogo': typeof CatalogoRoute
-  '/parceiro': typeof ParceiroRouteWithChildren
   '/app/catalogo': typeof AppCatalogoRoute
   '/app/cliente-novo': typeof AppClienteNovoRoute
   '/app/clientes': typeof AppClientesRoute
@@ -337,6 +331,7 @@ export interface FileRoutesByTo {
   '/parceiro/pagamentos': typeof ParceiroPagamentosRoute
   '/parceiro/pdv': typeof ParceiroPdvRoute
   '/app': typeof AppIndexRoute
+  '/parceiro': typeof ParceiroIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -379,6 +374,7 @@ export interface FileRoutesById {
   '/parceiro/pagamentos': typeof ParceiroPagamentosRoute
   '/parceiro/pdv': typeof ParceiroPdvRoute
   '/app/': typeof AppIndexRoute
+  '/parceiro/': typeof ParceiroIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -422,11 +418,11 @@ export interface FileRouteTypes {
     | '/parceiro/pagamentos'
     | '/parceiro/pdv'
     | '/app/'
+    | '/parceiro/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/catalogo'
-    | '/parceiro'
     | '/app/catalogo'
     | '/app/cliente-novo'
     | '/app/clientes'
@@ -462,6 +458,7 @@ export interface FileRouteTypes {
     | '/parceiro/pagamentos'
     | '/parceiro/pdv'
     | '/app'
+    | '/parceiro'
   id:
     | '__root__'
     | '/'
@@ -503,6 +500,7 @@ export interface FileRouteTypes {
     | '/parceiro/pagamentos'
     | '/parceiro/pdv'
     | '/app/'
+    | '/parceiro/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -543,6 +541,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/parceiro/': {
+      id: '/parceiro/'
+      path: '/'
+      fullPath: '/parceiro/'
+      preLoaderRoute: typeof ParceiroIndexRouteImport
+      parentRoute: typeof ParceiroRoute
     }
     '/app/': {
       id: '/app/'
@@ -591,20 +596,6 @@ declare module '@tanstack/react-router' {
       path: '/cadastro'
       fullPath: '/parceiro/cadastro'
       preLoaderRoute: typeof ParceiroCadastroRouteImport
-      parentRoute: typeof ParceiroRoute
-    }
-    '/parceiro/catalogo': {
-      id: '/parceiro/catalogo'
-      path: '/catalogo'
-      fullPath: '/parceiro/catalogo'
-      preLoaderRoute: typeof ParceiroCatalogoRouteImport
-      parentRoute: typeof ParceiroRoute
-    }
-    '/parceiro/pagamentos': {
-      id: '/parceiro/pagamentos'
-      path: '/pagamentos'
-      fullPath: '/parceiro/pagamentos'
-      preLoaderRoute: typeof ParceiroPagamentosRouteImport
       parentRoute: typeof ParceiroRoute
     }
     '/orcamento/$id': {
@@ -875,6 +866,7 @@ interface ParceiroRouteChildren {
   ParceiroLoginRoute: typeof ParceiroLoginRoute
   ParceiroPagamentosRoute: typeof ParceiroPagamentosRoute
   ParceiroPdvRoute: typeof ParceiroPdvRoute
+  ParceiroIndexRoute: typeof ParceiroIndexRoute
 }
 
 const ParceiroRouteChildren: ParceiroRouteChildren = {
@@ -884,6 +876,7 @@ const ParceiroRouteChildren: ParceiroRouteChildren = {
   ParceiroLoginRoute: ParceiroLoginRoute,
   ParceiroPagamentosRoute: ParceiroPagamentosRoute,
   ParceiroPdvRoute: ParceiroPdvRoute,
+  ParceiroIndexRoute: ParceiroIndexRoute,
 }
 
 const ParceiroRouteWithChildren = ParceiroRoute._addFileChildren(

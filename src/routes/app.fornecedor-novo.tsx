@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Search } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Link } from "@tanstack/react-router";
@@ -29,6 +29,36 @@ function NovoFornecedor() {
     cidade: "",
     valor_total: 0,
   });
+
+  const buscarCnpj = async (doc: string) => {
+    const cnpjLimpo = doc.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) return;
+    
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      if (!res.ok) {
+        toast.error("CNPJ não encontrado na Receita Federal.");
+        return;
+      }
+      const data = await res.json();
+      
+      const tel = data.ddd_telefone_1 ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3") : "";
+      const tipoLogradouro = data.descricao_tipo_de_logradouro ? data.descricao_tipo_de_logradouro + " " : "";
+      const cidade = data.municipio ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase() : "";
+      
+      setFornecedor((prev) => ({
+        ...prev,
+        empresa: data.razao_social || prev.empresa,
+        telefone: tel || prev.telefone,
+        endereco: tipoLogradouro + (data.logradouro || "") + (data.numero ? `, ${data.numero}` : "") + (data.bairro ? ` - ${data.bairro}` : ""),
+        cidade: cidade ? `${cidade}/${data.uf || ""}` : prev.cidade,
+      }));
+      toast.success("Dados do fornecedor preenchidos via Receita Federal!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao consultar o CNPJ.");
+    }
+  };
 
   const handleSalvar = async () => {
     if (!fornecedor.empresa) {
@@ -86,11 +116,23 @@ function NovoFornecedor() {
             </div>
             <div className="space-y-2">
               <Label>CPF ou CNPJ (Opcional)</Label>
-              <Input
-                value={fornecedor.cpf_cnpj}
-                onChange={(e) => setFornecedor({ ...fornecedor, cpf_cnpj: formatCpfCnpj(e.target.value) })}
-                placeholder="00.000.000/0001-00"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={fornecedor.cpf_cnpj}
+                  onChange={(e) => setFornecedor({ ...fornecedor, cpf_cnpj: formatCpfCnpj(e.target.value) })}
+                  onBlur={(e) => buscarCnpj(e.target.value)}
+                  placeholder="00.000.000/0001-00"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="px-3 shrink-0"
+                  onClick={() => buscarCnpj(fornecedor.cpf_cnpj)}
+                  title="Buscar dados do CNPJ"
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 

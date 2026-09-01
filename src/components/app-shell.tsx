@@ -189,10 +189,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent/40 p-2.5">
             <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-brand grid place-items-center text-sm font-bold text-primary-foreground">
-              SE
+              PG
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold truncate">Senalandia</p>
+              <p className="text-sm font-semibold truncate">PREMIUM GARDEN</p>
               <p className="text-xs text-sidebar-foreground/60 truncate">Administrador</p>
             </div>
           </div>
@@ -340,9 +340,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-full pl-1 pr-3 py-1 hover:bg-secondary">
                 <div className="h-8 w-8 rounded-full bg-gradient-brand grid place-items-center text-xs font-bold text-primary-foreground">
-                  SE
+                  PG
                 </div>
-                <span className="hidden sm:inline text-sm font-medium">Senalandia</span>
+                <span className="hidden sm:inline text-sm font-medium">PREMIUM GARDEN</span>
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>

@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Save, ArrowLeft, Plus, Trash2, ShoppingCart, Check, ChevronsUpDown } from "lucide-react";
+import { Save, ArrowLeft, Plus, Trash2, ShoppingCart, Check, ChevronsUpDown, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -145,6 +145,40 @@ function NovaVenda() {
     }
 
     await executarSalvamentoVenda(clienteId);
+  };
+
+  const buscarCnpj = async (doc: string) => {
+    const cnpjLimpo = doc.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) return;
+    
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      if (!res.ok) {
+        toast.error("CNPJ não encontrado na Receita Federal.");
+        return;
+      }
+      const data = await res.json();
+      
+      const tel = data.ddd_telefone_1 ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3") : "";
+      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
+      const tipoLogradouro = data.descricao_tipo_de_logradouro ? data.descricao_tipo_de_logradouro + " " : "";
+      const cidade = data.municipio ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase() : "";
+      
+      setNovoCliente((prev) => ({
+        ...prev,
+        nome: data.razao_social || prev.nome,
+        telefone: tel || prev.telefone,
+        cep: cepFmt || prev.cep,
+        endereco: tipoLogradouro + (data.logradouro || ""),
+        numero: data.numero || prev.numero,
+        bairro: data.bairro || prev.bairro,
+        cidade: cidade || prev.cidade,
+        uf: data.uf || prev.uf,
+      }));
+      toast.success("Dados preenchidos via Receita Federal!");
+    } catch (error) {
+      console.error("Erro na busca do CNPJ:", error);
+    }
   };
 
   const handleSalvarNovoCliente = async () => {
@@ -590,11 +624,22 @@ function NovaVenda() {
             </div>
             <div className="space-y-2">
               <Label>CPF / CNPJ</Label>
-              <Input
-                value={novoCliente.cpf_cnpj}
-                onChange={(e) => setNovoCliente({ ...novoCliente, cpf_cnpj: formatCpfCnpj(e.target.value) })}
-                placeholder="000.000.000-00 ou 00.000.000/0000-00"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={novoCliente.cpf_cnpj}
+                  onChange={(e) => setNovoCliente({ ...novoCliente, cpf_cnpj: formatCpfCnpj(e.target.value) })}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="px-3 shrink-0"
+                  onClick={() => buscarCnpj(novoCliente.cpf_cnpj)}
+                  title="Buscar dados do CNPJ"
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Telefone</Label>

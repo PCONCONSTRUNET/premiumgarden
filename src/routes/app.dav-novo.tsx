@@ -486,12 +486,23 @@ function NovoDAV() {
             </div>
             <div className="space-y-2">
               <Label>CNPJ / CPF</Label>
-              <Input
-                value={cliente.cnpj}
-                onChange={(e) => setCliente({ ...cliente, cnpj: formatCpfCnpj(e.target.value) })}
-                onBlur={(e) => buscarCnpj(e.target.value, setCliente)}
-                placeholder="00.000.000/0000-00"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={cliente.cnpj}
+                  onChange={(e) => setCliente({ ...cliente, cnpj: formatCpfCnpj(e.target.value) })}
+                  onBlur={(e) => buscarCnpj(e.target.value, setCliente)}
+                  placeholder="00.000.000/0000-00"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="px-3 shrink-0"
+                  onClick={() => buscarCnpj(cliente.cnpj, setCliente)}
+                  title="Buscar dados do CNPJ"
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>CEP</Label>
@@ -566,12 +577,23 @@ function NovoDAV() {
             </div>
             <div className="space-y-2">
               <Label>CNPJ / CPF</Label>
-              <Input
-                value={emissor.cnpj}
-                onChange={(e) => setEmissor({ ...emissor, cnpj: formatCpfCnpj(e.target.value) })}
-                onBlur={(e) => buscarCnpj(e.target.value, setEmissor)}
-                placeholder="00.000.000/0000-00"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={emissor.cnpj}
+                  onChange={(e) => setEmissor({ ...emissor, cnpj: formatCpfCnpj(e.target.value) })}
+                  onBlur={(e) => buscarCnpj(e.target.value, setEmissor)}
+                  placeholder="00.000.000/0000-00"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="px-3 shrink-0"
+                  onClick={() => buscarCnpj(emissor.cnpj, setEmissor)}
+                  title="Buscar dados do CNPJ"
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Endereço Completo</Label>

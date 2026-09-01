@@ -105,7 +105,7 @@ function ParceiroLayout() {
               className={cn(
                 "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all",
                 pathname === it.to
-                  ? "bg-brand text-white shadow-md"
+                  ? "bg-gradient-brand text-primary-foreground shadow-md"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
               )}
             >
@@ -150,7 +150,7 @@ function ParceiroLayout() {
                   className={cn(
                     "flex items-center gap-4 rounded-xl px-4 py-3.5 text-base font-semibold transition-all",
                     pathname === it.to
-                      ? "bg-brand text-white shadow-md"
+                      ? "bg-gradient-brand text-primary-foreground shadow-md"
                       : "text-slate-600 hover:bg-slate-100",
                   )}
                 >

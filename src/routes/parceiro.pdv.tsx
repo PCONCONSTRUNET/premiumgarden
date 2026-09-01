@@ -625,7 +625,13 @@ function ParceiroPDV() {
                     <Input
                       placeholder="Apenas números (CPF/CNPJ)"
                       value={clientForm.documento}
-                      onChange={(e) => setClientForm({ ...clientForm, documento: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setClientForm({ ...clientForm, documento: val });
+                        if (val.replace(/\D/g, "").length === 14) {
+                          buscarCnpj(val);
+                        }
+                      }}
                     />
                     <Button 
                       type="button" 

@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Link } from "@tanstack/react-router";
@@ -28,6 +28,7 @@ function NovoCliente() {
   const { id } = Route.useSearch();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
 
   const [cliente, setCliente] = useState({
     nome: "",
@@ -131,6 +132,37 @@ function NovoCliente() {
     return v.replace(/(\d{5})(\d{3})/, "$1-$2").substring(0, 9);
   };
 
+  const buscarCNPJ = async () => {
+    const cnpj = cliente.cpf_cnpj.replace(/\D/g, "");
+    if (cnpj.length !== 14) return;
+    
+    setLoadingCnpj(true);
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!response.ok) {
+        throw new Error("CNPJ não encontrado ou erro na API");
+      }
+      const data = await response.json();
+      
+      setCliente((prev) => ({
+        ...prev,
+        nome: data.razao_social || data.nome_fantasia || prev.nome,
+        telefone: formatTelefone(data.ddd_telefone_1 || data.ddd_telefone_2 || prev.telefone),
+        cep: formatCep(data.cep || prev.cep),
+        endereco: data.logradouro || prev.endereco,
+        numero: data.numero || prev.numero,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.municipio || prev.cidade,
+        uf: data.uf || prev.uf,
+      }));
+      toast.success("Dados do CNPJ preenchidos com sucesso!");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao buscar CNPJ");
+    } finally {
+      setLoadingCnpj(false);
+    }
+  };
+
   const handleSalvar = async () => {
     if (!cliente.nome) {
       toast.error("Preencha o nome do cliente.");
@@ -209,13 +241,29 @@ function NovoCliente() {
             </div>
             <div className="space-y-2">
               <Label>CPF / CNPJ (Opcional)</Label>
-              <Input
-                value={cliente.cpf_cnpj}
-                onChange={(e) =>
-                  setCliente({ ...cliente, cpf_cnpj: formatCpfCnpj(e.target.value) })
-                }
-                placeholder="000.000.000-00 ou 00.000.000/0000-00"
-              />
+              <div className="flex space-x-2">
+                <Input
+                  value={cliente.cpf_cnpj}
+                  onChange={(e) => {
+                    const formatted = formatCpfCnpj(e.target.value);
+                    setCliente({ ...cliente, cpf_cnpj: formatted });
+                    if (formatted.replace(/\D/g, "").length === 14) {
+                      buscarCNPJ();
+                    }
+                  }}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="icon"
+                  onClick={buscarCNPJ} 
+                  disabled={loadingCnpj || cliente.cpf_cnpj.replace(/\D/g, "").length !== 14}
+                  title="Buscar dados do CNPJ"
+                >
+                  {loadingCnpj ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"/> : <Search className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           </div>
 

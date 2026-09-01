@@ -119,7 +119,13 @@ function NovoFornecedor() {
               <div className="flex gap-2">
                 <Input
                   value={fornecedor.cpf_cnpj}
-                  onChange={(e) => setFornecedor({ ...fornecedor, cpf_cnpj: formatCpfCnpj(e.target.value) })}
+                  onChange={(e) => {
+                    const formatted = formatCpfCnpj(e.target.value);
+                    setFornecedor({ ...fornecedor, cpf_cnpj: formatted });
+                    if (formatted.replace(/\D/g, "").length === 14) {
+                      buscarCnpj(formatted);
+                    }
+                  }}
                   onBlur={(e) => buscarCnpj(e.target.value)}
                   placeholder="00.000.000/0001-00"
                 />

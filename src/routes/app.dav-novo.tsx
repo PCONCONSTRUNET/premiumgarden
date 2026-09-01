@@ -489,7 +489,13 @@ function NovoDAV() {
               <div className="flex gap-2">
                 <Input
                   value={cliente.cnpj}
-                  onChange={(e) => setCliente({ ...cliente, cnpj: formatCpfCnpj(e.target.value) })}
+                  onChange={(e) => {
+                    const formatted = formatCpfCnpj(e.target.value);
+                    setCliente({ ...cliente, cnpj: formatted });
+                    if (formatted.replace(/\D/g, "").length === 14) {
+                      buscarCnpj(formatted, setCliente);
+                    }
+                  }}
                   onBlur={(e) => buscarCnpj(e.target.value, setCliente)}
                   placeholder="00.000.000/0000-00"
                 />
@@ -580,7 +586,13 @@ function NovoDAV() {
               <div className="flex gap-2">
                 <Input
                   value={emissor.cnpj}
-                  onChange={(e) => setEmissor({ ...emissor, cnpj: formatCpfCnpj(e.target.value) })}
+                  onChange={(e) => {
+                    const formatted = formatCpfCnpj(e.target.value);
+                    setEmissor({ ...emissor, cnpj: formatted });
+                    if (formatted.replace(/\D/g, "").length === 14) {
+                      buscarCnpj(formatted, setEmissor);
+                    }
+                  }}
                   onBlur={(e) => buscarCnpj(e.target.value, setEmissor)}
                   placeholder="00.000.000/0000-00"
                 />

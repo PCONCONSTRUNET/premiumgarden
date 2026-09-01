@@ -679,7 +679,13 @@ function NovaVenda() {
               <div className="flex gap-2">
                 <Input
                   value={novoCliente.cpf_cnpj}
-                  onChange={(e) => setNovoCliente({ ...novoCliente, cpf_cnpj: formatCpfCnpj(e.target.value) })}
+                  onChange={(e) => {
+                    const formatted = formatCpfCnpj(e.target.value);
+                    setNovoCliente({ ...novoCliente, cpf_cnpj: formatted });
+                    if (formatted.replace(/\D/g, "").length === 14) {
+                      buscarCnpj(formatted);
+                    }
+                  }}
                   placeholder="000.000.000-00 ou 00.000.000/0000-00"
                 />
                 <Button 

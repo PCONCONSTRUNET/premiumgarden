@@ -42,12 +42,12 @@ function DeclaracaoConteudo() {
   if (!venda) return <div className="p-8 text-center font-sans">Carregando formulário...</div>;
 
   const remetente = {
-    nome: config?.razao_social || "Douglas de Almeida",
-    endereco: config?.endereco || "Rua Bom Jesus, 267 - Paraisolandia",
-    cidade: "Charqueada",
-    uf: "SP",
-    cep: "13.519-008",
-    cpf_cnpj: config?.cnpj || "63.874.628/0001-36",
+    nome: "",
+    endereco: "",
+    cidade: "",
+    uf: "",
+    cep: "",
+    cpf_cnpj: "",
   };
 
   const destinatario = venda.clientes || {};

@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/app/compras")({
-  head: () => ({ meta: [{ title: "Compras — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Compras — PREMIUM GARDEN" }] }),
   component: Compras,
 });
 

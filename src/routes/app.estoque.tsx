@@ -39,7 +39,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/app/estoque")({
-  head: () => ({ meta: [{ title: "Estoque — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Estoque — PREMIUM GARDEN" }] }),
   component: Estoque,
 });
 

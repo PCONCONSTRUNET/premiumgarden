@@ -13,7 +13,7 @@ import { Link } from "@tanstack/react-router";
 import { CnpjLoader } from "@/components/cnpj-loader";
 
 export const Route = createFileRoute("/app/fornecedor-novo")({
-  head: () => ({ meta: [{ title: "Novo Fornecedor — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Novo Fornecedor — PREMIUM GARDEN" }] }),
   component: NovoFornecedor,
 });
 

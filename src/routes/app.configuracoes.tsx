@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { testarConexao, BRASIL_NFE_TOKEN, labelAmbiente } from "@/lib/brasilnfe";
 
 export const Route = createFileRoute("/app/configuracoes")({
-  head: () => ({ meta: [{ title: "Configurações — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Configurações — PREMIUM GARDEN" }] }),
   component: Configuracoes,
 });
 
@@ -193,7 +193,7 @@ function Configuracoes() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `backup_Premium Garden_${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `backup_PREMIUM GARDEN_${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -349,7 +349,7 @@ function Configuracoes() {
                   <Input
                     value={novoUserEmail}
                     onChange={(e) => setNovoUserEmail(e.target.value)}
-                    placeholder="joao@Premium Garden.com.br"
+                    placeholder="joao@PREMIUM GARDEN.com.br"
                     type="email"
                   />
                 </div>

@@ -40,7 +40,7 @@ export const Route = createFileRoute("/app/dav-novo")({
   validateSearch: (search: Record<string, unknown>): { id?: string } => ({
     id: search.id as string | undefined,
   }),
-  head: () => ({ meta: [{ title: "Novo DAV — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Novo DAV — PREMIUM GARDEN" }] }),
   component: NovoDAV,
 });
 
@@ -56,7 +56,7 @@ function NovoDAV() {
 
   const [cliente, setCliente] = useState({ nome: "", cnpj: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", uf: "", telefone: "" });
   const [emissor, setEmissor] = useState({
-    nome: "Premium Garden",
+    nome: "PREMIUM GARDEN",
     cnpj: "",
     endereco: "",
     telefone: "",
@@ -186,7 +186,7 @@ function NovoDAV() {
           .single();
         if (data && !error) {
           setEmissor({
-            nome: data.razao_social || "Premium Garden",
+            nome: data.razao_social || "PREMIUM GARDEN",
             cnpj: data.cnpj || "",
             endereco: data.endereco || "",
             telefone: data.telefone || "",
@@ -222,7 +222,7 @@ function NovoDAV() {
               telefone: dav.cliente_telefone || "",
             });
             setEmissor({
-              nome: dav.emissor_nome || "Premium Garden",
+              nome: dav.emissor_nome || "PREMIUM GARDEN",
               cnpj: dav.emissor_cnpj || "",
               endereco: dav.emissor_endereco || "",
               telefone: dav.emissor_telefone || "",
@@ -594,7 +594,7 @@ function NovoDAV() {
               <Input
                 value={emissor.nome}
                 onChange={(e) => setEmissor({ ...emissor, nome: e.target.value })}
-                placeholder="Ex: Premium Garden Vasos"
+                placeholder="Ex: PREMIUM GARDEN Vasos"
               />
             </div>
             <div className="space-y-2">

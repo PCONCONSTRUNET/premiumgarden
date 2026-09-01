@@ -81,35 +81,35 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "google", content: "notranslate" },
-      { title: "Premium Garden ERP — Sistema Interno" },
+      { title: "PREMIUM GARDEN — Sistema Interno" },
       {
         name: "description",
         content:
-          "Sistema ERP interno da Premium Garden para gestão de estoque, vendas, financeiro e logística.",
+          "Sistema ERP interno da PREMIUM GARDEN para gestão de estoque, vendas, financeiro e logística.",
       },
-      { property: "og:title", content: "Premium Garden ERP — Sistema Interno" },
+      { property: "og:title", content: "PREMIUM GARDEN — Sistema Interno" },
       {
         property: "og:description",
         content:
-          "Sistema ERP interno da Premium Garden para gestão de estoque, vendas, financeiro e logística.",
+          "Sistema ERP interno da PREMIUM GARDEN para gestão de estoque, vendas, financeiro e logística.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Premium Garden ERP — Sistema Interno" },
+      { name: "twitter:title", content: "PREMIUM GARDEN — Sistema Interno" },
       {
         name: "twitter:description",
         content:
-          "Sistema ERP interno da Premium Garden para gestão de estoque, vendas, financeiro e logística.",
+          "Sistema ERP interno da PREMIUM GARDEN para gestão de estoque, vendas, financeiro e logística.",
       },
       {
         property: "og:image",
         content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/b1puNI2cwJQSkSR9bqtGJNLTTeo2/social-images/social-1781777493114-Premium Garden.webp",
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/b1puNI2cwJQSkSR9bqtGJNLTTeo2/social-images/social-1781777493114-PREMIUM GARDEN.webp",
       },
       {
         name: "twitter:image",
         content:
-          "https://storage.googleapis.com/gpt-engineer-file-uploads/b1puNI2cwJQSkSR9bqtGJNLTTeo2/social-images/social-1781777493114-Premium Garden.webp",
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/b1puNI2cwJQSkSR9bqtGJNLTTeo2/social-images/social-1781777493114-PREMIUM GARDEN.webp",
       },
     ],
     links: [

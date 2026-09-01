@@ -30,7 +30,7 @@ import { supabase } from "@/lib/supabase";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
 export const Route = createFileRoute("/app/logistica")({
-  head: () => ({ meta: [{ title: "Logística — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Logística — PREMIUM GARDEN" }] }),
   component: Logistica,
 });
 

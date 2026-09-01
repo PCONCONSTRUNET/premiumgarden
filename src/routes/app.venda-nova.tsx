@@ -38,7 +38,7 @@ import {
 import { CnpjLoader } from "@/components/cnpj-loader";
 
 export const Route = createFileRoute("/app/venda-nova")({
-  head: () => ({ meta: [{ title: "Nova Venda — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Nova Venda — PREMIUM GARDEN" }] }),
   component: NovaVenda,
 });
 

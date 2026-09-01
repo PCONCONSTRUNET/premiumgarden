@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/vendas-produtos")({
-  head: () => ({ meta: [{ title: "Desempenho de Produtos — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Desempenho de Produtos — PREMIUM GARDEN" }] }),
   component: VendasProdutos,
 });
 

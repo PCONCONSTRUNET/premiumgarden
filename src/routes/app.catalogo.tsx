@@ -31,7 +31,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 
 export const Route = createFileRoute("/app/catalogo")({
-  head: () => ({ meta: [{ title: "Catálogo Digital — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Catálogo Digital — PREMIUM GARDEN" }] }),
   component: Catalogo,
 });
 
@@ -57,14 +57,14 @@ function Catalogo() {
 
   const handleShare = (nome: string) => {
     const text = encodeURIComponent(
-      `Confira nosso produto: *${nome}* na Premium Garden!\nAcesse nosso catálogo: ${window.location.origin}/catalogo`,
+      `Confira nosso produto: *${nome}* na PREMIUM GARDEN!\nAcesse nosso catálogo: ${window.location.origin}/catalogo`,
     );
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
   const handleShareCatalog = () => {
     const text = encodeURIComponent(
-      `Veja nosso catálogo completo de produtos Premium Garden: ${window.location.origin}/catalogo`,
+      `Veja nosso catálogo completo de produtos PREMIUM GARDEN: ${window.location.origin}/catalogo`,
     );
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
@@ -122,7 +122,7 @@ function Catalogo() {
     let yPos = 15;
     doc.setFontSize(18);
     doc.setTextColor(22, 163, 74);
-    doc.text("Catálogo de Produtos — Premium Garden", margin, yPos);
+    doc.text("Catálogo de Produtos — PREMIUM GARDEN", margin, yPos);
     yPos += 12;
 
     const categorias = Array.from(new Set(filtrados.map((p) => p.categoria || "Outros")));
@@ -222,7 +222,7 @@ function Catalogo() {
       if (yPos > pageHeight - 10) { doc.addPage(); yPos = 15; }
     }
 
-    doc.save("catalogo-Premium Garden.pdf");
+    doc.save("catalogo-PREMIUM GARDEN.pdf");
   };
 
   const categoriasUnicas = [

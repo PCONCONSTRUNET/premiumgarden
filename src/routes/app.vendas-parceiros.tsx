@@ -33,7 +33,7 @@ import { supabase } from "@/lib/supabase";
 import { Search, CheckCircle, Store, Banknote } from "lucide-react";
 
 export const Route = createFileRoute("/app/vendas-parceiros")({
-  head: () => ({ meta: [{ title: "Vendas Parceiros — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Vendas Parceiros — PREMIUM GARDEN" }] }),
   component: VendasParceiros,
 });
 

@@ -30,7 +30,7 @@ export const Route = createFileRoute("/")({
       });
     }
   },
-  head: () => ({ meta: [{ title: "Entrar — Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Entrar — PREMIUM GARDEN" }] }),
   component: Login,
 });
 
@@ -97,7 +97,7 @@ function Login() {
       <div className="relative z-10 w-full max-w-[420px] px-6">
         {/* Logo centered above card */}
         <div className="flex flex-col items-center mb-8">
-          <img src={premiumGardenLogo} alt="Premium Garden" className="h-36 w-auto object-contain drop-shadow-xl" />
+          <img src={premiumGardenLogo} alt="PREMIUM GARDEN" className="h-36 w-auto object-contain drop-shadow-xl" />
         </div>
 
         {/* Card */}
@@ -122,7 +122,7 @@ function Login() {
               <Input
                 id="email"
                 type="email"
-                placeholder="usuario@Premium Garden.com.br"
+                placeholder="usuario@PREMIUM GARDEN.com.br"
                 {...register("email")}
                 className={`h-11 border-[#e5e7eb] focus:border-[#4a7c2a] focus:ring-[#4a7c2a]/20 ${errors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""}`}
               />
@@ -174,7 +174,7 @@ function Login() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-[10px] text-[#9ca3af] tracking-wide">
-          Premium Garden Distribuidora de Vasos e Acessórios Ltda · Sistema Interno
+          PREMIUM GARDEN Distribuidora de Vasos e Acessórios Ltda · Sistema Interno
         </p>
       </div>
     </div>

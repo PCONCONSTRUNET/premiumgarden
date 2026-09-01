@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/command";
 
 export const Route = createFileRoute("/app/registro")({
-  head: () => ({ meta: [{ title: "Registro Rapido - Premium Garden ERP" }] }),
+  head: () => ({ meta: [{ title: "Registro Rapido - PREMIUM GARDEN" }] }),
   component: RegistroRapido,
 });
 

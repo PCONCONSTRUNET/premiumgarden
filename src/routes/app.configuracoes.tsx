@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Database, Shield, Users, User, Settings as Cog, Plus, Trash2, FileText, CheckCircle2, XCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { Database, Shield, Users, User, Settings as Cog, Plus, Trash2, FileText, CheckCircle2, XCircle, Loader2, Eye, EyeOff, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { supabase } from "@/lib/supabase";
@@ -137,6 +137,36 @@ function Configuracoes() {
 
   const [isBackingUp, setIsBackingUp] = useState(false);
 
+  const buscarCnpj = async (doc: string) => {
+    const cnpjLimpo = doc.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) return;
+    
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      if (!res.ok) {
+        toast.error("CNPJ não encontrado na Receita Federal.");
+        return;
+      }
+      const data = await res.json();
+      
+      const tel = data.ddd_telefone_1 ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3") : "";
+      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
+      const tipoLogradouro = data.descricao_tipo_de_logradouro ? data.descricao_tipo_de_logradouro + " " : "";
+      const cidade = data.municipio ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase() : "";
+      
+      setPerfil((prev: any) => ({
+        ...prev,
+        razao_social: data.razao_social || prev.razao_social,
+        telefone: tel || prev.telefone,
+        endereco: tipoLogradouro + (data.logradouro || "") + (data.numero ? `, ${data.numero}` : "") + (data.bairro ? ` - ${data.bairro}` : "") + (cidade ? ` - ${cidade}/${data.uf || ""}` : ""),
+      }));
+      toast.success("Dados da empresa preenchidos via Receita Federal!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao consultar o CNPJ.");
+    }
+  };
+
   const handleBackup = async () => {
     setIsBackingUp(true);
     try {
@@ -227,11 +257,22 @@ function Configuracoes() {
               </div>
               <div>
                 <Label>CNPJ</Label>
-                <Input
-                  className="mt-1.5"
-                  value={perfil.cnpj || ""}
-                  onChange={(e) => setPerfil((p) => ({ ...p, cnpj: formatCpfCnpj(e.target.value) }))}
-                />
+                <div className="flex gap-2 mt-1.5">
+                  <Input
+                    value={perfil.cnpj || ""}
+                    onChange={(e) => setPerfil((p) => ({ ...p, cnpj: formatCpfCnpj(e.target.value) }))}
+                    onBlur={(e) => buscarCnpj(e.target.value)}
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="px-3 shrink-0"
+                    onClick={() => buscarCnpj(perfil.cnpj)}
+                    title="Buscar dados do CNPJ"
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div>
                 <Label>Inscrição Estadual</Label>

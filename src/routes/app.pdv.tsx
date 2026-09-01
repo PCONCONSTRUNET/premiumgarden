@@ -320,14 +320,14 @@ function PDV() {
       let nextNumero = 1;
       const { data: maxVenda } = await supabase
         .from("vendas")
-        .select("numero")
-        .not("numero", "is", null)
-        .order("numero", { ascending: false })
+        .select("numero_venda")
+        .not("numero_venda", "is", null)
+        .order("numero_venda", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (maxVenda && maxVenda.numero) {
-        nextNumero = Number(maxVenda.numero) + 1;
+      if (maxVenda && maxVenda.numero_venda) {
+        nextNumero = Number(maxVenda.numero_venda) + 1;
       }
 
       // Cria a venda
@@ -341,7 +341,7 @@ function PDV() {
             desconto_valor: descontoValor,
             condicao_pagamento: metodoPagamento === "Boleto" ? `Boleto - ${condicaoPagamento}` : metodoPagamento,
             cliente_id: clienteSelecionado?.id === "avulso" ? null : clienteSelecionado?.id || null,
-            numero: nextNumero,
+            numero_venda: nextNumero,
           },
         ])
         .select()

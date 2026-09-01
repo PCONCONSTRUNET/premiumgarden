@@ -99,6 +99,41 @@ function NovoDAV() {
     setItens(itens.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
   };
 
+  const buscarCnpj = async (doc: string, setFn: React.Dispatch<React.SetStateAction<any>>) => {
+    const cnpjLimpo = doc.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) return;
+    
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      if (!res.ok) {
+        toast.error("CNPJ não encontrado na Receita Federal.");
+        return;
+      }
+      const data = await res.json();
+      
+      const tel = data.ddd_telefone_1 ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3") : "";
+      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
+      const tipoLogradouro = data.descricao_tipo_de_logradouro ? data.descricao_tipo_de_logradouro + " " : "";
+      const cidade = data.municipio ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase() : "";
+      
+      setFn((prev: any) => ({
+        ...prev,
+        nome: data.razao_social || prev.nome,
+        telefone: tel || prev.telefone,
+        cep: cepFmt || prev.cep,
+        endereco: tipoLogradouro + (data.logradouro || ""),
+        numero: data.numero || prev.numero,
+        bairro: data.bairro || prev.bairro,
+        cidade: cidade || prev.cidade,
+        uf: data.uf || prev.uf,
+      }));
+      toast.success("Dados preenchidos via Receita Federal!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao consultar o CNPJ.");
+    }
+  };
+
   const handleSearchByCodigo = (id: number, codigoBusca: string) => {
     if (!codigoBusca.trim()) return;
     const p = produtos.find(
@@ -454,6 +489,7 @@ function NovoDAV() {
               <Input
                 value={cliente.cnpj}
                 onChange={(e) => setCliente({ ...cliente, cnpj: formatCpfCnpj(e.target.value) })}
+                onBlur={(e) => buscarCnpj(e.target.value, setCliente)}
                 placeholder="00.000.000/0000-00"
               />
             </div>
@@ -533,6 +569,7 @@ function NovoDAV() {
               <Input
                 value={emissor.cnpj}
                 onChange={(e) => setEmissor({ ...emissor, cnpj: formatCpfCnpj(e.target.value) })}
+                onBlur={(e) => buscarCnpj(e.target.value, setEmissor)}
                 placeholder="00.000.000/0000-00"
               />
             </div>

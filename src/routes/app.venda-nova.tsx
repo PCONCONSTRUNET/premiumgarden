@@ -58,6 +58,8 @@ function NovaVenda() {
   const [quantidade, setQuantidade] = useState(1);
   const [openProduto, setOpenProduto] = useState(false);
   const [descontoValor, setDescontoValor] = useState(0);
+  const [descontoPercentual, setDescontoPercentual] = useState(0);
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [freteValor, setFreteValor] = useState(0);
 
   // Payment State
@@ -220,9 +222,14 @@ function NovaVenda() {
 
   const executarSalvamentoVenda = async (idDoCliente: string) => {
     setLoading(true);
+    // Cálculos do Resumo
+    const valorTotal = itens.reduce((acc, i) => acc + i.subtotal, 0);
+    const valorDescontoPerc = (valorTotal * descontoPercentual) / 100;
+    const totalComDesconto = Math.max(0, valorTotal - descontoValor - valorDescontoPerc);
     try {
       const subtotal = itens.reduce((acc, i) => acc + i.subtotal, 0);
-      const totalVenda = subtotal - descontoValor + freteValor;
+      const valDescontoPerc = (subtotal * descontoPercentual) / 100;
+      const totalVenda = subtotal - descontoValor - valDescontoPerc + freteValor;
 
       // Pega o último número gerado para evitar pulos
       let nextNumero = 1;
@@ -524,7 +531,7 @@ function NovaVenda() {
                 <span className="font-semibold">R$ {valorTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm items-center">
-                <span className="text-muted-foreground">Descontos</span>
+                <span className="text-muted-foreground">Descontos Fixos</span>
                 <div className="flex items-center gap-1 font-semibold text-destructive">
                   <span>- R$</span>
                   <input
@@ -537,11 +544,19 @@ function NovaVenda() {
                   />
                 </div>
               </div>
+              {descontoPercentual > 0 && (
+                <div className="flex justify-between text-sm items-center">
+                  <span className="text-muted-foreground">Desconto {metodoPagamento} ({descontoPercentual}%)</span>
+                  <div className="flex items-center gap-1 font-semibold text-destructive">
+                    <span>- R$ {valorDescontoPerc.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
               <div className="h-px w-full bg-border my-2" />
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-lg">Total</span>
                 <span className="font-display text-2xl font-bold text-brand">
-                  R$ {Math.max(0, valorTotal - descontoValor).toFixed(2)}
+                  R$ {totalComDesconto.toFixed(2)}
                 </span>
               </div>
               <div className="h-px w-full bg-border my-4" />
@@ -551,7 +566,10 @@ function NovaVenda() {
                 </p>
                 <div className="grid grid-cols-4 gap-2">
                   <Button
-                    onClick={() => setMetodoPagamento("Dinheiro")}
+                    onClick={() => {
+                      setMetodoPagamento("Dinheiro");
+                      setIsDiscountModalOpen(true);
+                    }}
                     variant="outline"
                     className={`h-16 flex-col gap-1 ${metodoPagamento === "Dinheiro" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
                   >
@@ -567,7 +585,10 @@ function NovaVenda() {
                     <span className="text-[10px] sm:text-xs">Cartão</span>
                   </Button>
                   <Button
-                    onClick={() => setMetodoPagamento("Pix")}
+                    onClick={() => {
+                      setMetodoPagamento("Pix");
+                      setIsDiscountModalOpen(true);
+                    }}
                     variant="outline"
                     className={`h-16 flex-col gap-1 ${metodoPagamento === "Pix" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
                   >
@@ -601,6 +622,39 @@ function NovaVenda() {
           </Card>
         </div>
       </div>
+
+      {/* Modal para criar novo cliente on-the-fly */}
+      <Dialog open={isDiscountModalOpen} onOpenChange={setIsDiscountModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Desconto (%)</DialogTitle>
+            <DialogDescription>
+              Aplicar porcentagem de desconto para pagamento via {metodoPagamento}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Desconto (%)</Label>
+            <div className="flex items-center gap-2 mt-2">
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                value={descontoPercentual}
+                onChange={(e) => setDescontoPercentual(parseFloat(e.target.value) || 0)}
+              />
+              <span className="text-xl">%</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDiscountModalOpen(false)}>
+              Fechar
+            </Button>
+            <Button onClick={() => setIsDiscountModalOpen(false)}>
+              Aplicar Desconto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal para criar novo cliente on-the-fly */}
       <Dialog open={openModalCliente} onOpenChange={setOpenModalCliente}>

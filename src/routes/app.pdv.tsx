@@ -4,12 +4,14 @@ import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Search,
@@ -35,6 +37,8 @@ function PDV() {
   const [loading, setLoading] = useState(false);
   const [metodoPagamento, setMetodoPagamento] = useState("Cartão");
   const [descontoValor, setDescontoValor] = useState(0);
+  const [descontoPercentual, setDescontoPercentual] = useState(0);
+  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [condicaoPagamento, setCondicaoPagamento] = useState("");
 
   const [orcamentos, setOrcamentos] = useState<any[]>([]);
@@ -309,7 +313,8 @@ function PDV() {
   };
 
   const subtotal = cart.reduce((s, i) => s + i.t, 0);
-  const totalPagamento = Math.max(0, subtotal - descontoValor);
+  const valorDescontoPerc = (subtotal * descontoPercentual) / 100;
+  const totalPagamento = Math.max(0, subtotal - descontoValor - valorDescontoPerc);
 
   const handleFinalizar = async () => {
     if (cart.length === 0) return;
@@ -579,7 +584,7 @@ function PDV() {
                 <span>R$ {subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Desconto</span>
+                <span className="text-muted-foreground">Desconto Fixo</span>
                 <div className="flex items-center gap-1 font-semibold text-destructive">
                   <span>- R$</span>
                   <input
@@ -592,6 +597,14 @@ function PDV() {
                   />
                 </div>
               </div>
+              {descontoPercentual > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Desconto {metodoPagamento} ({descontoPercentual}%)</span>
+                  <div className="flex items-center gap-1 font-semibold text-destructive">
+                    <span>- R$ {valorDescontoPerc.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="rounded-xl bg-gradient-brand p-5 text-primary-foreground">
               <p className="text-xs uppercase tracking-widest opacity-80">Total a pagar</p>
@@ -603,7 +616,10 @@ function PDV() {
               </p>
               <div className="grid grid-cols-4 gap-2">
                 <Button
-                  onClick={() => setMetodoPagamento("Dinheiro")}
+                  onClick={() => {
+                    setMetodoPagamento("Dinheiro");
+                    setIsDiscountModalOpen(true);
+                  }}
                   variant="outline"
                   className={`h-16 flex-col gap-1 ${metodoPagamento === "Dinheiro" ? "ring-2 ring-primary" : ""}`}
                 >
@@ -627,7 +643,10 @@ function PDV() {
                   <span className="text-xs">Cartão</span>
                 </Button>
                 <Button
-                  onClick={() => setMetodoPagamento("Pix")}
+                  onClick={() => {
+                    setMetodoPagamento("Pix");
+                    setIsDiscountModalOpen(true);
+                  }}
                   variant="outline"
                   className={`h-16 flex-col gap-1 ${metodoPagamento === "Pix" ? "ring-2 ring-primary" : ""}`}
                 >
@@ -676,6 +695,38 @@ function PDV() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isDiscountModalOpen} onOpenChange={setIsDiscountModalOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Desconto (%)</DialogTitle>
+            <DialogDescription>
+              Aplicar porcentagem de desconto para pagamento via {metodoPagamento}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Desconto (%)</Label>
+            <div className="flex items-center gap-2 mt-2">
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                value={descontoPercentual}
+                onChange={(e) => setDescontoPercentual(parseFloat(e.target.value) || 0)}
+              />
+              <span className="text-xl">%</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDiscountModalOpen(false)}>
+              Fechar
+            </Button>
+            <Button onClick={() => setIsDiscountModalOpen(false)}>
+              Aplicar Desconto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isOrcamentoModalOpen} onOpenChange={setIsOrcamentoModalOpen}>
         <DialogContent className="sm:max-w-[500px]">

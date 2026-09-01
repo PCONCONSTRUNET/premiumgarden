@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/parceiro/cadastro")({
       await supabase.auth.signOut();
     }
   },
-  head: () => ({ meta: [{ title: "Cadastro de Parceiro — SENALANDIA 2 ERP" }] }),
+  head: () => ({ meta: [{ title: "Cadastro de Parceiro — Premium Garden" }] }),
   component: CadastroParceiro,
 });
 
@@ -91,7 +91,7 @@ function CadastroParceiro() {
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold font-display text-slate-800">Criar Conta</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Seja um vendedor parceiro e fature com a SENALANDIA 2 ERP.
+              Seja um vendedor parceiro e fature com a Premium Garden.
             </p>
           </div>
 

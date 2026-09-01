@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/")({
       });
     }
   },
-  head: () => ({ meta: [{ title: "Entrar — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Entrar — Premium Garden ERP" }] }),
   component: Login,
 });
 
@@ -122,7 +122,7 @@ function Login() {
               <Input
                 id="email"
                 type="email"
-                placeholder="usuario@SENALANDIA 2 ERP.com.br"
+                placeholder="usuario@Premium Garden.com.br"
                 {...register("email")}
                 className={`h-11 border-[#e5e7eb] focus:border-[#4a7c2a] focus:ring-[#4a7c2a]/20 ${errors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""}`}
               />
@@ -174,7 +174,7 @@ function Login() {
 
         {/* Footer */}
         <p className="mt-6 text-center text-[10px] text-[#9ca3af] tracking-wide">
-          SENALANDIA 2 ERP Distribuidora de Vasos e Acessórios Ltda · Sistema Interno
+          Premium Garden Distribuidora de Vasos e Acessórios Ltda · Sistema Interno
         </p>
       </div>
     </div>

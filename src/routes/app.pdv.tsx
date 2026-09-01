@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +27,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/pdv")({
-  head: () => ({ meta: [{ title: "PDV — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "PDV — Premium Garden ERP" }] }),
   component: PDV,
 });
 

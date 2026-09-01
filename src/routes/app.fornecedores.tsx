@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -18,7 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
 export const Route = createFileRoute("/app/fornecedores")({
-  head: () => ({ meta: [{ title: "Fornecedores — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Fornecedores — Premium Garden ERP" }] }),
   component: Fornecedores,
 });
 

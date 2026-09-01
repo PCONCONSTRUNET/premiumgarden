@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { createFileRoute, Outlet, redirect, Link, useRouterState, isRedirect, useNavigate } from "@tanstack/react-router";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { VivaverdeLogo } from "@/components/vivaverde-logo";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/parceiro")({
       }
 
       // Bloqueia o acesso de Administradores (Dono) ao portal de Parceiros
-      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "senalandia2@gmail.com";
+      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "PremiumGarden@gmail.com";
       const ADMIN_EMAILS = adminEmail
         .split(",")
         .map((e: string) => e.trim().toLowerCase())

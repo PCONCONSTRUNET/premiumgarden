@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,7 @@ import { supabase } from "@/lib/supabase";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
 export const Route = createFileRoute("/app/logistica")({
-  head: () => ({ meta: [{ title: "Logística — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Logística — Premium Garden ERP" }] }),
   component: Logistica,
 });
 

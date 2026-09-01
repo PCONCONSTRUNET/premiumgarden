@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +39,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/app/estoque")({
-  head: () => ({ meta: [{ title: "Estoque — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Estoque — Premium Garden ERP" }] }),
   component: Estoque,
 });
 

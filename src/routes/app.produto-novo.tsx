@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/app/produto-novo")({
       id: search.id as string | undefined,
     };
   },
-  head: () => ({ meta: [{ title: "Produto — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Produto — Premium Garden ERP" }] }),
   component: NovoProduto,
 });
 

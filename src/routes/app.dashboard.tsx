@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/app/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — Premium Garden ERP" }] }),
   component: Dashboard,
 });
 

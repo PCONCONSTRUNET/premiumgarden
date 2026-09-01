@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -24,7 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/catalogo")({
-  head: () => ({ meta: [{ title: "Catálogo — SENALANDIA 2 ERP" }] }),
+  head: () => ({ meta: [{ title: "Catálogo — Premium Garden" }] }),
   component: PublicCatalogo,
 });
 

@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -13,7 +13,7 @@ import { Link } from "@tanstack/react-router";
 import { CnpjLoader } from "@/components/cnpj-loader";
 
 export const Route = createFileRoute("/app/fornecedor-novo")({
-  head: () => ({ meta: [{ title: "Novo Fornecedor — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Novo Fornecedor — Premium Garden ERP" }] }),
   component: NovoFornecedor,
 });
 

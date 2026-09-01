@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -17,7 +17,7 @@ import {
 import { Wallet, Clock, CheckCircle2, TrendingUp, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/parceiro/dashboard")({
-  head: () => ({ meta: [{ title: "Meu Painel — SENALANDIA 2 ERP" }] }),
+  head: () => ({ meta: [{ title: "Meu Painel — Premium Garden" }] }),
   component: ParceiroDashboard,
 });
 

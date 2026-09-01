@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/vendas-produtos")({
-  head: () => ({ meta: [{ title: "Desempenho de Produtos — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Desempenho de Produtos — Premium Garden ERP" }] }),
   component: VendasProdutos,
 });
 

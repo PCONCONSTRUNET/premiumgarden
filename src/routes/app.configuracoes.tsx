@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -16,7 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { testarConexao, BRASIL_NFE_TOKEN, labelAmbiente } from "@/lib/brasilnfe";
 
 export const Route = createFileRoute("/app/configuracoes")({
-  head: () => ({ meta: [{ title: "Configurações — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Configurações — Premium Garden ERP" }] }),
   component: Configuracoes,
 });
 
@@ -193,7 +193,7 @@ function Configuracoes() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `backup_SENALANDIA 2 ERP_${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `backup_Premium Garden_${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -349,7 +349,7 @@ function Configuracoes() {
                   <Input
                     value={novoUserEmail}
                     onChange={(e) => setNovoUserEmail(e.target.value)}
-                    placeholder="joao@SENALANDIA 2 ERP.com.br"
+                    placeholder="joao@Premium Garden.com.br"
                     type="email"
                   />
                 </div>

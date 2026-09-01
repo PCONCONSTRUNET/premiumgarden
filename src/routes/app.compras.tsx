@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/app/compras")({
-  head: () => ({ meta: [{ title: "Compras — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Compras — Premium Garden ERP" }] }),
   component: Compras,
 });
 

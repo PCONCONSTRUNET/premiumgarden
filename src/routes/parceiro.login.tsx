@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/parceiro/login")({
       await supabase.auth.signOut();
     }
   },
-  head: () => ({ meta: [{ title: "Login Parceiro — SENALANDIA 2 ERP" }] }),
+  head: () => ({ meta: [{ title: "Login Parceiro — Premium Garden" }] }),
   component: LoginParceiro,
 });
 

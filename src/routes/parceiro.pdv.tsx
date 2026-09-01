@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/parceiro/pdv")({
-  head: () => ({ meta: [{ title: "Nova Venda — SENALANDIA 2 ERP" }] }),
+  head: () => ({ meta: [{ title: "Nova Venda — Premium Garden" }] }),
   component: ParceiroPDV,
 });
 
@@ -426,7 +426,7 @@ function ParceiroPDV() {
   const handleShareWhatsApp = () => {
     if (!davGeradoId) return;
 
-    let msg = `*ORÇAMENTO - SENALANDIA 2 ERP VASOS*\n`;
+    let msg = `*ORÇAMENTO - Premium Garden VASOS*\n`;
     msg += `Nº do Orçamento: ${davGeradoNumero || davGeradoId.substring(0, 8).toUpperCase()}\n\n`;
     msg += `Olá ${clientForm.nome}, aqui está o seu orçamento detalhado!\n\n`;
 

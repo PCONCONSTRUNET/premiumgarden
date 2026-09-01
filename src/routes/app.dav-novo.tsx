@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -40,7 +40,7 @@ export const Route = createFileRoute("/app/dav-novo")({
   validateSearch: (search: Record<string, unknown>): { id?: string } => ({
     id: search.id as string | undefined,
   }),
-  head: () => ({ meta: [{ title: "Novo DAV — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Novo DAV — Premium Garden ERP" }] }),
   component: NovoDAV,
 });
 
@@ -56,7 +56,7 @@ function NovoDAV() {
 
   const [cliente, setCliente] = useState({ nome: "", cnpj: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", uf: "", telefone: "" });
   const [emissor, setEmissor] = useState({
-    nome: "SENALANDIA 2 ERP",
+    nome: "Premium Garden",
     cnpj: "",
     endereco: "",
     telefone: "",
@@ -186,7 +186,7 @@ function NovoDAV() {
           .single();
         if (data && !error) {
           setEmissor({
-            nome: data.razao_social || "SENALANDIA 2 ERP",
+            nome: data.razao_social || "Premium Garden",
             cnpj: data.cnpj || "",
             endereco: data.endereco || "",
             telefone: data.telefone || "",
@@ -222,7 +222,7 @@ function NovoDAV() {
               telefone: dav.cliente_telefone || "",
             });
             setEmissor({
-              nome: dav.emissor_nome || "SENALANDIA 2 ERP",
+              nome: dav.emissor_nome || "Premium Garden",
               cnpj: dav.emissor_cnpj || "",
               endereco: dav.emissor_endereco || "",
               telefone: dav.emissor_telefone || "",
@@ -594,7 +594,7 @@ function NovoDAV() {
               <Input
                 value={emissor.nome}
                 onChange={(e) => setEmissor({ ...emissor, nome: e.target.value })}
-                placeholder="Ex: SENALANDIA 2 ERP Vasos"
+                placeholder="Ex: Premium Garden Vasos"
               />
             </div>
             <div className="space-y-2">

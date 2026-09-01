@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/compra-nova")({
-  head: () => ({ meta: [{ title: "Nova Compra — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Nova Compra — Premium Garden ERP" }] }),
   component: NovaCompra,
 });
 

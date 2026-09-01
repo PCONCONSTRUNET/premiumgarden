@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+﻿import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/app/vendedores")({
-  head: () => ({ meta: [{ title: "Vendedores Parceiros — SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Vendedores Parceiros — Premium Garden ERP" }] }),
   component: VendedoresAdmin,
 });
 

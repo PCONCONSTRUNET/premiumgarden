@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { cn, formatCpfCnpj, formatPhone } from "@/lib/utils";
@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/command";
 
 export const Route = createFileRoute("/app/registro")({
-  head: () => ({ meta: [{ title: "Registro Rapido - SENALANDIA 2 ERP ERP" }] }),
+  head: () => ({ meta: [{ title: "Registro Rapido - Premium Garden ERP" }] }),
   component: RegistroRapido,
 });
 

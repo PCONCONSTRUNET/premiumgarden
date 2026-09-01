@@ -99,6 +99,35 @@ function NovoDAV() {
     setItens(itens.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
   };
 
+  const handleSearchByCodigo = (id: number, codigoBusca: string) => {
+    if (!codigoBusca.trim()) return;
+    const p = produtos.find(
+      (prod) =>
+        String(prod.codigo) === codigoBusca.trim() ||
+        String(prod.id) === codigoBusca.trim() ||
+        String(prod.codigo_barras) === codigoBusca.trim()
+    );
+    if (p) {
+      setItens((prev) =>
+        prev.map((it) =>
+          it.id === id
+            ? {
+                ...it,
+                produto_id: p.id,
+                codigo: p.codigo || "",
+                produto: p.nome,
+                vlrUnit: Number(p.valor),
+                openSearch: false,
+                imagem: p.imagem,
+              }
+            : it
+        )
+      );
+    } else {
+      toast.error(`Produto não encontrado com o código: ${codigoBusca}`);
+    }
+  };
+
   useEffect(() => {
     const fetchConfigs = async () => {
       try {
@@ -596,6 +625,13 @@ function NovoDAV() {
                         className="h-8"
                         value={i.codigo}
                         onChange={(e) => updateItem(i.id, "codigo", e.target.value)}
+                        onBlur={(e) => handleSearchByCodigo(i.id, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSearchByCodigo(i.id, i.codigo);
+                          }
+                        }}
                       />
                     </TableCell>
                     <TableCell className="min-w-[220px]">

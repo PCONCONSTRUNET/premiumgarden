@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { Save, Plus, Trash2, Check, ChevronsUpDown, Search } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { CnpjLoader } from "@/components/cnpj-loader";
 
@@ -51,6 +51,8 @@ function NovoDAV() {
   const [loading, setLoading] = useState(false);
   const [isFetchingInfo, setIsFetchingInfo] = useState(isEditing);
   const [loadingCnpj, setLoadingCnpj] = useState(false);
+  const lastFetchedCnpjCliente = useRef("");
+  const lastFetchedCnpjEmissor = useRef("");
 
   const [cliente, setCliente] = useState({ nome: "", cnpj: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", uf: "", telefone: "" });
   const [emissor, setEmissor] = useState({
@@ -101,9 +103,10 @@ function NovoDAV() {
     setItens(itens.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
   };
 
-  const buscarCnpj = async (doc: string, setFn: React.Dispatch<React.SetStateAction<any>>) => {
+  const buscarCnpj = async (doc: string, setFn: React.Dispatch<React.SetStateAction<any>>, lastRef: React.MutableRefObject<string>) => {
     const cnpjLimpo = doc.replace(/\D/g, "");
     if (cnpjLimpo.length !== 14) return;
+    if (lastRef.current === cnpjLimpo) return; // já buscou esse CNPJ, não repete
     
     const start = Date.now();
     setLoadingCnpj(true);
@@ -132,6 +135,7 @@ function NovoDAV() {
         uf: data.uf || prev.uf,
       }));
       toast.success("Dados preenchidos via Receita Federal!");
+      lastRef.current = cnpjLimpo; // marca como buscado
     } catch (error) {
       console.error(error);
       toast.error("Erro ao consultar o CNPJ.");
@@ -503,17 +507,19 @@ function NovoDAV() {
                     const formatted = formatCpfCnpj(e.target.value);
                     setCliente({ ...cliente, cnpj: formatted });
                     if (formatted.replace(/\D/g, "").length === 14) {
-                      buscarCnpj(formatted, setCliente);
+                      buscarCnpj(formatted, setCliente, lastFetchedCnpjCliente);
                     }
                   }}
-                  onBlur={(e) => buscarCnpj(e.target.value, setCliente)}
                   placeholder="00.000.000/0000-00"
                 />
                 <Button 
                   type="button" 
                   variant="outline" 
                   className="px-3 shrink-0"
-                  onClick={() => buscarCnpj(cliente.cnpj, setCliente)}
+                  onClick={() => {
+                    lastFetchedCnpjCliente.current = ""; // força re-busca manual
+                    buscarCnpj(cliente.cnpj, setCliente, lastFetchedCnpjCliente);
+                  }}
                   title="Buscar dados do CNPJ"
                 >
                   <Search className="h-4 w-4" />
@@ -600,17 +606,19 @@ function NovoDAV() {
                     const formatted = formatCpfCnpj(e.target.value);
                     setEmissor({ ...emissor, cnpj: formatted });
                     if (formatted.replace(/\D/g, "").length === 14) {
-                      buscarCnpj(formatted, setEmissor);
+                      buscarCnpj(formatted, setEmissor, lastFetchedCnpjEmissor);
                     }
                   }}
-                  onBlur={(e) => buscarCnpj(e.target.value, setEmissor)}
                   placeholder="00.000.000/0000-00"
                 />
                 <Button 
                   type="button" 
                   variant="outline" 
                   className="px-3 shrink-0"
-                  onClick={() => buscarCnpj(emissor.cnpj, setEmissor)}
+                  onClick={() => {
+                    lastFetchedCnpjEmissor.current = ""; // força re-busca manual
+                    buscarCnpj(emissor.cnpj, setEmissor, lastFetchedCnpjEmissor);
+                  }}
                   title="Buscar dados do CNPJ"
                 >
                   <Search className="h-4 w-4" />

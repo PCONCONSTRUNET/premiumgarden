@@ -448,7 +448,7 @@ function Vendas() {
                 </svg>
                 Enviar WhatsApp
               </Button>
-              <Button className="flex-1 bg-slate-900" asChild>
+              <Button className="flex-1 bg-slate-900 text-white hover:bg-slate-800 hover:text-white" asChild>
                 <Link to="/orcamento/$id" params={{ id: selectedVenda?.id }}>
                   Imprimir PDF
                 </Link>

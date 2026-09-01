@@ -1,4 +1,4 @@
-﻿import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,7 @@ import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 
 export const Route = createFileRoute("/parceiro/login")({
   beforeLoad: async () => {
-    if (typeof window !== "undefined") {
-      await supabase.auth.signOut();
-    }
+    // Não faz signOut aqui para não destruir sessão do admin ERP
   },
   head: () => ({ meta: [{ title: "Login Parceiro — Premium Garden" }] }),
   component: LoginParceiro,

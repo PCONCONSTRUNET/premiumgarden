@@ -137,6 +137,7 @@ function NovoCliente() {
     const cnpj = (cnpjValue ?? cliente.cpf_cnpj).replace(/\D/g, "");
     if (cnpj.length !== 14) return;
     
+    const start = Date.now();
     setLoadingCnpj(true);
     try {
       const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
@@ -160,6 +161,9 @@ function NovoCliente() {
     } catch (error: any) {
       toast.error(error.message || "Erro ao buscar CNPJ");
     } finally {
+      const elapsed = Date.now() - start;
+      const remaining = Math.max(0, 2000 - elapsed);
+      await new Promise((r) => setTimeout(r, remaining));
       setLoadingCnpj(false);
     }
   };

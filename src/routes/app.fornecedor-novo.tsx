@@ -36,6 +36,7 @@ function NovoFornecedor() {
     const cnpjLimpo = doc.replace(/\D/g, "");
     if (cnpjLimpo.length !== 14) return;
     
+    const start = Date.now();
     setLoadingCnpj(true);
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
@@ -61,6 +62,9 @@ function NovoFornecedor() {
       console.error(error);
       toast.error("Erro ao consultar o CNPJ.");
     } finally {
+      const elapsed = Date.now() - start;
+      const remaining = Math.max(0, 2000 - elapsed);
+      await new Promise((r) => setTimeout(r, remaining));
       setLoadingCnpj(false);
     }
   };

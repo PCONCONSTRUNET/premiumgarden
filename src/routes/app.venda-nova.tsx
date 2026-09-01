@@ -60,6 +60,10 @@ function NovaVenda() {
   const [descontoValor, setDescontoValor] = useState(0);
   const [freteValor, setFreteValor] = useState(0);
 
+  // Payment State
+  const [metodoPagamento, setMetodoPagamento] = useState("Cartão");
+  const [condicaoPagamento, setCondicaoPagamento] = useState("");
+
   // States for new client modal
   const [openModalCliente, setOpenModalCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({
@@ -210,6 +214,8 @@ function NovaVenda() {
             status: status,
             valor_total: totalVenda,
             numero: nextNumero,
+            metodo_pagamento: metodoPagamento,
+            condicao_pagamento: metodoPagamento === "Boleto" ? condicaoPagamento : "À vista",
           },
         ])
         .select()
@@ -504,6 +510,59 @@ function NovaVenda() {
                 <span className="font-display text-2xl font-bold text-brand">
                   R$ {Math.max(0, valorTotal - descontoValor).toFixed(2)}
                 </span>
+              </div>
+              <div className="h-px w-full bg-border my-4" />
+              <div>
+                <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
+                  Forma de Pagamento
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  <Button
+                    onClick={() => setMetodoPagamento("Dinheiro")}
+                    variant="outline"
+                    className={`h-16 flex-col gap-1 ${metodoPagamento === "Dinheiro" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
+                  >
+                    <img src="https://img.icons8.com/arcade/64/money.png" className="h-5 w-5 object-contain" alt="Dinheiro" />
+                    <span className="text-[10px] sm:text-xs">Dinheiro</span>
+                  </Button>
+                  <Button
+                    onClick={() => setMetodoPagamento("Cartão")}
+                    variant="outline"
+                    className={`h-16 flex-col gap-1 ${metodoPagamento === "Cartão" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
+                  >
+                    <img src="https://img.icons8.com/fluency/48/bank-card-front-side.png" className="h-5 w-5 object-contain" alt="Cartão" />
+                    <span className="text-[10px] sm:text-xs">Cartão</span>
+                  </Button>
+                  <Button
+                    onClick={() => setMetodoPagamento("Pix")}
+                    variant="outline"
+                    className={`h-16 flex-col gap-1 ${metodoPagamento === "Pix" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
+                  >
+                    <img src="https://img.icons8.com/fluency/48/pix.png" className="h-5 w-5 object-contain" alt="Pix" />
+                    <span className="text-[10px] sm:text-xs">Pix</span>
+                  </Button>
+                  <Button
+                    onClick={() => setMetodoPagamento("Boleto")}
+                    variant="outline"
+                    className={`h-16 flex-col gap-1 ${metodoPagamento === "Boleto" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
+                  >
+                    <img src="https://img.icons8.com/fluency/48/recurring-appointment.png" className="h-5 w-5 object-contain" alt="Boleto" />
+                    <span className="text-[10px] sm:text-xs">Boleto</span>
+                  </Button>
+                </div>
+                {metodoPagamento === "Boleto" && (
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold uppercase text-brand tracking-wider mb-2">
+                      Condição de Pagamento (Prazo)
+                    </p>
+                    <Input
+                      required
+                      placeholder="Ex: 30/60/90, Para o dia 10..."
+                      value={condicaoPagamento}
+                      onChange={(e) => setCondicaoPagamento(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </Card>

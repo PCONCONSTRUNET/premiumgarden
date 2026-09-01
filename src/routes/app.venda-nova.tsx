@@ -132,7 +132,10 @@ function NovaVenda() {
     setItens(novosItens);
   };
 
+  // Cálculos do Resumo
   const valorTotal = itens.reduce((acc, item) => acc + item.subtotal, 0);
+  const valorDescontoPerc = (valorTotal * descontoPercentual) / 100;
+  const totalComDesconto = Math.max(0, valorTotal - descontoValor - valorDescontoPerc);
 
   const handleSalvar = async () => {
     if (itens.length === 0) {
@@ -222,10 +225,6 @@ function NovaVenda() {
 
   const executarSalvamentoVenda = async (idDoCliente: string) => {
     setLoading(true);
-    // Cálculos do Resumo
-    const valorTotal = itens.reduce((acc, i) => acc + i.subtotal, 0);
-    const valorDescontoPerc = (valorTotal * descontoPercentual) / 100;
-    const totalComDesconto = Math.max(0, valorTotal - descontoValor - valorDescontoPerc);
     try {
       const subtotal = itens.reduce((acc, i) => acc + i.subtotal, 0);
       const valDescontoPerc = (subtotal * descontoPercentual) / 100;

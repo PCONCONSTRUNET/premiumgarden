@@ -41,6 +41,8 @@ function ParceiroPDV() {
     pagamento: "Dinheiro / Pix",
     frete: "Retirada",
     observacoes: "",
+    descontoPercentual: 0,
+    condicaoPagamento: "",
   });
   const [vendedorInfo, setVendedorInfo] = useState<{ id: string; nome: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -203,10 +205,46 @@ function ParceiroPDV() {
   };
 
   const subtotal = cart.reduce((s, i) => s + i.t, 0);
+  const valorDesconto = (subtotal * (clientForm.descontoPercentual || 0)) / 100;
+  const totalComDesconto = subtotal - valorDesconto;
 
   const handleOpenClientModal = () => {
     if (cart.length === 0 || !vendedorInfo) return;
     setIsClientModalOpen(true);
+  };
+
+  const buscarCnpj = async (doc: string) => {
+    const cnpjLimpo = doc.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) return;
+    
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      if (!res.ok) {
+        toast.error("CNPJ não encontrado na Receita Federal.");
+        return;
+      }
+      const data = await res.json();
+      
+      const tel = data.ddd_telefone_1 ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3") : "";
+      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
+      const tipoLogradouro = data.descricao_tipo_de_logradouro ? data.descricao_tipo_de_logradouro + " " : "";
+      const cidade = data.municipio ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase() : "";
+      
+      setClientForm((prev) => ({
+        ...prev,
+        nome: data.razao_social || prev.nome,
+        telefone: tel || prev.telefone,
+        cep: cepFmt || prev.cep,
+        endereco: tipoLogradouro + (data.logradouro || ""),
+        numero: data.numero || prev.numero,
+        bairro: data.bairro || prev.bairro,
+        cidade: cidade || prev.cidade,
+        uf: data.uf || prev.uf,
+      }));
+      toast.success("Dados preenchidos via Receita Federal!");
+    } catch (error) {
+      console.error("Erro na busca do CNPJ:", error);
+    }
   };
 
   const submitOrder = async (e: React.FormEvent) => {
@@ -289,7 +327,10 @@ function ParceiroPDV() {
             tipo: "PDV",
             status_aprovacao: "Pendente",
             status: "Pendente",
-            valor_total: subtotal,
+            valor_total: totalComDesconto,
+            desconto_percentual: clientForm.descontoPercentual,
+            desconto_valor: valorDesconto,
+            condicao_pagamento: clientForm.pagamento === "Dinheiro / Pix" ? "À vista" : clientForm.condicaoPagamento,
             vendedor_id: vendedorInfo?.id,
             cliente_id: finalClienteId,
           },
@@ -319,7 +360,10 @@ function ParceiroPDV() {
             tipo: "DAV",
             status: "Pendente",
             status_aprovacao: "Pendente",
-            valor_total: subtotal,
+            valor_total: totalComDesconto,
+            desconto_percentual: clientForm.descontoPercentual,
+            desconto_valor: valorDesconto,
+            condicao_pagamento: clientForm.pagamento === "Dinheiro / Pix" ? "À vista" : clientForm.condicaoPagamento,
             vendedor_id: vendedorInfo?.id,
             cliente_id: finalClienteId,
           },
@@ -353,7 +397,7 @@ function ParceiroPDV() {
         {
           tipo: "venda",
           titulo: `Novo pedido pendente`,
-          mensagem: `Um parceiro enviou um novo pedido (Cliente: ${clientForm.nome}) no valor de ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(subtotal)} para aprovação.`,
+          mensagem: `Um parceiro enviou um novo pedido (Cliente: ${clientForm.nome}) no valor de ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalComDesconto)} para aprovação.`,
         },
       ]);
 
@@ -382,7 +426,11 @@ function ParceiroPDV() {
       msg += `• ${item.q}x ${item.p} - R$ ${Number(item.t).toFixed(2).replace(".", ",")}\n`;
     });
 
-    msg += `\n*TOTAL: R$ ${subtotal.toFixed(2).replace(".", ",")}*\n\n`;
+    msg += `\n*SUBTOTAL: R$ ${subtotal.toFixed(2).replace(".", ",")}*\n`;
+    if (valorDesconto > 0) {
+      msg += `*DESCONTO: R$ ${valorDesconto.toFixed(2).replace(".", ",")}*\n`;
+    }
+    msg += `*TOTAL GERAL: R$ ${totalComDesconto.toFixed(2).replace(".", ",")}*\n\n`;
 
     const linkPdf = `${window.location.origin}/orcamento/${davGeradoId}`;
     msg += `📄 *Acesse o orçamento completo em PDF aqui:*\n${linkPdf}`;
@@ -508,7 +556,10 @@ function ParceiroPDV() {
             className="w-full h-14 bg-gradient-brand text-primary-foreground text-lg font-bold shadow-lg shadow-brand/25 flex justify-between px-6"
           >
             <span>Enviar Pedido</span>
-            <span>R$ {subtotal.toFixed(2).replace(".", ",")}</span>
+            <span className="flex flex-col text-right">
+              {valorDesconto > 0 && <span className="text-xs line-through opacity-70">R$ {subtotal.toFixed(2).replace(".", ",")}</span>}
+              <span>R$ {totalComDesconto.toFixed(2).replace(".", ",")}</span>
+            </span>
           </Button>
         </div>
       )}
@@ -571,9 +622,12 @@ function ParceiroPDV() {
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">CPF / CNPJ</label>
                   <Input
-                    placeholder="Apenas números"
+                    placeholder="Apenas números (Preenchimento auto para CNPJ)"
                     value={clientForm.documento}
-                    onChange={(e) => setClientForm({ ...clientForm, documento: e.target.value })}
+                    onChange={(e) => {
+                      setClientForm({ ...clientForm, documento: e.target.value });
+                      buscarCnpj(e.target.value);
+                    }}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -644,7 +698,13 @@ function ParceiroPDV() {
                   <select
                     className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                     value={clientForm.pagamento}
-                    onChange={(e) => setClientForm({ ...clientForm, pagamento: e.target.value })}
+                    onChange={(e) => {
+                      setClientForm({ 
+                        ...clientForm, 
+                        pagamento: e.target.value,
+                        descontoPercentual: 0 // Reseta o desconto se mudar a forma
+                      })
+                    }}
                   >
                     <option>Dinheiro / Pix</option>
                     <option>Cartão de Crédito</option>
@@ -652,6 +712,30 @@ function ParceiroPDV() {
                     <option>Boleto a Prazo</option>
                   </select>
                 </div>
+                {clientForm.pagamento === "Dinheiro / Pix" && (
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Desconto (%)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={clientForm.descontoPercentual || ""}
+                      onChange={(e) => setClientForm({ ...clientForm, descontoPercentual: Number(e.target.value) })}
+                    />
+                  </div>
+                )}
+                {clientForm.pagamento !== "Dinheiro / Pix" && (
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium text-brand">Condição de Pagamento *</label>
+                    <Input
+                      required
+                      placeholder="Ex: 30/60/90, Para o dia 10..."
+                      value={clientForm.condicaoPagamento}
+                      onChange={(e) => setClientForm({ ...clientForm, condicaoPagamento: e.target.value })}
+                    />
+                  </div>
+                )}
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Forma do Frete</label>
                   <select

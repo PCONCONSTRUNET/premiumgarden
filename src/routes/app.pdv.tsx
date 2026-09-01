@@ -35,6 +35,7 @@ function PDV() {
   const [loading, setLoading] = useState(false);
   const [metodoPagamento, setMetodoPagamento] = useState("Cartão");
   const [descontoValor, setDescontoValor] = useState(0);
+  const [condicaoPagamento, setCondicaoPagamento] = useState("");
 
   const [orcamentos, setOrcamentos] = useState<any[]>([]);
   const [isOrcamentoModalOpen, setIsOrcamentoModalOpen] = useState(false);
@@ -337,6 +338,8 @@ function PDV() {
             tipo: "PDV",
             status: "Pago",
             valor_total: totalPagamento,
+            desconto_valor: descontoValor,
+            condicao_pagamento: metodoPagamento === "Boleto" ? condicaoPagamento : "À vista",
             cliente_id: clienteSelecionado?.id === "avulso" ? null : clienteSelecionado?.id || null,
             metodo_pagamento: metodoPagamento,
             numero: nextNumero,
@@ -650,6 +653,19 @@ function PDV() {
                 </Button>
               </div>
             </div>
+            {metodoPagamento === "Boleto" && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold uppercase text-brand tracking-wider mb-2">
+                  Condição de Pagamento (Prazo)
+                </p>
+                <Input
+                  required
+                  placeholder="Ex: 30/60/90, Para o dia 10..."
+                  value={condicaoPagamento}
+                  onChange={(e) => setCondicaoPagamento(e.target.value)}
+                />
+              </div>
+            )}
             <Button
               onClick={handleFinalizar}
               disabled={cart.length === 0 || loading}

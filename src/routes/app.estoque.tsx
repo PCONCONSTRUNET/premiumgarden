@@ -173,6 +173,9 @@ function Estoque() {
     }
   };
 
+  const totalGeral = produtos.reduce((acc, p) => acc + Number(p.estoque || 0), 0);
+  const getPct = (v: number) => totalGeral > 0 ? Math.round((v / totalGeral) * 100) : 0;
+
   const getSomaCategoria = (categoriaBusca: string) =>
     produtos
       .filter((p) => p.categoria?.toLowerCase().includes(categoriaBusca.toLowerCase()))
@@ -183,16 +186,26 @@ function Estoque() {
       l: "Total de Vasos",
       v: getSomaCategoria("Vaso"),
       c: "bg-primary/10 text-primary",
-      pct: 78,
+      pct: getPct(getSomaCategoria("Vaso")),
     },
     {
       l: "Total de Floreiras",
       v: getSomaCategoria("Floreira"),
       c: "bg-success/15 text-success",
-      pct: 62,
+      pct: getPct(getSomaCategoria("Floreira")),
     },
-    { l: "Total de Cuias", v: getSomaCategoria("Cuia"), c: "bg-terra/10 text-terra", pct: 48 },
-    { l: "Total de Pratos", v: getSomaCategoria("Prato"), c: "bg-info/10 text-info", pct: 55 },
+    { 
+      l: "Total de Cuias", 
+      v: getSomaCategoria("Cuia"), 
+      c: "bg-terra/10 text-terra", 
+      pct: getPct(getSomaCategoria("Cuia")) 
+    },
+    { 
+      l: "Total de Pratos", 
+      v: getSomaCategoria("Prato"), 
+      c: "bg-info/10 text-info", 
+      pct: getPct(getSomaCategoria("Prato")) 
+    },
   ];
 
   const critical = produtos.filter((p) => Number(p.estoque) <= 10).slice(0, 5);
@@ -238,7 +251,7 @@ function Estoque() {
                 <div className={`grid h-10 w-10 place-items-center rounded-lg ${c.c}`}>
                   <Package className="h-5 w-5" />
                 </div>
-                <Badge variant="secondary">{c.pct}% capacidade</Badge>
+                <Badge variant="secondary">{c.pct}% do estoque</Badge>
               </div>
               <p className="mt-4 text-sm text-muted-foreground">{c.l}</p>
               <p className="mt-1 font-display text-2xl font-bold">{c.v.toLocaleString("pt-BR")}</p>

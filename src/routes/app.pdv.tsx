@@ -339,9 +339,8 @@ function PDV() {
             status: "Pago",
             valor_total: totalPagamento,
             desconto_valor: descontoValor,
-            condicao_pagamento: metodoPagamento === "Boleto" ? condicaoPagamento : "À vista",
+            condicao_pagamento: metodoPagamento === "Boleto" ? `Boleto - ${condicaoPagamento}` : metodoPagamento,
             cliente_id: clienteSelecionado?.id === "avulso" ? null : clienteSelecionado?.id || null,
-            metodo_pagamento: metodoPagamento,
             numero: nextNumero,
           },
         ])

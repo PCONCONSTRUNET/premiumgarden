@@ -248,8 +248,7 @@ function NovaVenda() {
             status: status,
             valor_total: totalVenda,
             numero: nextNumero,
-            metodo_pagamento: metodoPagamento,
-            condicao_pagamento: metodoPagamento === "Boleto" ? condicaoPagamento : "À vista",
+            condicao_pagamento: metodoPagamento === "Boleto" ? `Boleto - ${condicaoPagamento}` : metodoPagamento,
           },
         ])
         .select()

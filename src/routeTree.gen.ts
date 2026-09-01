@@ -28,6 +28,7 @@ import { Route as AppVendasProdutosRouteImport } from './routes/app.vendas-produ
 import { Route as AppVendasParceirosRouteImport } from './routes/app.vendas-parceiros'
 import { Route as AppVendasRouteImport } from './routes/app.vendas'
 import { Route as AppVendaNovaRouteImport } from './routes/app.venda-nova'
+import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppRegistroRouteImport } from './routes/app.registro'
 import { Route as AppProdutosRouteImport } from './routes/app.produtos'
@@ -145,6 +146,11 @@ const AppVendasRoute = AppVendasRouteImport.update({
 const AppVendaNovaRoute = AppVendaNovaRouteImport.update({
   id: '/venda-nova',
   path: '/venda-nova',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTarefasRoute = AppTarefasRouteImport.update({
+  id: '/tarefas',
+  path: '/tarefas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/app/produtos': typeof AppProdutosRoute
   '/app/registro': typeof AppRegistroRoute
   '/app/relatorios': typeof AppRelatoriosRoute
+  '/app/tarefas': typeof AppTarefasRoute
   '/app/venda-nova': typeof AppVendaNovaRoute
   '/app/vendas': typeof AppVendasRoute
   '/app/vendas-parceiros': typeof AppVendasParceirosRoute
@@ -333,6 +340,7 @@ export interface FileRoutesByTo {
   '/app/produtos': typeof AppProdutosRoute
   '/app/registro': typeof AppRegistroRoute
   '/app/relatorios': typeof AppRelatoriosRoute
+  '/app/tarefas': typeof AppTarefasRoute
   '/app/venda-nova': typeof AppVendaNovaRoute
   '/app/vendas': typeof AppVendasRoute
   '/app/vendas-parceiros': typeof AppVendasParceirosRoute
@@ -378,6 +386,7 @@ export interface FileRoutesById {
   '/app/produtos': typeof AppProdutosRoute
   '/app/registro': typeof AppRegistroRoute
   '/app/relatorios': typeof AppRelatoriosRoute
+  '/app/tarefas': typeof AppTarefasRoute
   '/app/venda-nova': typeof AppVendaNovaRoute
   '/app/vendas': typeof AppVendasRoute
   '/app/vendas-parceiros': typeof AppVendasParceirosRoute
@@ -424,6 +433,7 @@ export interface FileRouteTypes {
     | '/app/produtos'
     | '/app/registro'
     | '/app/relatorios'
+    | '/app/tarefas'
     | '/app/venda-nova'
     | '/app/vendas'
     | '/app/vendas-parceiros'
@@ -466,6 +476,7 @@ export interface FileRouteTypes {
     | '/app/produtos'
     | '/app/registro'
     | '/app/relatorios'
+    | '/app/tarefas'
     | '/app/venda-nova'
     | '/app/vendas'
     | '/app/vendas-parceiros'
@@ -510,6 +521,7 @@ export interface FileRouteTypes {
     | '/app/produtos'
     | '/app/registro'
     | '/app/relatorios'
+    | '/app/tarefas'
     | '/app/venda-nova'
     | '/app/vendas'
     | '/app/vendas-parceiros'
@@ -669,6 +681,13 @@ declare module '@tanstack/react-router' {
       path: '/venda-nova'
       fullPath: '/app/venda-nova'
       preLoaderRoute: typeof AppVendaNovaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/tarefas': {
+      id: '/app/tarefas'
+      path: '/tarefas'
+      fullPath: '/app/tarefas'
+      preLoaderRoute: typeof AppTarefasRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/relatorios': {
@@ -859,6 +878,7 @@ interface AppRouteChildren {
   AppProdutosRoute: typeof AppProdutosRoute
   AppRegistroRoute: typeof AppRegistroRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
+  AppTarefasRoute: typeof AppTarefasRoute
   AppVendaNovaRoute: typeof AppVendaNovaRoute
   AppVendasRoute: typeof AppVendasRoute
   AppVendasParceirosRoute: typeof AppVendasParceirosRoute
@@ -891,6 +911,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppProdutosRoute: AppProdutosRoute,
   AppRegistroRoute: AppRegistroRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
+  AppTarefasRoute: AppTarefasRoute,
   AppVendaNovaRoute: AppVendaNovaRoute,
   AppVendasRoute: AppVendasRoute,
   AppVendasParceirosRoute: AppVendasParceirosRoute,

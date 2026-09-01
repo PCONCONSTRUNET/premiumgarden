@@ -4,19 +4,11 @@ import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard,
   Package,
-  Boxes,
   Users,
-  Truck,
   ShoppingCart,
-  ShoppingBag,
   FileText,
-  Calculator,
   Wallet,
-  Map,
-  Receipt,
-  BarChart3,
   Globe,
-  Smartphone,
   UserCircle,
   Settings,
   Bell,
@@ -27,9 +19,9 @@ import {
   Moon,
   Sun,
   LogOut,
-  PlusCircle,
   CheckCheck,
-  TrendingUp,
+  ListTodo,
+  BadgeDollarSign,
 } from "lucide-react";
 import { VivaverdeLogo } from "./vivaverde-logo";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
@@ -50,37 +42,25 @@ const NAV = [
   {
     group: "Principal",
     items: [
-      { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/app/registro", label: "Registro Rápido", icon: PlusCircle },
-    ],
-  },
-  {
-    group: "Operação",
-    items: [
-      { to: "/app/estoque", label: "Estoque", icon: Boxes },
-      { to: "/app/produtos", label: "Produtos", icon: Package },
-      { to: "/app/vendas-produtos", label: "Vendas Produtos", icon: TrendingUp },
+      { to: "/app/dashboard", label: "Indicadores", icon: LayoutDashboard },
+      { to: "/app/vendas", label: "Pedidos", icon: FileText },
       { to: "/app/clientes", label: "Clientes", icon: Users },
-      { to: "/app/fornecedores", label: "Fornecedores", icon: Truck },
+      { to: "/app/produtos", label: "Produtos", icon: Package },
+      { to: "/app/tarefas", label: "Tarefas", icon: ListTodo },
     ],
   },
   {
-    group: "Comercial",
+    group: "Vendedores",
     items: [
-      { to: "/app/compras", label: "Compras", icon: ShoppingBag },
-      { to: "/app/vendas", label: "Vendas", icon: ShoppingCart },
-      { to: "/app/dav", label: "DAV", icon: FileText },
-      { to: "/app/pdv", label: "PDV", icon: Calculator },
       { to: "/app/vendedores", label: "Vendedores", icon: Users },
-      { to: "/app/vendas-parceiros", label: "Vendas Parceiros", icon: ShoppingCart },
+      { to: "/app/vendas-parceiros", label: "Vendas dos Vendedores", icon: ShoppingCart },
+      { to: "/app/comissoes", label: "Comissões", icon: BadgeDollarSign },
     ],
   },
   {
     group: "Gestão",
     items: [
       { to: "/app/financeiro", label: "Financeiro", icon: Wallet },
-      { to: "/app/logistica", label: "Logística", icon: Map },
-      { to: "/app/relatorios", label: "Relatórios", icon: BarChart3 },
     ],
   },
   {
@@ -153,10 +133,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Sidebar desktop */}
       <aside className="sticky top-0 h-screen hidden md:flex print:hidden w-64 shrink-0 flex-col bg-gradient-sidebar text-sidebar-foreground border-r border-sidebar-border">
-        <div className="p-5 border-b border-sidebar-border flex items-center justify-center">
-          <img src={premiumGardenLogo} alt="Premium Garden" className="h-16 w-auto object-contain" />
+        <div className="p-4 border-b border-sidebar-border flex items-center justify-center">
+          <img src={premiumGardenLogo} alt="Premium Garden" className="h-14 w-auto object-contain" />
         </div>
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
           {NAV.map((g) => (
             <div key={g.group}>
               <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">
@@ -170,7 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       <Link
                         to={it.to}
                         className={cn(
-                          "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                          "group flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                           active
                             ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
                             : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
@@ -186,8 +166,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent/40 p-2.5">
+        <div className="p-3 border-t border-sidebar-border">
+          <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent/40 p-2">
             <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-brand grid place-items-center text-sm font-bold text-primary-foreground">
               PG
             </div>

@@ -45,6 +45,8 @@ const MESES = [
   "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro",
 ];
 const ANOS = [2023, 2024, 2025, 2026];
+const REPORT_SECTION_CLASS =
+  "rounded-md border-2 border-primary/70 bg-card p-5 shadow-sm transition-shadow hover:shadow-md";
 
 // ── Donut simples ────────────────────────────────────────────
 function DonutCard({
@@ -477,10 +479,10 @@ function Dashboard() {
 
       {tab === "relatorios" && (
         <div className="py-6 px-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-10">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {/* VENDAS */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b border-border pb-2">Vendas</h3>
+            <div className={REPORT_SECTION_CLASS}>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b-2 border-primary/40 pb-2">Vendas</h3>
               <ul className="space-y-3">
                 <li><Link to="/app/relatorios" search={{ rel: 'resumo-vendas' }} className="text-sm text-brand hover:underline flex items-center gap-2">Resumo de vendas <Badge variant="outline" className="text-[9px] h-4 px-1 border-green-500 text-green-600 font-bold">NOVO</Badge></Link></li>
                 <li><Link to="/app/relatorios" search={{ rel: 'vendas-detalhadas' }} className="text-sm text-brand hover:underline flex items-center gap-2">Vendas detalhadas <Badge variant="outline" className="text-[9px] h-4 px-1 border-green-500 text-green-600 font-bold">NOVO</Badge></Link></li>
@@ -488,8 +490,8 @@ function Dashboard() {
             </div>
 
             {/* FATURAMENTO E TÍTULOS */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b border-border pb-2">Faturamento e Títulos</h3>
+            <div className={REPORT_SECTION_CLASS}>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b-2 border-primary/40 pb-2">Faturamento e Títulos</h3>
               <ul className="space-y-3">
                 <li><Link to="/app/relatorios" search={{ rel: 'pedidos-faturados' }} className="text-sm text-brand hover:underline">Pedidos faturados</Link></li>
                 <li><Link to="/app/relatorios" search={{ rel: 'faturamento' }} className="text-sm text-brand hover:underline">Faturamento</Link></li>
@@ -498,8 +500,8 @@ function Dashboard() {
             </div>
 
             {/* CLIENTES */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b border-border pb-2">Clientes</h3>
+            <div className={REPORT_SECTION_CLASS}>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b-2 border-primary/40 pb-2">Clientes</h3>
               <ul className="space-y-3">
                 <li><Link to="/app/relatorios" search={{ rel: 'clientes' }} className="text-sm text-brand hover:underline">Clientes</Link></li>
                 <li><Link to="/app/relatorios" search={{ rel: 'situacao-carteira' }} className="text-sm text-brand hover:underline">Situação da carteira de clientes</Link></li>
@@ -508,8 +510,8 @@ function Dashboard() {
             </div>
 
             {/* COMISSÕES */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b border-border pb-2">Comissões</h3>
+            <div className={REPORT_SECTION_CLASS}>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b-2 border-primary/40 pb-2">Comissões</h3>
               <ul className="space-y-3">
                 <li><Link to="/app/relatorios" search={{ rel: 'comissoes' }} className="text-sm text-brand hover:underline">Relatório de comissões</Link></li>
                 <li><Link to="/app/relatorios" search={{ rel: 'comissoes-por-pedido' }} className="text-sm text-brand hover:underline">Comissões por pedido</Link></li>
@@ -517,8 +519,8 @@ function Dashboard() {
             </div>
 
             {/* PRODUTOS */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b border-border pb-2">Produtos</h3>
+            <div className={REPORT_SECTION_CLASS}>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b-2 border-primary/40 pb-2">Produtos</h3>
               <ul className="space-y-3">
                 <li><Link to="/app/relatorios" search={{ rel: 'produtos-mais-vendidos' }} className="text-sm text-brand hover:underline">Produtos mais vendidos</Link></li>
                 <li><Link to="/app/relatorios" search={{ rel: 'positivacao-produtos' }} className="text-sm text-brand hover:underline">Positivação de produtos por cliente</Link></li>
@@ -528,16 +530,16 @@ function Dashboard() {
             </div>
 
             {/* OUTROS */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b border-border pb-2">Outros</h3>
+            <div className={REPORT_SECTION_CLASS}>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b-2 border-primary/40 pb-2">Outros</h3>
               <ul className="space-y-3">
                 <li><Link to="/app/relatorios" search={{ rel: 'emails-enviados' }} className="text-sm text-brand hover:underline">E-mails enviados</Link></li>
               </ul>
             </div>
 
             {/* VERSÕES ANTERIORES */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b border-border pb-2">Versões Anteriores</h3>
+            <div className={REPORT_SECTION_CLASS}>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 border-b-2 border-primary/40 pb-2">Versões Anteriores</h3>
               <ul className="space-y-3">
                 <li><Link to="/app/relatorios" search={{ rel: 'vendas-antigo' }} className="text-sm text-brand hover:underline flex items-center gap-2">Vendas <Badge variant="outline" className="text-[9px] h-4 px-1 border-muted-foreground text-muted-foreground font-bold">ANTIGO</Badge></Link></li>
               </ul>

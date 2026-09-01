@@ -1,7 +1,6 @@
 import { toast } from "sonner";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { MapPin, Pencil, ChevronDown, Plus, Edit2, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -193,7 +192,7 @@ function ClienteDetalhes() {
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   Últimos 6 meses
                 </div>
-                <div className="bg-slate-50 rounded-sm p-4 flex items-center justify-between border border-slate-100 mb-4">
+                <div className="bg-slate-50 rounded-sm p-4 flex items-center border border-slate-100 mb-4">
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-blue-400" />
                     <div>
@@ -201,28 +200,11 @@ function ClienteDetalhes() {
                       <span className="text-sm text-slate-500 ml-1">Pedidos realizados</span>
                     </div>
                   </div>
-                  <Button variant="outline" className="border-slate-300 text-[#4a148c] h-7 rounded-sm text-xs px-3 flex items-center">
-                    <span className="text-lg leading-none mr-1.5">✨</span>
-                    Analisar mix
-                  </Button>
                 </div>
                 <div className="flex items-start gap-1 text-[11px] text-slate-400">
                   <span className="w-3.5 h-3.5 rounded-full border border-slate-300 flex items-center justify-center font-bold text-[8px] mt-0.5">i</span>
                   Apenas pedidos do tipo venda
                 </div>
-              </div>
-            </div>
-
-            {/* PORTAL DO CLIENTE */}
-            <div className="bg-white border border-slate-200 rounded-sm">
-              <div className="p-4 border-b border-slate-100">
-                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Portal do Cliente</h2>
-              </div>
-              <div className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-sm font-semibold text-green-600">
-                  Portal liberado <span className="w-3.5 h-3.5 rounded-full border border-green-600 text-green-600 flex items-center justify-center font-bold text-[8px]">i</span>
-                </div>
-                <Switch checked={true} className="data-[state=checked]:bg-[#4a148c]" />
               </div>
             </div>
 

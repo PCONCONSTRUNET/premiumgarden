@@ -1,23 +1,36 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Building2,
+  Check,
+  ChevronsUpDown,
+  CircleDollarSign,
+  FileText,
+  ImageIcon,
+  Info,
+  Package,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  Store,
+  Trash2,
+  Truck,
+  UserRound,
+  Weight,
+  type LucideIcon,
+} from "lucide-react";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
-import { Card } from "@/components/ui/card";
+import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
+import { CnpjLoader } from "@/components/cnpj-loader";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Save, ArrowLeft, Plus, Trash2, ShoppingCart, Check, ChevronsUpDown, Search } from "lucide-react";
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -26,49 +39,81 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { CnpjLoader } from "@/components/cnpj-loader";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/venda-nova")({
-  head: () => ({ meta: [{ title: "Nova Venda — PREMIUM GARDEN" }] }),
-  component: NovaVenda,
+  head: () => ({ meta: [{ title: "Novo Pedido - PREMIUM GARDEN" }] }),
+  component: NovoPedido,
 });
 
-function NovaVenda() {
+const currency = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+function OrderSection({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-t bg-card px-5 py-6 md:px-8">
+      <div className="mb-4 flex items-center gap-2 border-b pb-2">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+        <h2 className="text-base font-medium uppercase tracking-wide text-muted-foreground">
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function NovoPedido() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
   const [clientes, setClientes] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
+  const [company, setCompany] = useState<any>(null);
 
-  // Form State
   const [clienteId, setClienteId] = useState("");
-  const [tipo] = useState("VENDA");
-  const [status, setStatus] = useState("Pago");
+  const [tipo, setTipo] = useState("VENDA");
+  const [status, setStatus] = useState("Pendente");
+  const [dataEmissao, setDataEmissao] = useState(new Date().toISOString().split("T")[0]);
+  const [contato, setContato] = useState("");
+  const [condicaoPagamento, setCondicaoPagamento] = useState("");
+  const [freteValor, setFreteValor] = useState(0);
+  const [transportadora, setTransportadora] = useState("");
+  const [rastreamento, setRastreamento] = useState("");
+  const [enderecoEntrega, setEnderecoEntrega] = useState("Endereço principal do cliente");
+  const [observacoes, setObservacoes] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
-  // Cart State
   const [itens, setItens] = useState<any[]>([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
   const [quantidade, setQuantidade] = useState(1);
   const [openProduto, setOpenProduto] = useState(false);
+  const [openCliente, setOpenCliente] = useState(false);
   const [descontoValor, setDescontoValor] = useState(0);
   const [descontoPercentual, setDescontoPercentual] = useState(0);
-  const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
-  const [freteValor, setFreteValor] = useState(0);
 
-  // Payment State
-  const [metodoPagamento, setMetodoPagamento] = useState("Cartão");
-  const [condicaoPagamento, setCondicaoPagamento] = useState("");
-
-  // States for new client modal
   const [openModalCliente, setOpenModalCliente] = useState(false);
+  const [saveAfterClientCreation, setSaveAfterClientCreation] = useState(false);
+  const [loadingCliente, setLoadingCliente] = useState(false);
   const [novoCliente, setNovoCliente] = useState({
     nome: "",
     cpf_cnpj: "",
@@ -80,166 +125,133 @@ function NovaVenda() {
     cidade: "",
     uf: "",
   });
-  const [loadingCliente, setLoadingCliente] = useState(false);
-  const [loadingCnpj, setLoadingCnpj] = useState(false);
+
+  const [openNewProduct, setOpenNewProduct] = useState(false);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [newProductTab, setNewProductTab] = useState("pricing");
+  const [newProduct, setNewProduct] = useState({
+    nome: "",
+    codigo: "",
+    categoria: "Sem categoria",
+    unidade: "Un",
+    multiplo: 1,
+    valor: 0,
+    estoque: 0,
+    ncm: "",
+    comissao: 0,
+    informacoes: "",
+    variacoes: "",
+    peso: "",
+    largura: "",
+    altura: "",
+    comprimento: "",
+  });
+
+  const fetchData = async () => {
+    const [{ data: clients }, { data: products }, { data: config }] = await Promise.all([
+      supabase.from("clientes").select("*").order("nome"),
+      supabase.from("produtos").select("*").eq("status", "Ativo").order("nome"),
+      supabase.from("configuracoes").select("*").limit(1).maybeSingle(),
+    ]);
+    setClientes(clients || []);
+    setProdutos(products || []);
+    setCompany(config || null);
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: c } = await supabase.from("clientes").select("*").order("nome");
-      const { data: p } = await supabase
-        .from("produtos")
-        .select("*")
-        .eq("status", "Ativo")
-        .order("nome");
-      if (c) setClientes(c);
-      if (p) setProdutos(p);
-    };
     fetchData();
   }, []);
 
-  const handleAddItem = () => {
-    if (!produtoSelecionado || quantidade <= 0) return;
-    const prod = produtos.find((p) => p.id === produtoSelecionado);
-    if (!prod) return;
+  const selectedClient = clientes.find((client) => client.id === clienteId);
+  const selectedProduct = produtos.find((product) => product.id === produtoSelecionado);
+  const categories = useMemo(
+    () => Array.from(new Set(produtos.map((product) => product.categoria).filter(Boolean))).sort(),
+    [produtos],
+  );
 
-    if (tipo === "VENDA" && prod.estoque < quantidade) {
-      toast.info(`Estoque insuficiente! Você tem apenas ${prod.estoque} unidades de ${prod.nome}.`);
+  const subtotal = itens.reduce((total, item) => total + item.subtotal, 0);
+  const percentualValue = (subtotal * descontoPercentual) / 100;
+  const totalPedido = Math.max(0, subtotal - descontoValor - percentualValue) + freteValor;
+
+  const handleAddItem = () => {
+    if (!selectedProduct || quantidade <= 0) {
+      toast.info("Selecione um produto e informe a quantidade.");
+      return;
+    }
+    if (tipo === "VENDA" && Number(selectedProduct.estoque || 0) < quantidade) {
+      toast.info(`Estoque insuficiente. Disponível: ${selectedProduct.estoque || 0}.`);
       return;
     }
 
-    const novoItem = {
-      produto_id: prod.id,
-      nome: prod.nome,
-      valor_unitario: Number(prod.valor),
-      quantidade: quantidade,
-      subtotal: Number(prod.valor) * quantidade,
-      imagem: prod.imagem,
-    };
-
-    setItens([...itens, novoItem]);
+    setItens((current) => {
+      const existingIndex = current.findIndex((item) => item.produto_id === selectedProduct.id);
+      if (existingIndex >= 0) {
+        return current.map((item, index) => {
+          if (index !== existingIndex) return item;
+          const newQuantity = item.quantidade + quantidade;
+          return {
+            ...item,
+            quantidade: newQuantity,
+            subtotal: newQuantity * item.valor_unitario,
+          };
+        });
+      }
+      return [
+        ...current,
+        {
+          produto_id: selectedProduct.id,
+          nome: selectedProduct.nome,
+          codigo: selectedProduct.codigo,
+          valor_unitario: Number(selectedProduct.valor || 0),
+          quantidade,
+          subtotal: Number(selectedProduct.valor || 0) * quantidade,
+          imagem: selectedProduct.imagem,
+        },
+      ];
+    });
     setProdutoSelecionado("");
     setQuantidade(1);
   };
 
+  const handleUpdateItem = (
+    index: number,
+    field: "quantidade" | "valor_unitario",
+    value: number,
+  ) => {
+    setItens((current) =>
+      current.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+        const next = { ...item, [field]: Math.max(field === "quantidade" ? 1 : 0, value) };
+        return { ...next, subtotal: next.quantidade * next.valor_unitario };
+      }),
+    );
+  };
+
   const handleRemoveItem = (index: number) => {
-    const novosItens = [...itens];
-    novosItens.splice(index, 1);
-    setItens(novosItens);
+    setItens((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
-
-  const handleUpdateValorUnitario = (index: number, novoValor: number) => {
-    const novosItens = [...itens];
-    novosItens[index].valor_unitario = novoValor;
-    novosItens[index].subtotal = novoValor * novosItens[index].quantidade;
-    setItens(novosItens);
-  };
-
-  // Cálculos do Resumo
-  const valorTotal = itens.reduce((acc, item) => acc + item.subtotal, 0);
-  const valorDescontoPerc = (valorTotal * descontoPercentual) / 100;
-  const totalComDesconto = Math.max(0, valorTotal - descontoValor - valorDescontoPerc);
 
   const handleSalvar = async () => {
     if (itens.length === 0) {
-      toast.info("Adicione pelo menos um item.");
+      toast.info("Adicione pelo menos um produto ao pedido.");
       return;
     }
-
-    // Se não tiver cliente selecionado, abre o modal de novo cliente
+    if (!condicaoPagamento.trim()) {
+      toast.info("Informe a condição de pagamento nos detalhes do pedido.");
+      setDetailsOpen(true);
+      return;
+    }
     if (!clienteId) {
+      setSaveAfterClientCreation(true);
       setOpenModalCliente(true);
       return;
     }
-
     await executarSalvamentoVenda(clienteId);
   };
 
-  const buscarCnpj = async (doc: string) => {
-    const cnpjLimpo = doc.replace(/\D/g, "");
-    if (cnpjLimpo.length !== 14) return;
-    
-    const start = Date.now();
-    setLoadingCnpj(true);
-    try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-      if (!res.ok) {
-        toast.error("CNPJ não encontrado na Receita Federal.");
-        return;
-      }
-      const data = await res.json();
-      
-      const tel = data.ddd_telefone_1 ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3") : "";
-      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
-      const tipoLogradouro = data.descricao_tipo_de_logradouro ? data.descricao_tipo_de_logradouro + " " : "";
-      const cidade = data.municipio ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase() : "";
-      
-      setNovoCliente((prev) => ({
-        ...prev,
-        nome: data.razao_social || prev.nome,
-        telefone: tel || prev.telefone,
-        cep: cepFmt || prev.cep,
-        endereco: tipoLogradouro + (data.logradouro || ""),
-        numero: data.numero || prev.numero,
-        bairro: data.bairro || prev.bairro,
-        cidade: cidade || prev.cidade,
-        uf: data.uf || prev.uf,
-      }));
-      toast.success("Dados preenchidos via Receita Federal!");
-    } catch (error) {
-      console.error("Erro na busca do CNPJ:", error);
-    } finally {
-      const elapsed = Date.now() - start;
-      const remaining = Math.max(0, 2000 - elapsed);
-      await new Promise((r) => setTimeout(r, remaining));
-      setLoadingCnpj(false);
-    }
-  };
-
-  const handleSalvarNovoCliente = async () => {
-    if (!novoCliente.nome) {
-      toast.info("O nome da empresa/cliente é obrigatório!");
-      return;
-    }
-
-    setLoadingCliente(true);
-    try {
-      const payload = {
-        nome: novoCliente.nome,
-        cpf_cnpj: novoCliente.cpf_cnpj,
-        telefone: novoCliente.telefone,
-        cep: novoCliente.cep,
-        endereco: novoCliente.endereco,
-        numero: novoCliente.numero,
-        bairro: novoCliente.bairro,
-        cidade: novoCliente.cidade,
-        uf: novoCliente.uf,
-        status: "Ativo",
-      };
-
-      const { data, error } = await supabase.from("clientes").insert([payload]).select().single();
-      if (error) throw error;
-
-      setClienteId(data.id);
-      setOpenModalCliente(false);
-
-      // Procede com a gravação do DAV/Venda com o novo cliente
-      await executarSalvamentoVenda(data.id);
-    } catch (err: any) {
-      console.error(err);
-      toast.error("Erro ao criar novo cliente: " + err.message);
-    } finally {
-      setLoadingCliente(false);
-    }
-  };
-
-  const executarSalvamentoVenda = async (idDoCliente: string) => {
+  const executarSalvamentoVenda = async (clientId: string) => {
     setLoading(true);
     try {
-      const subtotal = itens.reduce((acc, i) => acc + i.subtotal, 0);
-      const valDescontoPerc = (subtotal * descontoPercentual) / 100;
-      const totalVenda = subtotal - descontoValor - valDescontoPerc + freteValor;
-
-      // Pega o último número gerado para evitar pulos
       let nextNumero = 1;
       const { data: maxVenda } = await supabase
         .from("vendas")
@@ -248,151 +260,293 @@ function NovaVenda() {
         .order("numero", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (maxVenda?.numero) nextNumero = Number(maxVenda.numero) + 1;
 
-      if (maxVenda && maxVenda.numero) {
-        nextNumero = Number(maxVenda.numero) + 1;
-      }
-
-      // 1. Criar a Venda/DAV
       const { data: vendaData, error: vendaError } = await supabase
         .from("vendas")
         .insert([
           {
-            cliente_id: idDoCliente,
-            tipo: tipo,
-            status: status,
-            valor_total: totalComDesconto,
+            cliente_id: clientId,
+            tipo,
+            status: tipo === "DAV" ? "Pendente" : status,
+            valor_total: totalPedido,
             numero: nextNumero,
-            condicao_pagamento: metodoPagamento === "Boleto" ? `Boleto - ${condicaoPagamento}` : metodoPagamento,
+            condicao_pagamento: condicaoPagamento,
+            desconto_percentual: descontoPercentual,
+            desconto_valor: descontoValor,
           },
         ])
         .select()
         .single();
-
       if (vendaError) throw vendaError;
-      const vendaId = vendaData.id;
 
-      // 2. Inserir os Itens
-      const itensToInsert = itens.map((i) => ({
-        venda_id: vendaId,
-        produto_id: i.produto_id,
-        quantidade: i.quantidade,
-        valor_unitario: i.valor_unitario,
-        subtotal: i.subtotal,
-      }));
+      const { error: itemsError } = await supabase.from("vendas_itens").insert(
+        itens.map((item) => ({
+          venda_id: vendaData.id,
+          produto_id: item.produto_id,
+          quantidade: item.quantidade,
+          valor_unitario: item.valor_unitario,
+          subtotal: item.subtotal,
+        })),
+      );
+      if (itemsError) throw itemsError;
 
-      const { error: itensError } = await supabase.from("vendas_itens").insert(itensToInsert);
-      if (itensError) throw itensError;
-
-      // 3. Dar baixa no estoque e gerar financeiro (Somente se for VENDA e não Orçamento)
       if (tipo === "VENDA") {
         for (const item of itens) {
-          const prod = produtos.find((p) => p.id === item.produto_id);
-          const novoEstoque = prod.estoque - item.quantidade;
-          await supabase
-            .from("produtos")
-            .update({ estoque: novoEstoque })
-            .eq("id", item.produto_id);
+          const product = produtos.find((candidate) => candidate.id === item.produto_id);
+          if (product) {
+            await supabase
+              .from("produtos")
+              .update({ estoque: Number(product.estoque || 0) - Number(item.quantidade) })
+              .eq("id", item.produto_id);
+          }
         }
 
-        // Criar Conta a Receber
-        const vencimento = new Date();
-        vencimento.setDate(vencimento.getDate() + 30); // 30 dias de prazo
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
         await supabase.from("contas_receber").insert([
           {
-            venda_id: vendaId,
-            cliente_id: idDoCliente,
-            descricao: `Venda #${vendaData.numero_venda || vendaId.substring(0, 8).toUpperCase()}`,
-            valor: totalVenda,
-            vencimento: vencimento.toISOString().split("T")[0],
+            venda_id: vendaData.id,
+            cliente_id: clientId,
+            descricao: `Pedido #${nextNumero}`,
+            valor: totalPedido,
+            vencimento: dueDate.toISOString().split("T")[0],
             status: status === "Pago" ? "Recebido" : "Pendente",
             data_pagamento: status === "Pago" ? new Date().toISOString().split("T")[0] : null,
           },
         ]);
       }
 
-      toast.success("Venda finalizada com sucesso!");
+      toast.success(tipo === "DAV" ? "Orçamento criado." : "Pedido gerado com sucesso.");
       navigate({ to: "/app/vendas" });
     } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao salvar: " + err.message);
+      toast.error("Erro ao gerar pedido: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Status padrão fixo para VENDA
+  const buscarCnpj = async (document: string) => {
+    const cnpj = document.replace(/\D/g, "");
+    if (cnpj.length !== 14) return;
+    setLoadingCnpj(true);
+    try {
+      const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!response.ok) throw new Error("CNPJ não encontrado.");
+      const data = await response.json();
+      setNovoCliente((current) => ({
+        ...current,
+        nome: data.razao_social || current.nome,
+        telefone: data.ddd_telefone_1
+          ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3")
+          : current.telefone,
+        cep: data.cep
+          ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2")
+          : current.cep,
+        endereco: data.logradouro || current.endereco,
+        numero: data.numero || current.numero,
+        bairro: data.bairro || current.bairro,
+        cidade: data.municipio || current.cidade,
+        uf: data.uf || current.uf,
+      }));
+      toast.success("Dados preenchidos pela Receita Federal.");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao consultar o CNPJ.");
+    } finally {
+      setLoadingCnpj(false);
+    }
+  };
+
+  const handleSalvarNovoCliente = async () => {
+    if (!novoCliente.nome.trim()) {
+      toast.info("Informe o nome do cliente.");
+      return;
+    }
+    setLoadingCliente(true);
+    try {
+      const { data, error } = await supabase
+        .from("clientes")
+        .insert([{ ...novoCliente, status: "Ativo" }])
+        .select()
+        .single();
+      if (error) throw error;
+      setClientes((current) => [...current, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setClienteId(data.id);
+      setOpenModalCliente(false);
+      if (saveAfterClientCreation) await executarSalvamentoVenda(data.id);
+    } catch (err: any) {
+      toast.error("Erro ao criar cliente: " + err.message);
+    } finally {
+      setLoadingCliente(false);
+      setSaveAfterClientCreation(false);
+    }
+  };
+
+  const handleSaveProduct = async () => {
+    if (!newProduct.nome.trim() || !newProduct.codigo.trim()) {
+      toast.info("Informe o nome e o código do produto.");
+      return;
+    }
+    setSavingProduct(true);
+    try {
+      const dimensao = [newProduct.largura, newProduct.altura].filter(Boolean).join(" x ");
+      const { data, error } = await supabase
+        .from("produtos")
+        .insert([
+          {
+            nome: newProduct.nome.trim(),
+            codigo: newProduct.codigo.trim(),
+            categoria: newProduct.categoria || "Sem categoria",
+            estoque: Number(newProduct.estoque || 0),
+            valor: Number(newProduct.valor || 0),
+            status: "Ativo",
+            imagem: "",
+            numero: null,
+            dimensao: dimensao || null,
+            volume: null,
+            comprimento: newProduct.comprimento || null,
+            cores: newProduct.variacoes
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean),
+            ncm: newProduct.ncm || null,
+          },
+        ])
+        .select()
+        .single();
+      if (error) throw error;
+      setProdutos((current) => [...current, data].sort((a, b) => a.nome.localeCompare(b.nome)));
+      setProdutoSelecionado(data.id);
+      setOpenNewProduct(false);
+      toast.success("Produto criado e selecionado.");
+    } catch (err: any) {
+      toast.error("Erro ao criar produto: " + err.message);
+    } finally {
+      setSavingProduct(false);
+    }
+  };
 
   return (
     <>
       {loadingCnpj && <CnpjLoader />}
-      <PageHeader
-        title="Nova Venda"
-        subtitle="Preencha os dados e adicione os itens"
-        actions={
-          <>
-            <Button variant="outline" asChild>
-              <Link to="/app/vendas">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-              </Link>
-            </Button>
-            <Button
-              className="bg-gradient-brand text-primary-foreground"
-              onClick={handleSalvar}
-              disabled={loading || itens.length === 0}
-            >
-              <Save className="mr-2 h-4 w-4" />{" "}
-              {loading ? "Processando..." : "Finalizar Venda"}
-            </Button>
-          </>
-        }
-      />
-
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Lado Esquerdo - Formulário Principal */}
-        <div className="md:col-span-2 space-y-6">
-          <Card className="shadow-card p-6 space-y-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5 text-brand" /> Dados da Operação
-            </h3>
-
-            <div className="space-y-2">
-                <Label>Status</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <>
-                    <option value="Pago">Pago / Finalizado</option>
-                    <option value="Aguardando Pagamento">Aguardando Pagamento</option>
-                    <option value="Em Separação">Em Separação</option>
-                  </>
-                </select>
-              </div>
-
-            <div className="space-y-2">
-              <Label>Cliente</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={clienteId}
-                onChange={(e) => setClienteId(e.target.value)}
-              >
-                <option value="">Selecione um cliente...</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome} ({c.cidade || "S/ Cidade"})
-                  </option>
-                ))}
-              </select>
+      <div className="overflow-hidden border-2 border-border bg-card shadow-sm">
+        <div className="flex flex-col gap-3 bg-muted/40 px-5 py-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-semibold">Pedido #novo</h1>
+              <Badge className="border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-100">
+                {tipo === "DAV" ? "Em orçamento" : "Novo pedido"}
+              </Badge>
             </div>
-          </Card>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Preencha cliente, produtos e condição de pagamento para gerar o pedido.
+            </p>
+          </div>
+          <Button variant="ghost" asChild>
+            <Link to="/app/vendas">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar aos pedidos
+            </Link>
+          </Button>
+        </div>
 
-          {/* Adicionar Itens */}
-          <Card className="shadow-card p-6 space-y-4">
-            <h3 className="font-semibold text-lg">Itens do Pedido</h3>
-            <div className="flex gap-4 items-end">
-              <div className="space-y-2 flex-1 flex flex-col justify-end">
+        <div className="flex flex-wrap gap-2 border-y-2 border-foreground/80 px-5 py-3">
+          <Button onClick={handleSalvar} disabled={loading}>
+            <Save className="mr-2 h-4 w-4" /> {loading ? "Gerando..." : "Gerar pedido"}
+          </Button>
+          <Button variant="outline" onClick={() => setDetailsOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" /> Detalhes do pedido
+          </Button>
+        </div>
+
+        <OrderSection icon={Store} title="Cliente">
+          <div className="max-w-5xl space-y-3">
+            <Popover open={openCliente} onOpenChange={setOpenCliente}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openCliente}
+                  className="h-10 w-full justify-between border-primary/70 font-normal"
+                >
+                  <span className="truncate">
+                    {selectedClient
+                      ? `${selectedClient.nome}${selectedClient.cpf_cnpj ? ` - ${selectedClient.cpf_cnpj}` : ""}`
+                      : "Digite o nome ou CNPJ/CPF do cliente e selecione"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[min(720px,calc(100vw-2rem))] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar cliente..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {clientes.map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          value={`${client.nome} ${client.cpf_cnpj || ""} ${client.cidade || ""}`}
+                          onSelect={() => {
+                            setClienteId(client.id);
+                            setOpenCliente(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              clienteId === client.id ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          <div>
+                            <p className="font-medium">{client.nome}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {[client.cpf_cnpj, client.cidade, client.uf]
+                                .filter(Boolean)
+                                .join(" - ")}
+                            </p>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSaveAfterClientCreation(false);
+                  setOpenModalCliente(true);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Novo cliente
+              </Button>
+              <Button variant="link" size="sm" asChild>
+                <Link to="/app/clientes">Listar todos os clientes</Link>
+              </Button>
+            </div>
+          </div>
+        </OrderSection>
+
+        <OrderSection icon={Building2} title="Representada">
+          <div className="border-l-4 border-primary/30 pl-4">
+            <p className="font-semibold text-primary">
+              {company?.nome_fantasia || company?.razao_social || "PREMIUM GARDEN"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {[company?.telefone, company?.email_contato].filter(Boolean).join(" - ") ||
+                "Representada principal"}
+            </p>
+          </div>
+        </OrderSection>
+
+        <OrderSection icon={BookOpen} title="Produtos">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+              <div className="min-w-0 flex-1 space-y-2">
                 <Label>Produto</Label>
                 <Popover open={openProduto} onOpenChange={setOpenProduto}>
                   <PopoverTrigger asChild>
@@ -400,45 +554,48 @@ function NovaVenda() {
                       variant="outline"
                       role="combobox"
                       aria-expanded={openProduto}
-                      className="w-full justify-between h-10 font-normal px-3"
+                      className="h-10 w-full justify-between font-normal"
                     >
-                      {produtoSelecionado
-                        ? (() => {
-                            const p = produtos.find((p) => p.id === produtoSelecionado);
-                            return p
-                              ? `${p.nome} - R$ ${Number(p.valor).toFixed(2)} (Estoque: ${p.estoque})`
-                              : "Selecionar produto...";
-                          })()
-                        : "Selecionar ou buscar produto..."}
+                      <span className="truncate">
+                        {selectedProduct
+                          ? `${selectedProduct.codigo || "S/C"} - ${selectedProduct.nome} - ${currency.format(Number(selectedProduct.valor || 0))}`
+                          : "Digite o código ou nome do produto para adicionar"}
+                      </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[450px] p-0" align="start">
+                  <PopoverContent className="w-[min(760px,calc(100vw-2rem))] p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Buscar produto por nome..." />
+                      <CommandInput placeholder="Buscar produto por código ou nome..." />
                       <CommandList>
                         <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
                         <CommandGroup>
-                          {produtos.map((p) => (
+                          {produtos.map((product) => (
                             <CommandItem
-                              key={p.id}
-                              value={`${p.codigo || ""} ${p.nome} ${p.id}`}
+                              key={product.id}
+                              value={`${product.codigo || ""} ${product.nome} ${product.categoria || ""}`}
                               onSelect={() => {
-                                setProdutoSelecionado(p.id === produtoSelecionado ? "" : p.id);
+                                setProdutoSelecionado(product.id);
                                 setOpenProduto(false);
                               }}
                             >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  produtoSelecionado === p.id ? "opacity-100" : "opacity-0",
+                                  produtoSelecionado === product.id ? "opacity-100" : "opacity-0",
                                 )}
                               />
-                              <div className="flex flex-col">
-                                <span className="font-medium">{p.nome} - R$ {Number(p.valor).toFixed(2)} (Estoque: {p.estoque})</span>
-                                {p.imagem && (
-                                  <img src={p.imagem} className="h-5 w-5 rounded object-cover mt-1" />
-                                )}
+                              <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium">{product.nome}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {product.codigo || "Sem código"} - Estoque:{" "}
+                                    {product.estoque || 0}
+                                  </p>
+                                </div>
+                                <strong className="shrink-0 text-sm">
+                                  {currency.format(Number(product.valor || 0))}
+                                </strong>
                               </div>
                             </CommandItem>
                           ))}
@@ -448,240 +605,571 @@ function NovaVenda() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="space-y-2 w-24">
-                <Label>Qtd</Label>
+              <div className="w-full space-y-2 lg:w-28">
+                <Label>Quantidade</Label>
                 <Input
                   type="number"
                   min="1"
                   value={quantidade}
-                  onChange={(e) => setQuantidade(Number(e.target.value))}
+                  onChange={(event) => setQuantidade(Number(event.target.value))}
                 />
               </div>
-              <Button type="button" onClick={handleAddItem} variant="secondary">
-                <Plus className="h-4 w-4 mr-2" /> Adicionar
+              <Button onClick={handleAddItem}>
+                <Plus className="mr-2 h-4 w-4" /> Adicionar
               </Button>
             </div>
 
-            <div className="border rounded-md mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12"></TableHead>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Qtd</TableHead>
-                    <TableHead className="text-right">Unitário</TableHead>
-                    <TableHead className="text-right">Subtotal</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {itens.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
-                        Nenhum item adicionado ao carrinho.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    itens.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-accent text-lg">
-                            {item.imagem ? (
-                              <img src={item.imagem} alt={item.nome} className="h-full w-full object-cover" />
-                            ) : (
-                              <span className="opacity-50">📦</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-semibold">{item.nome}</TableCell>
-                        <TableCell className="text-right">{item.quantidade}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            R$ 
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.valor_unitario}
-                              onChange={(e) => handleUpdateValorUnitario(index, parseFloat(e.target.value) || 0)}
-                              className="w-20 text-right bg-transparent border-b border-dashed border-slate-300 outline-none focus:border-brand p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-bold">
-                          R$ {item.subtotal.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => handleRemoveItem(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setOpenNewProduct(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Novo produto
+              </Button>
+              <Button variant="link" size="sm" asChild>
+                <Link to="/app/produtos">Listar todos os produtos</Link>
+              </Button>
             </div>
-          </Card>
-        </div>
 
-        {/* Lado Direito - Resumo */}
-        <div className="space-y-6">
-          <Card className="shadow-card p-6 bg-accent/30 border-brand/20">
-            <h3 className="font-semibold text-lg mb-4">Resumo</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal ({itens.length} itens)</span>
-                <span className="font-semibold">R$ {valorTotal.toFixed(2)}</span>
+            <div className="overflow-x-auto rounded-md border">
+              <div className="grid min-w-[760px] grid-cols-[minmax(240px,1fr)_120px_150px_150px_48px] bg-muted/40 px-4 py-2 text-xs font-semibold uppercase text-muted-foreground">
+                <span>Produto</span>
+                <span>Quantidade</span>
+                <span>Unitário</span>
+                <span>Subtotal</span>
+                <span />
               </div>
-              <div className="flex justify-between text-sm items-center">
-                <span className="text-muted-foreground">Descontos Fixos</span>
-                <div className="flex items-center gap-1 font-semibold text-destructive">
-                  <span>- R$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={descontoValor}
-                    onChange={(e) => setDescontoValor(parseFloat(e.target.value) || 0)}
-                    className="w-20 text-right bg-transparent border-b border-dashed border-destructive/50 outline-none focus:border-destructive p-0 m-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
+              {itens.length === 0 ? (
+                <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  Nenhum produto adicionado ao pedido.
                 </div>
-              </div>
-              {descontoPercentual > 0 && (
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground">Desconto {metodoPagamento} ({descontoPercentual}%)</span>
-                  <div className="flex items-center gap-1 font-semibold text-destructive">
-                    <span>- R$ {valorDescontoPerc.toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
-              <div className="h-px w-full bg-border my-2" />
-              <div className="flex justify-between items-center">
-                <span className="font-semibold text-lg">Total</span>
-                <span className="font-display text-2xl font-bold text-brand">
-                  R$ {totalComDesconto.toFixed(2)}
-                </span>
-              </div>
-              <div className="h-px w-full bg-border my-4" />
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
-                  Forma de Pagamento
-                </p>
-                <div className="grid grid-cols-4 gap-2">
-                  <Button
-                    onClick={() => {
-                      setMetodoPagamento("Dinheiro");
-                      setIsDiscountModalOpen(true);
-                    }}
-                    variant="outline"
-                    className={`h-16 flex-col gap-1 ${metodoPagamento === "Dinheiro" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
+              ) : (
+                itens.map((item, index) => (
+                  <div
+                    key={item.produto_id}
+                    className="grid min-w-[760px] grid-cols-[minmax(240px,1fr)_120px_150px_150px_48px] items-center border-t px-4 py-3"
                   >
-                    <img src="https://img.icons8.com/arcade/64/money.png" className="h-5 w-5 object-contain" alt="Dinheiro" />
-                    <span className="text-[10px] sm:text-xs">Dinheiro</span>
-                  </Button>
-                  <Button
-                    onClick={() => setMetodoPagamento("Cartão")}
-                    variant="outline"
-                    className={`h-16 flex-col gap-1 ${metodoPagamento === "Cartão" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
-                  >
-                    <img src="https://img.icons8.com/fluency/48/bank-card-front-side.png" className="h-5 w-5 object-contain" alt="Cartão" />
-                    <span className="text-[10px] sm:text-xs">Cartão</span>
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setMetodoPagamento("Pix");
-                      setIsDiscountModalOpen(true);
-                    }}
-                    variant="outline"
-                    className={`h-16 flex-col gap-1 ${metodoPagamento === "Pix" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
-                  >
-                    <img src="https://img.icons8.com/fluency/48/pix.png" className="h-5 w-5 object-contain" alt="Pix" />
-                    <span className="text-[10px] sm:text-xs">Pix</span>
-                  </Button>
-                  <Button
-                    onClick={() => setMetodoPagamento("Boleto")}
-                    variant="outline"
-                    className={`h-16 flex-col gap-1 ${metodoPagamento === "Boleto" ? "ring-2 ring-brand border-transparent bg-brand/5" : ""}`}
-                  >
-                    <img src="https://img.icons8.com/fluency/48/recurring-appointment.png" className="h-5 w-5 object-contain" alt="Boleto" />
-                    <span className="text-[10px] sm:text-xs">Boleto</span>
-                  </Button>
-                </div>
-                {metodoPagamento === "Boleto" && (
-                  <div className="mt-4">
-                    <p className="text-xs font-semibold uppercase text-brand tracking-wider mb-2">
-                      Condição de Pagamento (Prazo)
-                    </p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-muted">
+                        {item.imagem ? (
+                          <img
+                            src={item.imagem}
+                            alt={item.nome}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{item.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.codigo || "Sem código"}
+                        </p>
+                      </div>
+                    </div>
                     <Input
-                      required
-                      placeholder="Ex: 30/60/90, Para o dia 10..."
-                      value={condicaoPagamento}
-                      onChange={(e) => setCondicaoPagamento(e.target.value)}
+                      type="number"
+                      min="1"
+                      value={item.quantidade}
+                      onChange={(event) =>
+                        handleUpdateItem(index, "quantidade", Number(event.target.value))
+                      }
+                      className="h-8 w-24"
                     />
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.valor_unitario}
+                      onChange={(event) =>
+                        handleUpdateItem(index, "valor_unitario", Number(event.target.value))
+                      }
+                      className="h-8 w-32"
+                    />
+                    <strong className="text-sm">{currency.format(item.subtotal)}</strong>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      onClick={() => handleRemoveItem(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
+                ))
+              )}
+            </div>
+          </div>
+        </OrderSection>
+
+        <OrderSection icon={Info} title="Detalhes do pedido">
+          <div className="grid gap-8 lg:grid-cols-3">
+            <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">Nº do pedido</dt>
+              <dd>Novo</dd>
+              <dt className="text-muted-foreground">Data da emissão</dt>
+              <dd>{new Date(`${dataEmissao}T12:00:00`).toLocaleDateString("pt-BR")}</dd>
+              <dt className="text-muted-foreground">Tipo de pedido</dt>
+              <dd>{tipo === "DAV" ? "Orçamento" : "Venda"}</dd>
+              <dt className="text-muted-foreground">Vendedor</dt>
+              <dd>Administrador</dd>
+              <dt className="text-muted-foreground">Contato</dt>
+              <dd>{contato || "---"}</dd>
+            </dl>
+            <dl className="grid grid-cols-[150px_1fr] gap-x-4 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">Condição de pagamento</dt>
+              <dd>{condicaoPagamento || "---"}</dd>
+              <dt className="text-muted-foreground">Status inicial</dt>
+              <dd>{tipo === "DAV" ? "Em orçamento" : status}</dd>
+              <dt className="text-muted-foreground">Informações adicionais</dt>
+              <dd>{observacoes || "---"}</dd>
+            </dl>
+            <dl className="grid grid-cols-[130px_1fr] gap-x-4 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">Valor do frete</dt>
+              <dd>{currency.format(freteValor)}</dd>
+              <dt className="text-muted-foreground">Transportadora</dt>
+              <dd>{transportadora || "---"}</dd>
+              <dt className="text-muted-foreground">Rastreamento</dt>
+              <dd>{rastreamento || "---"}</dd>
+              <dt className="text-muted-foreground">End. de entrega</dt>
+              <dd>{enderecoEntrega}</dd>
+            </dl>
+          </div>
+          <Button variant="outline" className="mt-6" onClick={() => setDetailsOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" /> Alterar detalhes do pedido
+          </Button>
+        </OrderSection>
+
+        <section className="border-t bg-muted/20 px-5 py-6 md:px-8">
+          <div className="ml-auto w-full max-w-lg space-y-3 rounded-md border-2 border-primary/50 bg-card p-5">
+            <div className="flex items-center gap-2 border-b pb-3">
+              <CircleDollarSign className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">Resumo do pedido</h2>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <strong>{currency.format(subtotal)}</strong>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Desconto (R$)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={descontoValor}
+                  onChange={(event) => setDescontoValor(Number(event.target.value))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Desconto (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={descontoPercentual}
+                  onChange={(event) => setDescontoPercentual(Number(event.target.value))}
+                />
               </div>
             </div>
-          </Card>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Frete</span>
+              <span>{currency.format(freteValor)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-3 text-lg">
+              <strong>Total</strong>
+              <strong className="text-primary">{currency.format(totalPedido)}</strong>
+            </div>
+          </div>
+        </section>
+
+        <div className="flex flex-wrap gap-2 border-t-2 border-foreground/80 bg-card px-5 py-4 md:px-8">
+          <Button onClick={handleSalvar} disabled={loading}>
+            <Save className="mr-2 h-4 w-4" /> {loading ? "Gerando..." : "Gerar pedido"}
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/app/vendas">Cancelar</Link>
+          </Button>
         </div>
       </div>
 
-      {/* Modal para criar novo cliente on-the-fly */}
-      <Dialog open={isDiscountModalOpen} onOpenChange={setIsDiscountModalOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Desconto (%)</DialogTitle>
+            <DialogTitle>Detalhes do pedido</DialogTitle>
             <DialogDescription>
-              Aplicar porcentagem de desconto para pagamento via {metodoPagamento}.
+              Defina emissão, pagamento, entrega e informações adicionais.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label>Desconto (%)</Label>
-            <div className="flex items-center gap-2 mt-2">
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={descontoPercentual}
-                onChange={(e) => setDescontoPercentual(parseFloat(e.target.value) || 0)}
+          <div className="space-y-8 py-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-2">
+                <Label>Número do pedido</Label>
+                <Input value="Automático" disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>Data da emissão</Label>
+                <Input
+                  type="date"
+                  value={dataEmissao}
+                  onChange={(event) => setDataEmissao(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo de pedido</Label>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  value={tipo}
+                  onChange={(event) => setTipo(event.target.value)}
+                >
+                  <option value="VENDA">Venda</option>
+                  <option value="DAV">Orçamento</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Status inicial</Label>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  value={status}
+                  onChange={(event) => setStatus(event.target.value)}
+                  disabled={tipo === "DAV"}
+                >
+                  <option value="Pendente">Pendente</option>
+                  <option value="Aguardando Pagamento">Aguardando pagamento</option>
+                  <option value="Em Separação">Em separação</option>
+                  <option value="Pago">Pago</option>
+                </select>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Contato no cliente</Label>
+                <Input
+                  value={contato}
+                  onChange={(event) => setContato(event.target.value)}
+                  placeholder="Nome do contato"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <CircleDollarSign className="h-5 w-5 text-muted-foreground" />
+                <h3 className="text-lg font-medium uppercase text-muted-foreground">Pagamento</h3>
+              </div>
+              <div className="max-w-xl space-y-2">
+                <Label>Condição de pagamento *</Label>
+                <Input
+                  value={condicaoPagamento}
+                  onChange={(event) => setCondicaoPagamento(event.target.value)}
+                  placeholder="Ex.: À vista, 30 dias, 30/60/90"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 border-b pb-2">
+                <Truck className="h-5 w-5 text-muted-foreground" />
+                <h3 className="text-lg font-medium uppercase text-muted-foreground">Entrega</h3>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label>Valor do frete</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={freteValor}
+                    onChange={(event) => setFreteValor(Number(event.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Transportadora</Label>
+                  <Input
+                    value={transportadora}
+                    onChange={(event) => setTransportadora(event.target.value)}
+                    placeholder="Transportadora"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Rastreamento</Label>
+                  <Input
+                    value={rastreamento}
+                    onChange={(event) => setRastreamento(event.target.value)}
+                    placeholder="Código ou link"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Endereço de entrega</Label>
+                  <Input
+                    value={enderecoEntrega}
+                    onChange={(event) => setEnderecoEntrega(event.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="border-b pb-2">
+                <h3 className="text-lg font-medium uppercase text-muted-foreground">
+                  Informações adicionais
+                </h3>
+              </div>
+              <textarea
+                className="min-h-28 w-full rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                value={observacoes}
+                onChange={(event) => setObservacoes(event.target.value)}
+                placeholder="Descreva informações adicionais deste pedido"
               />
-              <span className="text-xl">%</span>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDiscountModalOpen(false)}>
-              Fechar
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>
+              Cancelar
             </Button>
-            <Button onClick={() => setIsDiscountModalOpen(false)}>
-              Aplicar Desconto
+            <Button onClick={() => setDetailsOpen(false)}>Salvar detalhes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openNewProduct} onOpenChange={setOpenNewProduct}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Novo produto</DialogTitle>
+            <DialogDescription>Cadastre o produto sem sair do pedido.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-3 md:grid-cols-[64px_1fr_180px]">
+            <div className="grid h-16 w-16 place-items-center rounded-md border bg-muted">
+              <ImageIcon className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input
+                value={newProduct.nome}
+                onChange={(event) => setNewProduct({ ...newProduct, nome: event.target.value })}
+                placeholder="Nome do produto"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Código *</Label>
+              <Input
+                value={newProduct.codigo}
+                onChange={(event) => setNewProduct({ ...newProduct, codigo: event.target.value })}
+                placeholder="SKU ou referência"
+              />
+            </div>
+            <div className="space-y-2 md:col-start-2">
+              <Label>Unidade de medida</Label>
+              <Input
+                value={newProduct.unidade}
+                onChange={(event) => setNewProduct({ ...newProduct, unidade: event.target.value })}
+                placeholder="Un, Kg, Cx"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Venda em múltiplos de</Label>
+              <Input
+                type="number"
+                min="1"
+                value={newProduct.multiplo}
+                onChange={(event) =>
+                  setNewProduct({ ...newProduct, multiplo: Number(event.target.value) })
+                }
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2 md:col-start-2">
+              <Label>Categoria</Label>
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                value={newProduct.categoria}
+                onChange={(event) =>
+                  setNewProduct({ ...newProduct, categoria: event.target.value })
+                }
+              >
+                <option value="Sem categoria">Sem categoria</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <Tabs value={newProductTab} onValueChange={setNewProductTab}>
+            <TabsList className="h-auto w-full justify-start rounded-none border-b bg-transparent p-0">
+              <TabsTrigger
+                value="pricing"
+                className="rounded-none border-b-2 border-transparent px-5 py-3 data-[state=active]:border-primary data-[state=active]:shadow-none"
+              >
+                Tabelas de preço
+              </TabsTrigger>
+              <TabsTrigger
+                value="general"
+                className="rounded-none border-b-2 border-transparent px-5 py-3 data-[state=active]:border-primary data-[state=active]:shadow-none"
+              >
+                Informações gerais
+              </TabsTrigger>
+              <TabsTrigger
+                value="variations"
+                className="rounded-none border-b-2 border-transparent px-5 py-3 data-[state=active]:border-primary data-[state=active]:shadow-none"
+              >
+                Variações
+              </TabsTrigger>
+              <TabsTrigger
+                value="dimensions"
+                className="rounded-none border-b-2 border-transparent px-5 py-3 data-[state=active]:border-primary data-[state=active]:shadow-none"
+              >
+                Peso e dimensões
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="pricing" className="min-h-64 p-4">
+              <div className="grid max-w-xl gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Preço de tabela *</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newProduct.valor}
+                    onChange={(event) =>
+                      setNewProduct({ ...newProduct, valor: Number(event.target.value) })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Estoque inicial</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newProduct.estoque}
+                    onChange={(event) =>
+                      setNewProduct({ ...newProduct, estoque: Number(event.target.value) })
+                    }
+                  />
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="general" className="min-h-64 space-y-6 p-4">
+              <div className="grid max-w-xl gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>NCM</Label>
+                  <Input
+                    value={newProduct.ncm}
+                    onChange={(event) =>
+                      setNewProduct({
+                        ...newProduct,
+                        ncm: event.target.value.replace(/\D/g, "").slice(0, 8),
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Comissão (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newProduct.comissao}
+                    onChange={(event) =>
+                      setNewProduct({ ...newProduct, comissao: Number(event.target.value) })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Informações adicionais</Label>
+                <textarea
+                  className="min-h-32 w-full rounded-md border p-3 text-sm"
+                  value={newProduct.informacoes}
+                  onChange={(event) =>
+                    setNewProduct({ ...newProduct, informacoes: event.target.value })
+                  }
+                />
+              </div>
+            </TabsContent>
+            <TabsContent value="variations" className="min-h-64 p-4">
+              <div className="mx-auto flex max-w-lg flex-col items-center justify-center gap-4 py-8 text-center">
+                <Package className="h-12 w-12 text-primary/60" />
+                <div>
+                  <h3 className="font-semibold">Variações do produto</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Informe cores ou variações separadas por vírgula.
+                  </p>
+                </div>
+                <Input
+                  value={newProduct.variacoes}
+                  onChange={(event) =>
+                    setNewProduct({ ...newProduct, variacoes: event.target.value })
+                  }
+                  placeholder="Ex.: Verde, Preto, Terracota"
+                />
+              </div>
+            </TabsContent>
+            <TabsContent value="dimensions" className="min-h-64 p-4">
+              <div className="mb-5 flex items-center gap-2 text-sm text-muted-foreground">
+                <Weight className="h-5 w-5" /> Peso e dimensões unitárias
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label>Peso bruto</Label>
+                  <Input
+                    value={newProduct.peso}
+                    onChange={(event) => setNewProduct({ ...newProduct, peso: event.target.value })}
+                    placeholder="kg"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Largura</Label>
+                  <Input
+                    value={newProduct.largura}
+                    onChange={(event) =>
+                      setNewProduct({ ...newProduct, largura: event.target.value })
+                    }
+                    placeholder="cm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Altura</Label>
+                  <Input
+                    value={newProduct.altura}
+                    onChange={(event) =>
+                      setNewProduct({ ...newProduct, altura: event.target.value })
+                    }
+                    placeholder="cm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Comprimento</Label>
+                  <Input
+                    value={newProduct.comprimento}
+                    onChange={(event) =>
+                      setNewProduct({ ...newProduct, comprimento: event.target.value })
+                    }
+                    placeholder="cm"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenNewProduct(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveProduct} disabled={savingProduct}>
+              <Check className="mr-2 h-4 w-4" /> {savingProduct ? "Salvando..." : "Salvar produto"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal para criar novo cliente on-the-fly */}
       <Dialog open={openModalCliente} onOpenChange={setOpenModalCliente}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Preencher Dados do Cliente</DialogTitle>
-            <DialogDescription>
-              Você não selecionou um cliente. Preencha os dados abaixo para cadastrar e emitir o{" "}
-              Pedido automaticamente.
-            </DialogDescription>
+            <DialogTitle>Novo cliente</DialogTitle>
+            <DialogDescription>Cadastre o cliente sem sair do pedido.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label>Nome / Empresa *</Label>
               <Input
                 value={novoCliente.nome}
-                onChange={(e) => setNovoCliente({ ...novoCliente, nome: e.target.value })}
-                placeholder="Nome completo ou Razão Social"
+                onChange={(event) => setNovoCliente({ ...novoCliente, nome: event.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -689,21 +1177,17 @@ function NovaVenda() {
               <div className="flex gap-2">
                 <Input
                   value={novoCliente.cpf_cnpj}
-                  onChange={(e) => {
-                    const formatted = formatCpfCnpj(e.target.value);
-                    setNovoCliente({ ...novoCliente, cpf_cnpj: formatted });
-                    if (formatted.replace(/\D/g, "").length === 14) {
-                      buscarCnpj(formatted);
-                    }
+                  onChange={(event) => {
+                    const value = formatCpfCnpj(event.target.value);
+                    setNovoCliente({ ...novoCliente, cpf_cnpj: value });
+                    if (value.replace(/\D/g, "").length === 14) buscarCnpj(value);
                   }}
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
                 />
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="px-3 shrink-0"
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
                   onClick={() => buscarCnpj(novoCliente.cpf_cnpj)}
-                  title="Buscar dados do CNPJ"
                 >
                   <Search className="h-4 w-4" />
                 </Button>
@@ -713,76 +1197,74 @@ function NovaVenda() {
               <Label>Telefone</Label>
               <Input
                 value={novoCliente.telefone}
-                onChange={(e) => setNovoCliente({ ...novoCliente, telefone: formatPhone(e.target.value) })}
-                placeholder="(00) 00000-0000"
+                onChange={(event) =>
+                  setNovoCliente({ ...novoCliente, telefone: formatPhone(event.target.value) })
+                }
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>CEP</Label>
                 <Input
                   value={novoCliente.cep}
-                  onChange={(e) => setNovoCliente({ ...novoCliente, cep: e.target.value })}
-                  placeholder="00000-000"
+                  onChange={(event) => setNovoCliente({ ...novoCliente, cep: event.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Rua / Logradouro</Label>
+                <Label>Endereço</Label>
                 <Input
                   value={novoCliente.endereco}
-                  onChange={(e) => setNovoCliente({ ...novoCliente, endereco: e.target.value })}
-                  placeholder="Rua Exemplo"
+                  onChange={(event) =>
+                    setNovoCliente({ ...novoCliente, endereco: event.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label>Número</Label>
                 <Input
                   value={novoCliente.numero}
-                  onChange={(e) => setNovoCliente({ ...novoCliente, numero: e.target.value })}
-                  placeholder="123"
+                  onChange={(event) =>
+                    setNovoCliente({ ...novoCliente, numero: event.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label>Bairro</Label>
                 <Input
                   value={novoCliente.bairro}
-                  onChange={(e) => setNovoCliente({ ...novoCliente, bairro: e.target.value })}
-                  placeholder="Centro"
+                  onChange={(event) =>
+                    setNovoCliente({ ...novoCliente, bairro: event.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label>Cidade</Label>
                 <Input
                   value={novoCliente.cidade}
-                  onChange={(e) => setNovoCliente({ ...novoCliente, cidade: e.target.value })}
-                  placeholder="Sua Cidade"
+                  onChange={(event) =>
+                    setNovoCliente({ ...novoCliente, cidade: event.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label>UF</Label>
                 <Input
-                  value={novoCliente.uf}
-                  onChange={(e) => setNovoCliente({ ...novoCliente, uf: e.target.value })}
-                  placeholder="SP"
                   maxLength={2}
+                  value={novoCliente.uf}
+                  onChange={(event) =>
+                    setNovoCliente({ ...novoCliente, uf: event.target.value.toUpperCase() })
+                  }
                 />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setOpenModalCliente(false)}
-              disabled={loadingCliente}
-            >
+            <Button variant="outline" onClick={() => setOpenModalCliente(false)}>
               Cancelar
             </Button>
-            <Button
-              onClick={handleSalvarNovoCliente}
-              disabled={loadingCliente}
-              className="bg-gradient-brand text-primary-foreground"
-            >
-              {loadingCliente ? "Emitindo..." : "Confirmar e Emitir"}
+            <Button onClick={handleSalvarNovoCliente} disabled={loadingCliente}>
+              <UserRound className="mr-2 h-4 w-4" />{" "}
+              {loadingCliente ? "Salvando..." : "Salvar cliente"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,28 +1,27 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Plus, Calculator, Trash2, Check, X, Pencil } from "lucide-react";
-import { useEffect, useState } from "react";
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Eye,
+  FileText,
+  MessageCircle,
+  PackageCheck,
+  Pencil,
+  Plus,
+  Printer,
+  Search,
+  Trash2,
+  UserRound,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -30,32 +29,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/app/vendas")({
-  head: () => ({ meta: [{ title: "Vendas — PREMIUM GARDEN" }] }),
-  component: Vendas,
+  head: () => ({ meta: [{ title: "Pedidos - PREMIUM GARDEN" }] }),
+  component: Pedidos,
 });
 
-function Vendas() {
+const currency = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+function Pedidos() {
   const confirm = useConfirm();
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
+  const [typeFilter, setTypeFilter] = useState("todos");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // States for Details Sheet
   const [selectedVenda, setSelectedVenda] = useState<any>(null);
   const [openSheet, setOpenSheet] = useState(false);
   const [vendaItens, setVendaItens] = useState<any[]>([]);
   const [loadingItens, setLoadingItens] = useState(false);
-  
   const [isEditingTotal, setIsEditingTotal] = useState(false);
   const [newTotalValue, setNewTotalValue] = useState("");
 
   const fetchVendas = async () => {
+    setLoading(true);
     try {
-      // Usando junção (join) com clientes para pegar o nome
       const { data, error } = await supabase
         .from("vendas")
-        .select(`*, clientes (nome)`)
+        .select("*, clientes(nome), vendedores(nome)")
         .or("status_aprovacao.neq.Pendente,status_aprovacao.is.null")
         .order("created_at", { ascending: false });
 
@@ -63,7 +76,7 @@ function Vendas() {
       setVendas(data || []);
     } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao buscar vendas.");
+      toast.error("Erro ao buscar pedidos.");
     } finally {
       setLoading(false);
     }
@@ -72,6 +85,78 @@ function Vendas() {
   useEffect(() => {
     fetchVendas();
   }, []);
+
+  const getOrderNumber = (venda: any) =>
+    venda.numero
+      ? String(venda.numero)
+      : venda.numero_venda || venda.id?.substring(0, 8).toUpperCase();
+
+  const getStatusLabel = (venda: any) => {
+    if (venda.tipo === "DAV" && (!venda.status || venda.status === "Pendente")) {
+      return "Em orçamento";
+    }
+    return venda.status || "Pendente";
+  };
+
+  const getTone = (status: string) => {
+    if (["Pago", "Faturado", "Entregue"].includes(status)) {
+      return "border-emerald-300 bg-emerald-50 text-emerald-700";
+    }
+    if (["Cancelado", "Rejeitado"].includes(status)) {
+      return "border-red-300 bg-red-50 text-red-700";
+    }
+    if (["Em orçamento", "Aguardando Pagamento"].includes(status)) {
+      return "border-amber-300 bg-amber-50 text-amber-700";
+    }
+    return "border-blue-300 bg-blue-50 text-blue-700";
+  };
+
+  const filteredVendas = useMemo(() => {
+    const term = busca.trim().toLocaleLowerCase("pt-BR");
+    return vendas.filter((venda) => {
+      const status = getStatusLabel(venda);
+      const searchText = [
+        getOrderNumber(venda),
+        venda.clientes?.nome,
+        venda.vendedores?.nome,
+        venda.tipo,
+        status,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLocaleLowerCase("pt-BR");
+
+      const matchesSearch = !term || searchText.includes(term);
+      const matchesStatus = statusFilter === "todos" || status === statusFilter;
+      const matchesType = typeFilter === "todos" || venda.tipo === typeFilter;
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [busca, statusFilter, typeFilter, vendas]);
+
+  const groupedVendas = useMemo(() => {
+    return filteredVendas.reduce<Record<string, any[]>>((groups, venda) => {
+      const key = new Date(venda.created_at).toLocaleDateString("pt-BR");
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(venda);
+      return groups;
+    }, {});
+  }, [filteredVendas]);
+
+  const formatGroupLabel = (date: string) => {
+    const [day, month, year] = date.split("/").map(Number);
+    const itemDate = new Date(year, month - 1, day);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (itemDate.toDateString() === today.toDateString()) return "Hoje";
+    if (itemDate.toDateString() === yesterday.toDateString()) return "Ontem";
+    return itemDate.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  };
 
   const handleOpenDetails = async (venda: any) => {
     setSelectedVenda(venda);
@@ -83,9 +168,11 @@ function Vendas() {
         .from("vendas_itens")
         .select("*, produtos(nome, imagem)")
         .eq("venda_id", venda.id);
-      if (!error && data) setVendaItens(data);
+      if (error) throw error;
+      setVendaItens(data || []);
     } catch (err) {
       console.error(err);
+      toast.error("Erro ao carregar os itens do pedido.");
     } finally {
       setLoadingItens(false);
     }
@@ -98,112 +185,107 @@ function Vendas() {
         .select("*, produtos(nome)")
         .eq("venda_id", venda.id);
 
-      let msg = `*${venda.tipo === "DAV" ? "ORÇAMENTO" : "PEDIDO"} - PREMIUM GARDEN VASOS*\n`;
-      msg += `Nº: ${venda.numero ? String(venda.numero).padStart(3, "0") : venda.numero_venda || venda.id.substring(0, 8).toUpperCase()}\n`;
-      msg += `Data: ${new Date(venda.created_at).toLocaleDateString()}\n\n`;
-      msg += `*ITENS:*\n`;
+      let message = `*${venda.tipo === "DAV" ? "ORÇAMENTO" : "PEDIDO"} - PREMIUM GARDEN*\n`;
+      message += `Nº: ${getOrderNumber(venda)}\n`;
+      message += `Cliente: ${venda.clientes?.nome || "Não informado"}\n`;
+      message += `Data: ${new Date(venda.created_at).toLocaleDateString("pt-BR")}\n\n`;
+      message += "*ITENS:*\n";
 
-      if (itens) {
-        itens.forEach((item) => {
-          msg += `• ${item.quantidade}x ${item.produtos?.nome || "Produto"} - R$ ${Number(item.subtotal).toFixed(2).replace(".", ",")}\n`;
-        });
-      }
+      itens?.forEach((item) => {
+        message += `• ${item.quantidade}x ${item.produtos?.nome || "Produto"} - ${currency.format(Number(item.subtotal))}\n`;
+      });
 
-      msg += `\n*TOTAL: R$ ${Number(venda.valor_total).toFixed(2).replace(".", ",")}*\n\n`;
-
-      const linkPdf = `${window.location.origin}/orcamento/${venda.id}`;
-      msg += `📄 *Acesse o documento formal em PDF aqui:*\n${linkPdf}`;
-
-      const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-      window.open(url, "_blank");
+      message += `\n*TOTAL: ${currency.format(Number(venda.valor_total || 0))}*\n\n`;
+      message += `${window.location.origin}/orcamento/${venda.id}`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao gerar mensagem do WhatsApp");
+      toast.error("Erro ao preparar a mensagem do WhatsApp.");
     }
   };
 
   const handleDelete = async (venda: any) => {
-    if (
-      !(await confirm({
-        description: `Tem certeza que deseja excluir est${venda.tipo === "DAV" ? "e orçamento" : "a venda"}? ${["Faturado", "Pago", "Entregue"].includes(venda.status) ? "Os itens retornarão ao estoque." : ""}`,
-        variant: "destructive",
-      }))
-    )
-      return;
+    const shouldDelete = await confirm({
+      description: `Tem certeza que deseja excluir o pedido #${getOrderNumber(venda)}?`,
+      variant: "destructive",
+    });
+    if (!shouldDelete) return;
+
     try {
-      // Se a venda já foi processada/faturada/paga (baixou estoque), precisa retornar o estoque
       if (["Faturado", "Pago", "Entregue"].includes(venda.status)) {
         const { data: itens } = await supabase
           .from("vendas_itens")
           .select("produto_id, quantidade")
           .eq("venda_id", venda.id);
-        if (itens) {
-          for (const item of itens) {
-            const { data: prod } = await supabase
+
+        for (const item of itens || []) {
+          const { data: product } = await supabase
+            .from("produtos")
+            .select("estoque")
+            .eq("id", item.produto_id)
+            .single();
+          if (product) {
+            await supabase
               .from("produtos")
-              .select("estoque")
-              .eq("id", item.produto_id)
-              .single();
-            if (prod) {
-              await supabase
-                .from("produtos")
-                .update({ estoque: prod.estoque + item.quantidade })
-                .eq("id", item.produto_id);
-            }
+              .update({ estoque: Number(product.estoque || 0) + Number(item.quantidade || 0) })
+              .eq("id", item.produto_id);
           }
         }
       }
 
       const { error } = await supabase.from("vendas").delete().eq("id", venda.id);
       if (error) throw error;
-      fetchVendas();
+      setVendas((current) => current.filter((item) => item.id !== venda.id));
+      toast.success("Pedido excluído.");
     } catch (err: any) {
-      toast.error("Erro ao deletar: " + err.message);
+      toast.error("Erro ao excluir: " + err.message);
     }
-  };
-
-  const getTone = (status: string) => {
-    if (status === "Pago" || status === "Faturado") return "bg-success/15 text-success border-0";
-    if (status === "Aguardando Pagamento" || status === "Aprovado")
-      return "bg-warning/15 text-warning border-0";
-    if (status === "Rejeitado" || status === "Cancelado")
-      return "bg-destructive/10 text-destructive border-0 font-semibold";
-    return "bg-info/15 text-info border-0 font-semibold"; // Orçamento ou Em separação
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       const { error } = await supabase.from("vendas").update({ status: newStatus }).eq("id", id);
       if (error) throw error;
-
-      setSelectedVenda((prev: any) => ({ ...prev, status: newStatus }));
-      setVendas((prev) => prev.map((v) => (v.id === id ? { ...v, status: newStatus } : v)));
+      setSelectedVenda((current: any) =>
+        current?.id === id ? { ...current, status: newStatus } : current,
+      );
+      setVendas((current) =>
+        current.map((venda) => (venda.id === id ? { ...venda, status: newStatus } : venda)),
+      );
+      toast.success("Status do pedido atualizado.");
     } catch (err: any) {
       toast.error("Erro ao atualizar status: " + err.message);
     }
   };
 
   const handleEditTotal = () => {
-    setNewTotalValue(selectedVenda?.valor_total?.toString() || "0");
+    setNewTotalValue(String(selectedVenda?.valor_total || 0));
     setIsEditingTotal(true);
   };
 
   const handleSaveTotal = async () => {
-    const val = parseFloat(newTotalValue);
-    if (isNaN(val) || val < 0) {
-      toast.info("Valor inválido");
+    const value = Number(newTotalValue);
+    if (!Number.isFinite(value) || value < 0) {
+      toast.info("Informe um valor válido.");
       return;
     }
+
     try {
-      const { error: err1 } = await supabase.from("vendas").update({ valor_total: val }).eq("id", selectedVenda.id);
-      if (err1) throw err1;
-      
-      // Also update contas_receber if it exists
-      const { error: err2 } = await supabase.from("contas_receber").update({ valor: val }).eq("venda_id", selectedVenda.id);
-      if (err2) throw err2;
-      
-      setSelectedVenda((prev: any) => ({ ...prev, valor_total: val }));
-      setVendas((prev) => prev.map((v) => (v.id === selectedVenda.id ? { ...v, valor_total: val } : v)));
+      const { error } = await supabase
+        .from("vendas")
+        .update({ valor_total: value })
+        .eq("id", selectedVenda.id);
+      if (error) throw error;
+      await supabase
+        .from("contas_receber")
+        .update({ valor: value })
+        .eq("venda_id", selectedVenda.id);
+      setSelectedVenda((current: any) => ({ ...current, valor_total: value }));
+      setVendas((current) =>
+        current.map((venda) =>
+          venda.id === selectedVenda.id ? { ...venda, valor_total: value } : venda,
+        ),
+      );
       setIsEditingTotal(false);
     } catch (err: any) {
       toast.error("Erro ao atualizar valor: " + err.message);
@@ -212,245 +294,340 @@ function Vendas() {
 
   return (
     <>
-      <PageHeader
-        title="Vendas"
-        subtitle="Pedidos, orçamentos e faturamento"
-        actions={
-          <>
-            <Button variant="outline" asChild>
-              <Link to="/app/venda-nova">
-                <Calculator className="mr-2 h-4 w-4" />
-                Novo Orçamento (DAV)
-              </Link>
-            </Button>
-            <Button className="bg-gradient-brand text-primary-foreground" asChild>
-              <Link to="/app/venda-nova">
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Venda
-              </Link>
-            </Button>
-          </>
-        }
-      />
-      <Card className="shadow-card overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nº</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
-                  Carregando operações...
-                </TableCell>
-              </TableRow>
-            ) : vendas.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  Nenhuma venda ou orçamento encontrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              vendas.map((v) => (
-                <TableRow
-                  key={v.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleOpenDetails(v)}
-                >
-                  <TableCell className="font-mono text-xs">
-                    {v.numero ? String(v.numero).padStart(2, "0") : v.id.substring(0, 8).toUpperCase()}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{v.tipo}</Badge>
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {v.cliente_id ? v.clientes?.nome || "Cliente Removido" : "Venda Avulsa"}
-                  </TableCell>
-                  <TableCell>{new Date(v.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-right font-semibold">
-                    R$ {Number(v.valor_total).toFixed(2).replace(".", ",")}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getTone(v.status)}>{v.status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleDelete(v)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      <section className="overflow-hidden border-2 border-border bg-card shadow-sm">
+        <div className="flex h-16 items-center gap-2 border-b-2 border-foreground/80 px-5">
+          <FileText className="h-5 w-5" />
+          <h1 className="text-sm font-bold uppercase tracking-wide">Pedidos</h1>
+        </div>
+
+        <div className="space-y-5 p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between print:hidden">
+            <div className="flex flex-wrap gap-2">
+              <Button className="bg-primary text-primary-foreground" asChild>
+                <Link to="/app/venda-nova">
+                  <Plus className="mr-2 h-4 w-4" /> Criar pedido / orçamento
+                </Link>
+              </Button>
+              <Button variant="outline" onClick={() => window.print()}>
+                <Printer className="mr-2 h-4 w-4" /> Imprimir pedidos
+              </Button>
+            </div>
+
+            <div className="w-full space-y-2 xl:w-[360px]">
+              <div className="relative">
+                <Input
+                  value={busca}
+                  onChange={(event) => setBusca(event.target.value)}
+                  placeholder="Pedido, cliente ou vendedor"
+                  className="pr-10"
+                />
+                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
+              <p className="text-right text-[11px] text-muted-foreground">
+                Pesquise por número, cliente, vendedor ou status.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 border-y bg-muted/20 px-3 py-3 print:hidden">
+            <span className="text-xs text-muted-foreground">Mostrando</span>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="h-8 w-[170px] border-0 bg-transparent px-2 text-xs font-semibold text-primary shadow-none">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Pedidos e orçamentos</SelectItem>
+                <SelectItem value="VENDA">Somente pedidos</SelectItem>
+                <SelectItem value="DAV">Somente orçamentos</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">com</span>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-8 w-[190px] border-0 bg-transparent px-2 text-xs font-semibold text-primary shadow-none">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Qualquer status</SelectItem>
+                <SelectItem value="Em orçamento">Em orçamento</SelectItem>
+                <SelectItem value="Pendente">Pendente</SelectItem>
+                <SelectItem value="Aguardando Pagamento">Aguardando pagamento</SelectItem>
+                <SelectItem value="Em Separação">Em separação</SelectItem>
+                <SelectItem value="Faturado">Faturado</SelectItem>
+                <SelectItem value="Pago">Pago</SelectItem>
+                <SelectItem value="Entregue">Entregue</SelectItem>
+                <SelectItem value="Cancelado">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="ml-auto text-xs text-muted-foreground">
+              {filteredVendas.length} resultado{filteredVendas.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">
+              Carregando pedidos...
+            </div>
+          ) : filteredVendas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <PackageCheck className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm font-medium">Nenhum pedido encontrado.</p>
+              <p className="text-xs text-muted-foreground">
+                Ajuste os filtros ou crie um novo pedido.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {Object.entries(groupedVendas).map(([date, orders]) => (
+                <section key={date} className="space-y-3">
+                  <div className="flex items-center gap-2 border-b pb-2">
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                    <h2 className="text-base font-medium capitalize text-muted-foreground">
+                      {formatGroupLabel(date)}
+                    </h2>
+                  </div>
+
+                  <div className="space-y-3">
+                    {orders.map((venda) => {
+                      const status = getStatusLabel(venda);
+                      const expanded = expandedId === venda.id;
+                      return (
+                        <article
+                          key={venda.id}
+                          className="overflow-hidden rounded-md border bg-background"
+                        >
+                          <button
+                            type="button"
+                            className="w-full text-left"
+                            onClick={() => setExpandedId(expanded ? null : venda.id)}
+                          >
+                            <div className="flex items-center justify-between gap-4 bg-muted/40 px-4 py-3">
+                              <div className="min-w-0">
+                                <p className="text-sm">
+                                  <span className="font-semibold text-primary">
+                                    #{getOrderNumber(venda)}
+                                  </span>{" "}
+                                  <span className="text-muted-foreground">emitido por</span>{" "}
+                                  <span className="font-medium">
+                                    {venda.vendedores?.nome || "PREMIUM GARDEN"}
+                                  </span>
+                                </p>
+                                <p className="mt-1 truncate text-xs text-muted-foreground">
+                                  {venda.clientes?.nome || "Cliente não informado"}
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-3">
+                                <Badge variant="outline" className={getTone(status)}>
+                                  {status}
+                                </Badge>
+                                <ChevronDown
+                                  className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between px-4 py-4">
+                              <span className="font-semibold">
+                                {currency.format(Number(venda.valor_total || 0))}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(venda.created_at).toLocaleString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          </button>
+
+                          {expanded && (
+                            <div className="flex flex-wrap gap-2 border-t-2 border-foreground/80 bg-card px-4 py-3 print:hidden">
+                              {status !== "Faturado" && status !== "Entregue" && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleStatusChange(venda.id, "Faturado")}
+                                >
+                                  <Check className="mr-2 h-4 w-4" /> Gerar pedido
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenDetails(venda)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" /> Visualizar
+                              </Button>
+                              <Button size="sm" variant="outline" asChild>
+                                <Link to="/orcamento/$id" params={{ id: venda.id }}>
+                                  <Printer className="mr-2 h-4 w-4" /> PDF
+                                </Link>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleShareWhatsApp(venda)}
+                              >
+                                <MessageCircle className="mr-2 h-4 w-4 text-emerald-600" /> WhatsApp
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="ml-auto text-destructive hover:text-destructive"
+                                onClick={() => handleDelete(venda)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                              </Button>
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       <Sheet open={openSheet} onOpenChange={setOpenSheet}>
-        <SheetContent className="w-[400px] sm:w-[540px] sm:max-w-md overflow-y-auto">
+        <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
           <SheetHeader>
-            <SheetTitle>Detalhes da Operação</SheetTitle>
-            <SheetDescription>
-              {selectedVenda?.tipo === "DAV" ? "Orçamento" : "Venda"} Nº{" "}
-              {selectedVenda?.numero ? String(selectedVenda.numero).padStart(3, "0") : selectedVenda?.numero_venda || selectedVenda?.id?.substring(0, 8).toUpperCase()}
-            </SheetDescription>
+            <SheetTitle>Pedido #{selectedVenda ? getOrderNumber(selectedVenda) : ""}</SheetTitle>
+            <SheetDescription>Dados, itens e situação atual do pedido.</SheetDescription>
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4 text-sm bg-muted/30 p-4 rounded-lg">
+            <div className="grid gap-4 rounded-md border bg-muted/20 p-4 text-sm sm:grid-cols-2">
               <div>
-                <span className="text-muted-foreground block text-xs uppercase tracking-wider">
-                  Cliente
+                <span className="mb-1 flex items-center gap-1 text-xs uppercase text-muted-foreground">
+                  <UserRound className="h-3.5 w-3.5" /> Cliente
                 </span>
                 <span className="font-medium">
-                  {selectedVenda?.clientes?.nome || "Cliente Removido"}
+                  {selectedVenda?.clientes?.nome || "Não informado"}
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground block text-xs uppercase tracking-wider">
-                  Data
-                </span>
+                <span className="mb-1 block text-xs uppercase text-muted-foreground">Data</span>
                 <span className="font-medium">
-                  {selectedVenda ? new Date(selectedVenda.created_at).toLocaleDateString() : "-"}
+                  {selectedVenda
+                    ? new Date(selectedVenda.created_at).toLocaleDateString("pt-BR")
+                    : "-"}
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">
-                  Status
-                </span>
+                <span className="mb-1 block text-xs uppercase text-muted-foreground">Status</span>
                 <Select
-                  value={selectedVenda?.status || ""}
-                  onValueChange={(val) => handleStatusChange(selectedVenda.id, val)}
+                  value={selectedVenda?.status || "Pendente"}
+                  onValueChange={(value) => handleStatusChange(selectedVenda.id, value)}
                 >
-                  <SelectTrigger className="h-8">
+                  <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Pendente">Pendente</SelectItem>
-                    <SelectItem value="Aguardando Pagamento">Aguardando Pagamento</SelectItem>
-                    <SelectItem value="Pago">Pago</SelectItem>
+                    <SelectItem value="Aguardando Pagamento">Aguardando pagamento</SelectItem>
+                    <SelectItem value="Em Separação">Em separação</SelectItem>
                     <SelectItem value="Faturado">Faturado</SelectItem>
+                    <SelectItem value="Pago">Pago</SelectItem>
                     <SelectItem value="Entregue">Entregue</SelectItem>
                     <SelectItem value="Cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <span className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">
-                  Total
-                </span>
+                <span className="mb-1 block text-xs uppercase text-muted-foreground">Total</span>
                 {isEditingTotal ? (
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-base">R$</span>
-                    <input
+                    <Input
                       type="number"
+                      min="0"
                       step="0.01"
                       value={newTotalValue}
-                      onChange={(e) => setNewTotalValue(e.target.value)}
-                      className="w-24 border-b border-dashed border-slate-400 outline-none bg-transparent font-semibold"
+                      onChange={(event) => setNewTotalValue(event.target.value)}
+                      className="h-9"
                     />
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-success" onClick={handleSaveTotal}>
-                      <Check className="h-4 w-4" />
+                    <Button size="icon" variant="ghost" onClick={handleSaveTotal}>
+                      <Check className="h-4 w-4 text-emerald-600" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => setIsEditingTotal(false)}>
-                      <X className="h-4 w-4" />
+                    <Button size="icon" variant="ghost" onClick={() => setIsEditingTotal(false)}>
+                      <X className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-base">
-                      R${" "}
-                      {Number(selectedVenda?.valor_total || 0).toLocaleString("pt-BR", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </span>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 opacity-40 hover:opacity-100" onClick={handleEditTotal}>
-                      <Pencil className="h-3 w-3" />
+                    <strong>{currency.format(Number(selectedVenda?.valor_total || 0))}</strong>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={handleEditTotal}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="border-t pt-6">
-              <h4 className="font-semibold mb-4 flex items-center justify-between">
-                <span>Produtos</span>
+            <div>
+              <div className="mb-3 flex items-center justify-between border-b pb-2">
+                <h3 className="font-semibold">Produtos</h3>
                 <Badge variant="outline">{vendaItens.length} itens</Badge>
-              </h4>
+              </div>
               {loadingItens ? (
-                <p className="text-sm text-muted-foreground">Carregando itens...</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  Carregando itens...
+                </p>
               ) : vendaItens.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum item encontrado.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  Nenhum item encontrado.
+                </p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {vendaItens.map((item) => (
                     <div
                       key={item.id}
-                      className="flex justify-between items-center p-3 rounded-lg border border-border/50 bg-background hover:bg-muted/20 transition-colors"
+                      className="flex items-center justify-between rounded-md border p-3"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-accent text-lg">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-muted">
                           {item.produtos?.imagem ? (
-                            <img src={item.produtos.imagem} alt={item.produtos.nome} className="h-full w-full object-cover" />
+                            <img
+                              src={item.produtos.imagem}
+                              alt={item.produtos.nome}
+                              className="h-full w-full object-cover"
+                            />
                           ) : (
-                            <span className="opacity-50">📦</span>
+                            <PackageCheck className="h-4 w-4 text-muted-foreground" />
                           )}
                         </div>
-                        <div>
-                          <div className="font-semibold text-sm">
-                            {item.produtos?.nome || "Produto Desconhecido"}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {item.quantidade}x R${" "}
-                            {Number(item.valor_unitario).toLocaleString("pt-BR", {
-                              minimumFractionDigits: 2,
-                            })}
-                          </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {item.produtos?.nome || "Produto"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.quantidade} x {currency.format(Number(item.valor_unitario || 0))}
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right font-medium text-sm">
-                        R${" "}
-                        {Number(item.subtotal).toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </div>
+                      <strong className="text-sm">
+                        {currency.format(Number(item.subtotal || 0))}
+                      </strong>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="flex gap-3 pt-6 border-t">
+            <div className="flex gap-2 border-t pt-4">
               <Button
-                className="flex-1"
                 variant="outline"
+                className="flex-1"
                 onClick={() => handleShareWhatsApp(selectedVenda)}
               >
-                <svg
-                  className="mr-2 h-4 w-4 text-green-500"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
-                </svg>
-                Enviar WhatsApp
+                <MessageCircle className="mr-2 h-4 w-4 text-emerald-600" /> WhatsApp
               </Button>
-              <Button className="flex-1 bg-slate-900 text-white hover:bg-slate-800 hover:text-white" asChild>
+              <Button className="flex-1" asChild>
                 <Link to="/orcamento/$id" params={{ id: selectedVenda?.id }}>
-                  Imprimir PDF
+                  <Printer className="mr-2 h-4 w-4" /> Abrir PDF
                 </Link>
               </Button>
             </div>

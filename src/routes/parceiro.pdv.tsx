@@ -621,14 +621,22 @@ function ParceiroPDV() {
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">CPF / CNPJ</label>
-                  <Input
-                    placeholder="Apenas números (Preenchimento auto para CNPJ)"
-                    value={clientForm.documento}
-                    onChange={(e) => {
-                      setClientForm({ ...clientForm, documento: e.target.value });
-                      buscarCnpj(e.target.value);
-                    }}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Apenas números (CPF/CNPJ)"
+                      value={clientForm.documento}
+                      onChange={(e) => setClientForm({ ...clientForm, documento: e.target.value })}
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="px-3 shrink-0"
+                      onClick={() => buscarCnpj(clientForm.documento)}
+                      title="Buscar dados do CNPJ"
+                    >
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Telefone / WhatsApp</label>

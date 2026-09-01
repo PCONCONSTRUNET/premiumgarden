@@ -104,6 +104,7 @@ function ParceiroCatalogo() {
                         )}
                       </div>
                       <div className="p-3 flex flex-col flex-1">
+                        <p className="text-[10px] text-muted-foreground uppercase">{p.codigo || "S/ SKU"}</p>
                         <h3 className="font-semibold text-sm mt-0.5 line-clamp-2">{p.nome}</h3>
                         <p className="text-brand font-bold text-lg mt-1 mb-2">
                           R$ {Number(p.valor).toFixed(2).replace(".", ",")}
@@ -112,7 +113,7 @@ function ParceiroCatalogo() {
                         <div className="mt-auto pt-2 grid gap-2">
                           <Button 
                             onClick={() => handlePedir(p.id)}
-                            className="w-full bg-brand hover:bg-brand/90 text-white font-bold"
+                            className="w-full bg-gradient-brand hover:brightness-110 text-primary-foreground font-bold"
                             size="sm"
                           >
                             <ShoppingCart className="h-4 w-4 mr-2" />

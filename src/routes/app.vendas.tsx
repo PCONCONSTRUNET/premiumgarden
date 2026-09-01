@@ -266,7 +266,7 @@ function Vendas() {
                   onClick={() => handleOpenDetails(v)}
                 >
                   <TableCell className="font-mono text-xs">
-                    {v.numero ? String(v.numero).padStart(3, "0") : v.numero_venda || v.id.substring(0, 8).toUpperCase()}
+                    {v.numero ? String(v.numero).padStart(2, "0") : v.id.substring(0, 8).toUpperCase()}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{v.tipo}</Badge>

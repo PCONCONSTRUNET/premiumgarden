@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import logoImg from "@/assets/logo-senalandia.png";
+import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { supabase } from "@/lib/supabase";
 
 const authSchema = z.object({
@@ -97,7 +97,7 @@ function Login() {
       <div className="relative z-10 w-full max-w-[420px] px-6">
         {/* Logo centered above card */}
         <div className="flex flex-col items-center mb-8">
-          <img src={logoImg} alt="SENALANDIA 2 ERP" className="h-32 w-auto object-contain" />
+          <img src={premiumGardenLogo} alt="Premium Garden" className="h-36 w-auto object-contain drop-shadow-xl" />
         </div>
 
         {/* Card */}

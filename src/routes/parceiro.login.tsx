@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { VivaverdeLogo } from "@/components/vivaverde-logo";
+import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 
 export const Route = createFileRoute("/parceiro/login")({
   beforeLoad: async () => {
@@ -80,8 +81,8 @@ function LoginParceiro() {
   return (
     <div className="flex min-h-[80vh] items-center justify-center">
       <Card className="w-full max-w-sm shadow-xl border-0 ring-1 ring-slate-900/5">
-        <div className="pt-8 pb-4 flex justify-center">
-          <VivaverdeLogo size="small" />
+        <div className="pt-8 pb-2 flex justify-center">
+          <img src={premiumGardenLogo} alt="Premium Garden" className="h-24 w-auto object-contain" />
         </div>
         <CardContent className="p-6">
           <div className="text-center mb-6">

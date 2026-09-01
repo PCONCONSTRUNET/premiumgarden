@@ -32,6 +32,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { VivaverdeLogo } from "./vivaverde-logo";
+import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -152,8 +153,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Sidebar desktop */}
       <aside className="sticky top-0 h-screen hidden md:flex print:hidden w-64 shrink-0 flex-col bg-gradient-sidebar text-sidebar-foreground border-r border-sidebar-border">
-        <div className="p-5 border-b border-sidebar-border">
-          <VivaverdeLogo size="small" />
+        <div className="p-5 border-b border-sidebar-border flex items-center justify-center">
+          <img src={premiumGardenLogo} alt="Premium Garden" className="h-16 w-auto object-contain" />
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
           {NAV.map((g) => (

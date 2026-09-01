@@ -9,6 +9,7 @@ import { Save, ArrowLeft, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Link } from "@tanstack/react-router";
+import { CnpjLoader } from "@/components/cnpj-loader";
 
 type ClienteSearch = {
   id?: string;
@@ -207,6 +208,7 @@ function NovoCliente() {
 
   return (
     <>
+      {loadingCnpj && <CnpjLoader />}
       <PageHeader
         title={isEditing ? "Editar Cliente" : "Novo Cliente"}
         subtitle={isEditing ? "Altere os dados do cliente selecionado" : "Cadastre um novo cliente no sistema"}

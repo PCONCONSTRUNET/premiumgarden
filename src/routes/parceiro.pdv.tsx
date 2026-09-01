@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Trash2, ShoppingCart, CheckCircle2 } from "lucide-react";
+import { CnpjLoader } from "@/components/cnpj-loader";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,7 @@ function ParceiroPDV() {
   const [produtos, setProdutos] = useState<any[]>([]);
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clientForm, setClientForm] = useState({
@@ -217,6 +219,7 @@ function ParceiroPDV() {
     const cnpjLimpo = doc.replace(/\D/g, "");
     if (cnpjLimpo.length !== 14) return;
     
+    setLoadingCnpj(true);
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
       if (!res.ok) {
@@ -244,6 +247,8 @@ function ParceiroPDV() {
       toast.success("Dados preenchidos via Receita Federal!");
     } catch (error) {
       console.error("Erro na busca do CNPJ:", error);
+    } finally {
+      setLoadingCnpj(false);
     }
   };
 
@@ -444,6 +449,7 @@ function ParceiroPDV() {
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {loadingCnpj && <CnpjLoader />}
       <div className="mb-2">
         <h1 className="text-2xl font-bold font-display text-slate-800">Nova Venda</h1>
         <p className="text-sm text-muted-foreground">Registre o pedido do seu cliente.</p>

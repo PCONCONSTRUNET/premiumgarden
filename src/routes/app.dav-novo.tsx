@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { Save, Plus, Trash2, Check, ChevronsUpDown, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { CnpjLoader } from "@/components/cnpj-loader";
 
 export const Route = createFileRoute("/app/dav-novo")({
   validateSearch: (search: Record<string, unknown>): { id?: string } => ({
@@ -49,6 +50,7 @@ function NovoDAV() {
   const isEditing = !!search.id;
   const [loading, setLoading] = useState(false);
   const [isFetchingInfo, setIsFetchingInfo] = useState(isEditing);
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
 
   const [cliente, setCliente] = useState({ nome: "", cnpj: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", uf: "", telefone: "" });
   const [emissor, setEmissor] = useState({
@@ -103,6 +105,7 @@ function NovoDAV() {
     const cnpjLimpo = doc.replace(/\D/g, "");
     if (cnpjLimpo.length !== 14) return;
     
+    setLoadingCnpj(true);
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
       if (!res.ok) {
@@ -131,6 +134,8 @@ function NovoDAV() {
     } catch (error) {
       console.error(error);
       toast.error("Erro ao consultar o CNPJ.");
+    } finally {
+      setLoadingCnpj(false);
     }
   };
 
@@ -453,6 +458,7 @@ function NovoDAV() {
 
   return (
     <>
+      {loadingCnpj && <CnpjLoader />}
       <PageHeader
         title={isEditing ? "Editar Orçamento (DAV)" : "Novo Orçamento (DAV)"}
         subtitle={isEditing ? "Atualize os dados do orçamento" : "Preencha os dados para gerar um Documento Auxiliar de Venda"}

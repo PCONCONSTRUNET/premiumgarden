@@ -35,6 +35,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { CnpjLoader } from "@/components/cnpj-loader";
 
 export const Route = createFileRoute("/app/venda-nova")({
   head: () => ({ meta: [{ title: "Nova Venda — SENALANDIA 2 ERP ERP" }] }),
@@ -80,6 +81,7 @@ function NovaVenda() {
     uf: "",
   });
   const [loadingCliente, setLoadingCliente] = useState(false);
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -156,6 +158,7 @@ function NovaVenda() {
     const cnpjLimpo = doc.replace(/\D/g, "");
     if (cnpjLimpo.length !== 14) return;
     
+    setLoadingCnpj(true);
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
       if (!res.ok) {
@@ -183,6 +186,8 @@ function NovaVenda() {
       toast.success("Dados preenchidos via Receita Federal!");
     } catch (error) {
       console.error("Erro na busca do CNPJ:", error);
+    } finally {
+      setLoadingCnpj(false);
     }
   };
 
@@ -316,6 +321,7 @@ function NovaVenda() {
 
   return (
     <>
+      {loadingCnpj && <CnpjLoader />}
       <PageHeader
         title="Nova Venda"
         subtitle="Preencha os dados e adicione os itens"

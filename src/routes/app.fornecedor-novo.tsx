@@ -10,6 +10,7 @@ import { Save, ArrowLeft, Search } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Link } from "@tanstack/react-router";
+import { CnpjLoader } from "@/components/cnpj-loader";
 
 export const Route = createFileRoute("/app/fornecedor-novo")({
   head: () => ({ meta: [{ title: "Novo Fornecedor — SENALANDIA 2 ERP ERP" }] }),
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/app/fornecedor-novo")({
 function NovoFornecedor() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
 
   const [fornecedor, setFornecedor] = useState({
     empresa: "",
@@ -34,6 +36,7 @@ function NovoFornecedor() {
     const cnpjLimpo = doc.replace(/\D/g, "");
     if (cnpjLimpo.length !== 14) return;
     
+    setLoadingCnpj(true);
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
       if (!res.ok) {
@@ -57,6 +60,8 @@ function NovoFornecedor() {
     } catch (error) {
       console.error(error);
       toast.error("Erro ao consultar o CNPJ.");
+    } finally {
+      setLoadingCnpj(false);
     }
   };
 
@@ -82,6 +87,7 @@ function NovoFornecedor() {
 
   return (
     <>
+      {loadingCnpj && <CnpjLoader />}
       <PageHeader
         title="Novo Fornecedor"
         subtitle="Cadastre um novo fornecedor no sistema"

@@ -1,4 +1,4 @@
-﻿import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
+import premiumGardenCapa from "@/assets/premium-garden-capa.png";
 import { supabase } from "@/lib/supabase";
 
 const authSchema = z.object({
@@ -84,7 +85,7 @@ function Login() {
       {/* Background Image */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/bg-login.jpg')" }}
+        style={{ backgroundImage: `url(${premiumGardenCapa})` }}
       />
 
       {/* Dark overlay for better contrast */}
@@ -172,10 +173,6 @@ function Login() {
           </form>
         </div>
 
-        {/* Footer */}
-        <p className="mt-6 text-center text-[10px] text-[#9ca3af] tracking-wide">
-          PREMIUM GARDEN Distribuidora de Vasos e Acessórios Ltda · Sistema Interno
-        </p>
       </div>
     </div>
   );

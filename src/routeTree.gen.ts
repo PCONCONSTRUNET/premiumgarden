@@ -46,8 +46,10 @@ import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes'
 import { Route as AppComprasRouteImport } from './routes/app.compras'
 import { Route as AppCompraNovaRouteImport } from './routes/app.compra-nova'
+import { Route as AppComissoesRouteImport } from './routes/app.comissoes'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppClienteNovoRouteImport } from './routes/app.cliente-novo'
+import { Route as AppClienteDetalhesRouteImport } from './routes/app.cliente-detalhes'
 import { Route as AppCatalogoRouteImport } from './routes/app.catalogo'
 
 const ParceiroRoute = ParceiroRouteImport.update({
@@ -235,6 +237,11 @@ const AppCompraNovaRoute = AppCompraNovaRouteImport.update({
   path: '/compra-nova',
   getParentRoute: () => AppRoute,
 } as any)
+const AppComissoesRoute = AppComissoesRouteImport.update({
+  id: '/comissoes',
+  path: '/comissoes',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppClientesRoute = AppClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
@@ -243,6 +250,11 @@ const AppClientesRoute = AppClientesRouteImport.update({
 const AppClienteNovoRoute = AppClienteNovoRouteImport.update({
   id: '/cliente-novo',
   path: '/cliente-novo',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClienteDetalhesRoute = AppClienteDetalhesRouteImport.update({
+  id: '/cliente-detalhes',
+  path: '/cliente-detalhes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCatalogoRoute = AppCatalogoRouteImport.update({
@@ -257,8 +269,10 @@ export interface FileRoutesByFullPath {
   '/catalogo': typeof CatalogoRoute
   '/parceiro': typeof ParceiroRouteWithChildren
   '/app/catalogo': typeof AppCatalogoRoute
+  '/app/cliente-detalhes': typeof AppClienteDetalhesRoute
   '/app/cliente-novo': typeof AppClienteNovoRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/comissoes': typeof AppComissoesRoute
   '/app/compra-nova': typeof AppCompraNovaRoute
   '/app/compras': typeof AppComprasRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -297,8 +311,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/catalogo': typeof CatalogoRoute
   '/app/catalogo': typeof AppCatalogoRoute
+  '/app/cliente-detalhes': typeof AppClienteDetalhesRoute
   '/app/cliente-novo': typeof AppClienteNovoRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/comissoes': typeof AppComissoesRoute
   '/app/compra-nova': typeof AppCompraNovaRoute
   '/app/compras': typeof AppComprasRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -340,8 +356,10 @@ export interface FileRoutesById {
   '/catalogo': typeof CatalogoRoute
   '/parceiro': typeof ParceiroRouteWithChildren
   '/app/catalogo': typeof AppCatalogoRoute
+  '/app/cliente-detalhes': typeof AppClienteDetalhesRoute
   '/app/cliente-novo': typeof AppClienteNovoRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/comissoes': typeof AppComissoesRoute
   '/app/compra-nova': typeof AppCompraNovaRoute
   '/app/compras': typeof AppComprasRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
@@ -384,8 +402,10 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/parceiro'
     | '/app/catalogo'
+    | '/app/cliente-detalhes'
     | '/app/cliente-novo'
     | '/app/clientes'
+    | '/app/comissoes'
     | '/app/compra-nova'
     | '/app/compras'
     | '/app/configuracoes'
@@ -424,8 +444,10 @@ export interface FileRouteTypes {
     | '/'
     | '/catalogo'
     | '/app/catalogo'
+    | '/app/cliente-detalhes'
     | '/app/cliente-novo'
     | '/app/clientes'
+    | '/app/comissoes'
     | '/app/compra-nova'
     | '/app/compras'
     | '/app/configuracoes'
@@ -466,8 +488,10 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/parceiro'
     | '/app/catalogo'
+    | '/app/cliente-detalhes'
     | '/app/cliente-novo'
     | '/app/clientes'
+    | '/app/comissoes'
     | '/app/compra-nova'
     | '/app/compras'
     | '/app/configuracoes'
@@ -773,6 +797,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCompraNovaRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/comissoes': {
+      id: '/app/comissoes'
+      path: '/comissoes'
+      fullPath: '/app/comissoes'
+      preLoaderRoute: typeof AppComissoesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/clientes': {
       id: '/app/clientes'
       path: '/clientes'
@@ -787,6 +818,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClienteNovoRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/cliente-detalhes': {
+      id: '/app/cliente-detalhes'
+      path: '/cliente-detalhes'
+      fullPath: '/app/cliente-detalhes'
+      preLoaderRoute: typeof AppClienteDetalhesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/catalogo': {
       id: '/app/catalogo'
       path: '/catalogo'
@@ -799,8 +837,10 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppCatalogoRoute: typeof AppCatalogoRoute
+  AppClienteDetalhesRoute: typeof AppClienteDetalhesRoute
   AppClienteNovoRoute: typeof AppClienteNovoRoute
   AppClientesRoute: typeof AppClientesRoute
+  AppComissoesRoute: typeof AppComissoesRoute
   AppCompraNovaRoute: typeof AppCompraNovaRoute
   AppComprasRoute: typeof AppComprasRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
@@ -829,8 +869,10 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppCatalogoRoute: AppCatalogoRoute,
+  AppClienteDetalhesRoute: AppClienteDetalhesRoute,
   AppClienteNovoRoute: AppClienteNovoRoute,
   AppClientesRoute: AppClientesRoute,
+  AppComissoesRoute: AppComissoesRoute,
   AppCompraNovaRoute: AppCompraNovaRoute,
   AppComprasRoute: AppComprasRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,

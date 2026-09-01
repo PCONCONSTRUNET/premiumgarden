@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ import {
   DollarSign,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { ChevronLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import {
@@ -47,13 +49,105 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PedidosFaturados } from "@/components/relatorios/pedidos-faturados";
+import { ResumoVendas } from "@/components/relatorios/resumo-vendas";
+import { VendasDetalhadas } from "@/components/relatorios/vendas-detalhadas";
+import { Titulos } from "@/components/relatorios/titulos";
+import { Faturamento } from "@/components/relatorios/faturamento";
+import { Clientes } from "@/components/relatorios/clientes";
+import { SituacaoCarteira } from "@/components/relatorios/situacao-carteira";
+import { SituacaoCarteiraPorVendedor } from "@/components/relatorios/situacao-carteira-vendedor";
+import { ProdutosMaisVendidos } from "@/components/relatorios/produtos-mais-vendidos";
+import { PositivacaoProdutos } from "@/components/relatorios/positivacao-produtos";
+import { ProdutosPorPedido } from "@/components/relatorios/produtos-por-pedido";
+import { Estoque } from "@/components/relatorios/estoque";
+import { RelatorioComissoes } from "@/components/relatorios/comissoes";
+import { ComissoesPorPedido } from "@/components/relatorios/comissoes-por-pedido";
+
+type RelatoriosSearch = {
+  rel?: string;
+};
 
 export const Route = createFileRoute("/app/relatorios")({
+  validateSearch: (search: Record<string, unknown>): RelatoriosSearch => {
+    return {
+      rel: search.rel as string | undefined,
+    };
+  },
   head: () => ({ meta: [{ title: "Relatórios — PREMIUM GARDEN" }] }),
   component: Relatorios,
 });
 
 function Relatorios() {
+  const { rel } = Route.useSearch();
+  const navigate = useNavigate();
+
+  let content: React.ReactNode = null;
+
+  switch (rel) {
+    case "pedidos-faturados":
+      content = <PedidosFaturados />;
+      break;
+    case "resumo-vendas":
+      content = <ResumoVendas />;
+      break;
+    case "vendas-detalhadas":
+      content = <VendasDetalhadas />;
+      break;
+    case "titulos":
+      content = <Titulos />;
+      break;
+    case "faturamento":
+      content = <Faturamento />;
+      break;
+    case "clientes":
+      content = <Clientes />;
+      break;
+    case "situacao-carteira":
+      content = <SituacaoCarteira />;
+      break;
+    case "situacao-carteira-vendedor":
+      content = <SituacaoCarteiraPorVendedor />;
+      break;
+    case "produtos-mais-vendidos":
+      content = <ProdutosMaisVendidos />;
+      break;
+    case "positivacao-produtos":
+      content = <PositivacaoProdutos />;
+      break;
+    case "produtos-por-pedido":
+      content = <ProdutosPorPedido />;
+      break;
+    case "estoque":
+      content = <Estoque />;
+      break;
+    case "comissoes":
+      content = <RelatorioComissoes />;
+      break;
+    case "comissoes-por-pedido":
+      content = <ComissoesPorPedido />;
+      break;
+    default:
+      return <RelatoriosDashboard />;
+  }
+
+  return (
+    <div>
+      <div className="px-6 pt-4 pb-0 border-b border-border/60 bg-white">
+        <button
+          onClick={() => navigate({ to: "/app/dashboard", search: { tab: "relatorios" } })}
+          className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-brand transition-colors mb-3 group"
+        >
+          <ChevronLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          Voltar aos Relatórios
+        </button>
+      </div>
+      {content}
+    </div>
+  );
+}
+
+function RelatoriosDashboard() {
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReport, setSelectedReport] = useState<string | null>(null);

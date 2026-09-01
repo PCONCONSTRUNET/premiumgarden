@@ -1,15 +1,14 @@
-﻿import { toast } from "sonner";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
-import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save, ArrowLeft, Search } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Link } from "@tanstack/react-router";
-import { CnpjLoader } from "@/components/cnpj-loader";
 
 type ClienteSearch = {
   id?: string;
@@ -30,18 +29,29 @@ function NovoCliente() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [loadingCnpj, setLoadingCnpj] = useState(false);
+  
+  const [tipoPessoa, setTipoPessoa] = useState("PJ");
+  const [showCadastroCompleto, setShowCadastroCompleto] = useState(false);
 
   const [cliente, setCliente] = useState({
     nome: "",
+    nome_fantasia: "",
+    apelido: "",
     cpf_cnpj: "",
     telefone: "",
+    email: "",
     cep: "",
     endereco: "",
     numero: "",
+    complemento: "",
     bairro: "",
     cidade: "",
     uf: "",
     status: "Ativo",
+    segmento: "",
+    rede: "",
+    excecao_fiscal: "",
+    informacoes_adicionais: ""
   });
 
   const isEditing = !!id;
@@ -58,41 +68,21 @@ function NovoCliente() {
           
           if (error) throw error;
           if (data) {
+            setTipoPessoa(data.cpf_cnpj?.length > 14 ? "PJ" : "PF");
+            
+            // Basic parsing if old structure used single address field
             let parsedEndereco = data.logradouro || data.endereco || "";
             let parsedNumero = data.numero || "";
             let parsedBairro = data.bairro || "";
             let parsedCep = data.cep || "";
             let parsedUf = data.uf || data.estado || "";
 
-            if (parsedEndereco) {
-              const parts = parsedEndereco.split(",").map((p: string) => p.trim());
-              const newEnderecoParts: string[] = [];
-              let foundConcat = false;
-
-              for (const part of parts) {
-                if (part.startsWith("nº ")) {
-                  if (!parsedNumero) parsedNumero = part.substring(3);
-                  foundConcat = true;
-                } else if (part.startsWith("Bairro ")) {
-                  if (!parsedBairro) parsedBairro = part.substring(7);
-                  foundConcat = true;
-                } else if (part.startsWith("CEP ")) {
-                  if (!parsedCep) parsedCep = part.substring(4);
-                  foundConcat = true;
-                } else {
-                  newEnderecoParts.push(part);
-                }
-              }
-              
-              if (foundConcat) {
-                parsedEndereco = newEnderecoParts.join(", ");
-              }
-            }
-
             setCliente({
+              ...cliente,
               nome: data.nome || "",
               cpf_cnpj: data.cpf_cnpj || "",
               telefone: data.telefone || "",
+              email: data.email || "", // if exists
               cep: parsedCep, 
               endereco: parsedEndereco,
               numero: parsedNumero,
@@ -100,6 +90,7 @@ function NovoCliente() {
               cidade: data.cidade || "",
               uf: parsedUf,
               status: data.status || "Ativo",
+              segmento: data.segmento || "",
             });
           }
         } catch (err) {
@@ -112,8 +103,8 @@ function NovoCliente() {
 
   const formatCpfCnpj = (v: string) => {
     v = v.replace(/\D/g, "");
-    if (v.length <= 11) {
-      return v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
+    if (tipoPessoa === "PF") {
+      return v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4").substring(0, 14);
     } else {
       return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, "$1.$2.$3/$4-$5").substring(0, 18);
     }
@@ -133,11 +124,13 @@ function NovoCliente() {
     return v.replace(/(\d{5})(\d{3})/, "$1-$2").substring(0, 9);
   };
 
-  const buscarCNPJ = async (cnpjValue?: string) => {
-    const cnpj = (cnpjValue ?? cliente.cpf_cnpj).replace(/\D/g, "");
-    if (cnpj.length !== 14) return;
+  const buscarCNPJ = async () => {
+    const cnpj = cliente.cpf_cnpj.replace(/\D/g, "");
+    if (cnpj.length !== 14) {
+      toast.error("CNPJ incompleto ou inválido.");
+      return;
+    }
     
-    const start = Date.now();
     setLoadingCnpj(true);
     try {
       const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
@@ -148,11 +141,13 @@ function NovoCliente() {
       
       setCliente((prev) => ({
         ...prev,
-        nome: data.razao_social || data.nome_fantasia || prev.nome,
-        telefone: formatTelefone(data.ddd_telefone_1 || data.ddd_telefone_2 || prev.telefone),
+        nome: data.razao_social || prev.nome,
+        nome_fantasia: data.nome_fantasia || prev.nome_fantasia,
+        telefone: formatTelefone(data.ddd_telefone_1 || prev.telefone),
         cep: formatCep(data.cep || prev.cep),
         endereco: data.logradouro || prev.endereco,
         numero: data.numero || prev.numero,
+        complemento: data.complemento || prev.complemento,
         bairro: data.bairro || prev.bairro,
         cidade: data.municipio || prev.cidade,
         uf: data.uf || prev.uf,
@@ -161,22 +156,19 @@ function NovoCliente() {
     } catch (error: any) {
       toast.error(error.message || "Erro ao buscar CNPJ");
     } finally {
-      const elapsed = Date.now() - start;
-      const remaining = Math.max(0, 2000 - elapsed);
-      await new Promise((r) => setTimeout(r, remaining));
       setLoadingCnpj(false);
     }
   };
 
-  const handleSalvar = async () => {
+  const handleSalvar = async (cadastrarOutro = false) => {
     if (!cliente.nome) {
-      toast.error("Preencha o nome do cliente.");
+      toast.error(tipoPessoa === "PJ" ? "Preencha a Razão Social." : "Preencha o Nome.");
       return;
     }
 
     setLoading(true);
     try {
-      // Envia apenas as colunas conhecidas da tabela clientes
+      // Ignorando campos que não existem no banco por enquanto para não quebrar (segmento, apelido, rede, excecao_fiscal, informacoes_adicionais)
       const payload: any = {
         nome: cliente.nome,
         cpf_cnpj: cliente.cpf_cnpj || null,
@@ -201,7 +193,17 @@ function NovoCliente() {
 
       if (error) throw error;
 
-      navigate({ to: "/app/clientes" });
+      if (cadastrarOutro) {
+        setCliente({
+          nome: "", nome_fantasia: "", apelido: "", cpf_cnpj: "", telefone: "", email: "",
+          cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "",
+          status: "Ativo", segmento: "", rede: "", excecao_fiscal: "", informacoes_adicionais: ""
+        });
+        navigate({ to: "/app/cliente-novo" });
+        toast.success("Cliente salvo com sucesso!");
+      } else {
+        navigate({ to: "/app/clientes" });
+      }
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao salvar cliente: " + err.message);
@@ -211,153 +213,289 @@ function NovoCliente() {
   };
 
   return (
-    <>
-      {loadingCnpj && <CnpjLoader />}
-      <PageHeader
-        title={isEditing ? "Editar Cliente" : "Novo Cliente"}
-        subtitle={isEditing ? "Altere os dados do cliente selecionado" : "Cadastre um novo cliente no sistema"}
-        actions={
-          <>
-            <Button variant="outline" asChild>
-              <Link to="/app/clientes">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
-              </Link>
-            </Button>
-            <Button
-              className="bg-gradient-brand text-primary-foreground"
-              onClick={handleSalvar}
-              disabled={loading}
-            >
-              <Save className="mr-2 h-4 w-4" /> {loading ? "Salvando..." : (isEditing ? "Salvar Alterações" : "Salvar Cliente")}
-            </Button>
-          </>
-        }
-      />
+    <div className="min-h-screen bg-[#f3f4f6]">
+      <div className="p-4 md:p-8 mx-auto max-w-[1000px] bg-[#f3f4f6]">
+        
+        <h1 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-8">
+          NOVO CLIENTE
+        </h1>
 
-      <Card className="shadow-card p-6 max-w-2xl mx-auto space-y-6">
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Nome / Razão Social</Label>
+        <div className="space-y-8 bg-transparent">
+          
+          {/* Tipo de Pessoa */}
+          <div className="flex items-center gap-6">
+            <RadioGroup 
+              value={tipoPessoa} 
+              onValueChange={(val) => {
+                setTipoPessoa(val);
+                setCliente({...cliente, cpf_cnpj: ""});
+              }}
+              className="flex items-center space-x-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="PJ" id="pj" className="text-[#4a148c] border-[#4a148c]" />
+                <Label htmlFor="pj" className="text-sm cursor-pointer">Pessoa Jurídica</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="PF" id="pf" className="text-[#4a148c] border-[#4a148c]" />
+                <Label htmlFor="pf" className="text-sm cursor-pointer">Pessoa Física</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* CNPJ / CPF e Nome */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="col-span-1 space-y-2">
+              <Label className="text-xs text-slate-500 font-medium">{tipoPessoa === "PJ" ? "CNPJ" : "CPF"}</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={cliente.cpf_cnpj}
+                  onChange={(e) => setCliente({ ...cliente, cpf_cnpj: formatCpfCnpj(e.target.value) })}
+                  className="w-full sm:w-[220px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
+                />
+                {tipoPessoa === "PJ" && cliente.cpf_cnpj.replace(/\D/g, "").length !== 14 && cliente.cpf_cnpj.length > 0 && (
+                  <AlertTriangle className="h-5 w-5 text-slate-800" />
+                )}
+              </div>
+              {tipoPessoa === "PJ" && (
+                <button 
+                  onClick={buscarCNPJ}
+                  disabled={loadingCnpj}
+                  className="text-xs font-semibold text-[#4a148c] hover:underline mt-1 block"
+                >
+                  {loadingCnpj ? "Buscando..." : "Completar cadastro automaticamente"}
+                </button>
+              )}
+            </div>
+
+            <div className="col-span-1 md:col-span-2 space-y-2">
+              <Label className="text-xs text-slate-500 font-medium">
+                * {tipoPessoa === "PJ" ? "Razão social" : "Nome"}
+              </Label>
               <Input
                 value={cliente.nome}
                 onChange={(e) => setCliente({ ...cliente, nome: e.target.value })}
-                placeholder="Ex: Jardim Verde Ltda"
+                placeholder="obrigatório"
+                className="w-full md:w-[600px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
               />
             </div>
-            <div className="space-y-2">
-              <Label>CPF / CNPJ (Opcional)</Label>
-              <div className="flex space-x-2">
-                <Input
-                  value={cliente.cpf_cnpj}
-                  onChange={(e) => {
-                    const formatted = formatCpfCnpj(e.target.value);
-                    setCliente({ ...cliente, cpf_cnpj: formatted });
-                    if (formatted.replace(/\D/g, "").length === 14) {
-                      buscarCNPJ(formatted);
-                    }
-                  }}
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                />
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="icon"
-                  onClick={() => buscarCNPJ(cliente.cpf_cnpj)} 
-                  disabled={loadingCnpj || cliente.cpf_cnpj.replace(/\D/g, "").length !== 14}
-                  title="Buscar dados do CNPJ"
-                >
-                  {loadingCnpj ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"/> : <Search className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Telefone</Label>
+            <div className="col-span-1 md:col-span-2 space-y-2">
+              <Label className="text-xs text-slate-500 font-medium">
+                {tipoPessoa === "PJ" ? "Nome fantasia" : "Apelido"}
+              </Label>
+              <Input
+                value={tipoPessoa === "PJ" ? cliente.nome_fantasia : cliente.apelido}
+                onChange={(e) => {
+                  if (tipoPessoa === "PJ") setCliente({ ...cliente, nome_fantasia: e.target.value })
+                  else setCliente({ ...cliente, apelido: e.target.value })
+                }}
+                className="w-full md:w-[600px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
+              />
+            </div>
+
+            <div className="col-span-1 md:col-span-2 space-y-2">
+              <Label className="text-xs text-slate-500 font-medium">Telefone</Label>
               <Input
                 value={cliente.telefone}
-                onChange={(e) =>
-                  setCliente({ ...cliente, telefone: formatTelefone(e.target.value) })
-                }
-                placeholder="(00) 00000-0000"
+                onChange={(e) => setCliente({ ...cliente, telefone: formatTelefone(e.target.value) })}
+                className="w-full md:w-[300px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
               />
+              <button className="text-xs font-semibold text-[#4a148c] hover:underline mt-1 block">
+                Adicionar telefone
+              </button>
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={cliente.status}
-                onChange={(e) => setCliente({ ...cliente, status: e.target.value })}
-              >
-                <option>Ativo</option>
-                <option>Premium</option>
-                <option>Inativo</option>
-              </select>
+
+            <div className="col-span-1 md:col-span-2 space-y-2">
+              <Label className="text-xs text-slate-500 font-medium">E-mail</Label>
+              <Input
+                value={cliente.email}
+                onChange={(e) => setCliente({ ...cliente, email: e.target.value })}
+                className="w-full md:w-[300px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
+              />
+              <button className="text-xs font-semibold text-[#4a148c] hover:underline mt-1 block">
+                Adicionar e-mail
+              </button>
             </div>
           </div>
 
-          <div className="border-t pt-4 space-y-4 mt-4">
-            <h4 className="font-semibold text-sm text-muted-foreground">Endereço (Opcional)</h4>
-
-            <div className="grid grid-cols-4 gap-4">
-              <div className="space-y-2 col-span-1">
-                <Label>CEP</Label>
-                <Input
-                  value={cliente.cep}
-                  onChange={(e) => setCliente({ ...cliente, cep: formatCep(e.target.value) })}
-                  placeholder="00000-000"
-                />
-              </div>
-              <div className="space-y-2 col-span-3">
-                <Label>Logradouro / Endereço</Label>
-                <Input
-                  value={cliente.endereco}
-                  onChange={(e) => setCliente({ ...cliente, endereco: e.target.value })}
-                  placeholder="Ex: Rua das Flores"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 gap-4">
-              <div className="space-y-2 col-span-1">
-                <Label>Número</Label>
-                <Input
-                  value={cliente.numero}
-                  onChange={(e) => setCliente({ ...cliente, numero: e.target.value })}
-                  placeholder="Ex: 123 ou SN"
-                />
-              </div>
-              <div className="space-y-2 col-span-1">
-                <Label>Bairro</Label>
-                <Input
-                  value={cliente.bairro}
-                  onChange={(e) => setCliente({ ...cliente, bairro: e.target.value })}
-                  placeholder="Centro"
-                />
-              </div>
-              <div className="space-y-2 col-span-1">
-                <Label>Cidade</Label>
-                <Input
-                  value={cliente.cidade}
-                  onChange={(e) => setCliente({ ...cliente, cidade: e.target.value })}
-                  placeholder="Ex: São Paulo"
-                />
-              </div>
-              <div className="space-y-2 col-span-1">
-                <Label>UF</Label>
-                <Input
-                  value={cliente.uf}
-                  onChange={(e) => setCliente({ ...cliente, uf: e.target.value })}
-                  placeholder="Ex: SP"
-                  maxLength={2}
-                />
-              </div>
-            </div>
+          {/* Expansão */}
+          <div>
+            <button 
+              onClick={() => setShowCadastroCompleto(!showCadastroCompleto)}
+              className="flex items-center gap-2 text-sm font-semibold text-[#4a148c] hover:underline"
+            >
+              {showCadastroCompleto ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              Preencher cadastro completo: contatos, endereço e informações adicionais
+            </button>
           </div>
+
+          {/* Campos Adicionais (Expandidos) */}
+          {showCadastroCompleto && (
+            <div className="space-y-8 animate-in slide-in-from-top-2 duration-300">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <div className="space-y-2">
+                  <Label className="text-xs text-slate-500 font-medium">Exceção Fiscal</Label>
+                  <Select value={cliente.excecao_fiscal} onValueChange={(val) => setCliente({...cliente, excecao_fiscal: val})}>
+                    <SelectTrigger className="w-full md:w-[300px] rounded-sm focus:ring-0 focus:border-[#4a148c]">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhuma">Nenhuma</SelectItem>
+                      <SelectItem value="simples">Simples Nacional</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2 md:col-start-1">
+                  <Label className="text-xs text-slate-500 font-medium">Segmento</Label>
+                  <Select value={cliente.segmento} onValueChange={(val) => setCliente({...cliente, segmento: val})}>
+                    <SelectTrigger className="w-full md:w-[300px] rounded-sm focus:ring-0 focus:border-[#4a148c]">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="varejo">Varejo</SelectItem>
+                      <SelectItem value="atacado">Atacado</SelectItem>
+                      <SelectItem value="distribuidor">Distribuidor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 md:col-start-1">
+                  <Label className="text-xs text-slate-500 font-medium">Rede</Label>
+                  <Select value={cliente.rede} onValueChange={(val) => setCliente({...cliente, rede: val})}>
+                    <SelectTrigger className="w-full md:w-[300px] rounded-sm focus:ring-0 focus:border-[#4a148c]">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="rede_a">Rede A</SelectItem>
+                      <SelectItem value="rede_b">Rede B</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="col-span-1 md:col-span-2 space-y-2">
+                  <Label className="text-xs text-slate-500 font-medium">Informações adicionais</Label>
+                  <Textarea 
+                    value={cliente.informacoes_adicionais}
+                    onChange={(e) => setCliente({...cliente, informacoes_adicionais: e.target.value})}
+                    className="w-full md:w-[600px] min-h-[120px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]" 
+                  />
+                  <p className="text-[11px] text-slate-400">Adicione aqui quaisquer informações adicionais sobre este cliente.</p>
+                </div>
+              </div>
+
+              {/* Endereço Principal */}
+              <div className="space-y-6 pt-4">
+                <h3 className="text-lg font-light text-slate-500 tracking-wide border-b border-slate-200 pb-2">
+                  ENDEREÇO PRINCIPAL
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 max-w-[600px]">
+                  <div className="col-span-1 md:col-span-2 space-y-2">
+                    <Label className="text-xs text-slate-500 font-medium">CEP</Label>
+                    <Input
+                      value={cliente.cep}
+                      onChange={(e) => setCliente({ ...cliente, cep: formatCep(e.target.value) })}
+                      className="w-full sm:w-[150px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
+                    />
+                  </div>
+                  
+                  <div className="col-span-1 md:col-span-2 space-y-2">
+                    <Label className="text-xs text-slate-500 font-medium">Endereço</Label>
+                    <Input
+                      value={cliente.endereco}
+                      onChange={(e) => setCliente({ ...cliente, endereco: e.target.value })}
+                      className="w-full rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
+                    />
+                  </div>
+
+                  <div className="col-span-1 space-y-2">
+                    <Label className="text-xs text-slate-500 font-medium">Número</Label>
+                    <Input
+                      value={cliente.numero}
+                      onChange={(e) => setCliente({ ...cliente, numero: e.target.value })}
+                      className="w-full sm:w-[150px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
+                    />
+                  </div>
+
+                  <div className="col-span-1 space-y-2 md:col-start-1">
+                    <Label className="text-xs text-slate-500 font-medium">Complemento</Label>
+                    <Input
+                      value={cliente.complemento}
+                      onChange={(e) => setCliente({ ...cliente, complemento: e.target.value })}
+                      className="w-full sm:w-[300px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
+                    />
+                  </div>
+
+                  <div className="col-span-1 space-y-2 md:col-start-1">
+                    <Label className="text-xs text-slate-500 font-medium">Bairro</Label>
+                    <Input
+                      value={cliente.bairro}
+                      onChange={(e) => setCliente({ ...cliente, bairro: e.target.value })}
+                      className="w-full sm:w-[300px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
+                    />
+                  </div>
+
+                  <div className="col-span-1 space-y-2 md:col-start-1">
+                    <Label className="text-xs text-slate-500 font-medium">Cidade</Label>
+                    <Input
+                      value={cliente.cidade}
+                      onChange={(e) => setCliente({ ...cliente, cidade: e.target.value })}
+                      className="w-full sm:w-[300px] rounded-sm focus-visible:ring-0 focus-visible:border-[#4a148c]"
+                    />
+                  </div>
+
+                  <div className="col-span-1 space-y-2 md:col-start-1">
+                    <Label className="text-xs text-slate-500 font-medium">Estado</Label>
+                    <Select value={cliente.uf} onValueChange={(val) => setCliente({...cliente, uf: val})}>
+                      <SelectTrigger className="w-full sm:w-[300px] rounded-sm focus:ring-0 focus:border-[#4a148c]">
+                        <SelectValue placeholder="Selecione o estado..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SP">São Paulo</SelectItem>
+                        <SelectItem value="SC">Santa Catarina</SelectItem>
+                        <SelectItem value="RJ">Rio de Janeiro</SelectItem>
+                        <SelectItem value="MG">Minas Gerais</SelectItem>
+                        <SelectItem value="PR">Paraná</SelectItem>
+                        <SelectItem value="RS">Rio Grande do Sul</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer Actions */}
+          <div className="pt-8 border-t border-slate-200 flex flex-wrap gap-3 mt-12 pb-12">
+            <Button 
+              className="bg-[#4a148c] hover:bg-[#4a148c]/90 text-white rounded-sm px-6 h-9"
+              onClick={() => handleSalvar(false)}
+              disabled={loading}
+            >
+              {loading ? "Salvando..." : "Salvar"}
+            </Button>
+            
+            <Button 
+              className="bg-[#4a148c] hover:bg-[#4a148c]/90 text-white rounded-sm px-6 h-9"
+              onClick={() => handleSalvar(true)}
+              disabled={loading}
+            >
+              Salvar e cadastrar outro
+            </Button>
+            
+            <Button 
+              variant="outline"
+              asChild
+              className="border-slate-300 text-slate-600 rounded-sm px-6 h-9"
+            >
+              <Link to="/app/clientes">Cancelar</Link>
+            </Button>
+          </div>
+
         </div>
-      </Card>
-    </>
+      </div>
+    </div>
   );
 }

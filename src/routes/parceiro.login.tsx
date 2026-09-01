@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { VivaverdeLogo } from "@/components/vivaverde-logo";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
+import premiumGardenCapa from "@/assets/premium-garden-capa.png";
 
 export const Route = createFileRoute("/parceiro/login")({
   beforeLoad: async () => {
@@ -77,8 +78,20 @@ function LoginParceiro() {
   };
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center">
-      <Card className="w-full max-w-sm shadow-xl border-0 ring-1 ring-slate-900/5">
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-neutral-900">
+      {/* Background Image */}
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${premiumGardenCapa})` }}
+      />
+      {/* Dark overlay for better contrast */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+      
+      {/* Thin green accent line at top */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-brand shadow-elevated z-20" />
+
+      <div className="relative z-10 w-full max-w-sm px-4">
+        <Card className="w-full shadow-xl border-0 ring-1 ring-slate-900/5">
         <div className="pt-8 pb-2 flex justify-center">
           <img src={premiumGardenLogo} alt="Premium Garden" className="h-24 w-auto object-contain" />
         </div>
@@ -156,7 +169,8 @@ function LoginParceiro() {
             </Link>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

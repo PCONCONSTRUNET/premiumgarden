@@ -1,3 +1,4 @@
+/* Estilos globais - Premium Garden - v2.0 */
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -85,7 +86,7 @@
   --terra: oklch(0.48 0.12 50);              /* #92400E earthy brown */
   --terra-foreground: oklch(0.985 0 0);
 
-  --border: oklch(0.91 0.01 220);            /* #E2E8F0 */
+  --border: oklch(0.86 0.012 220);            /* ligeiramente mais escuro → bordas mais visíveis */
   --input: oklch(0.91 0.01 220);
   --ring: oklch(0.75 0.14 85);
 
@@ -99,6 +100,7 @@
   --gradient-sidebar: linear-gradient(180deg, oklch(0.15 0.02 250), oklch(0.12 0.02 250));
   --shadow-card: 0 1px 2px 0 oklch(0.2 0.03 250 / 0.04), 0 1px 3px 0 oklch(0.2 0.03 250 / 0.06);
   --shadow-elevated: 0 10px 30px -10px oklch(0.75 0.14 85 / 0.25);
+  --shadow-modal: 0 8px 40px -8px oklch(0.1 0.02 250 / 0.35), 0 2px 8px -2px oklch(0.1 0.02 250 / 0.15);
 }
 
 .dark {
@@ -144,6 +146,7 @@
   .bg-gradient-sidebar { background-image: var(--gradient-sidebar); }
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-elevated { box-shadow: var(--shadow-elevated); }
+  .shadow-modal { box-shadow: var(--shadow-modal); }
   .text-balance { text-wrap: balance; }
 }
 

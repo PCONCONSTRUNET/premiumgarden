@@ -241,7 +241,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur-md md:px-6 print:hidden">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b-2 border-border bg-card/95 px-6 backdrop-blur-md md:px-8 lg:px-10 print:hidden">
           <Button size="icon" variant="ghost" className="md:hidden" onClick={() => setOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
@@ -369,7 +369,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </header>
-        <main className="flex-1 p-4 md:p-6 lg:p-8 print:p-0">{children}</main>
+        <main className="flex-1 p-6 md:p-8 lg:p-10 xl:p-12 print:p-0">{children}</main>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-﻿import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { supabase } from "@/lib/supabase";
 
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/app")({
 
     // Lista de e-mails permitidos como Administrador (Dono)
     // Se a variável VITE_ADMIN_EMAIL não existir no servidor (ex: Vercel), usa o e-mail padrão do dono.
-    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "PremiumGarden@gmail.com";
+    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "senalandia2@gmail.com";
     const ADMIN_EMAILS = adminEmail
       .split(",")
       .map((e: string) => e.trim().toLowerCase())

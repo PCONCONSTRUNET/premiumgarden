@@ -230,20 +230,6 @@ function NovaVenda() {
       const valDescontoPerc = (subtotal * descontoPercentual) / 100;
       const totalVenda = subtotal - descontoValor - valDescontoPerc + freteValor;
 
-      // Pega o último número gerado para evitar pulos
-      let nextNumero = 1;
-      const { data: maxVenda } = await supabase
-        .from("vendas")
-        .select("numero")
-        .not("numero", "is", null)
-        .order("numero", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (maxVenda && maxVenda.numero) {
-        nextNumero = Number(maxVenda.numero) + 1;
-      }
-
       // 1. Criar a Venda/DAV
       const { data: vendaData, error: vendaError } = await supabase
         .from("vendas")
@@ -252,8 +238,7 @@ function NovaVenda() {
             cliente_id: idDoCliente,
             tipo: tipo,
             status: status,
-            valor_total: totalVenda,
-            numero: nextNumero,
+            valor_total: totalComDesconto,
             condicao_pagamento: metodoPagamento === "Boleto" ? `Boleto - ${condicaoPagamento}` : metodoPagamento,
           },
         ])

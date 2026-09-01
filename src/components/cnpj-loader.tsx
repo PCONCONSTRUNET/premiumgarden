@@ -1,6 +1,6 @@
 export function CnpjLoader() {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
       <svg height="108px" width="108px" viewBox="0 0 128 128" style={{ width: "8em", height: "8em" }}>
         <style>{`
           .loader__eye1,

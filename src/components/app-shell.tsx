@@ -23,7 +23,7 @@ import {
   ListTodo,
   BadgeDollarSign,
 } from "lucide-react";
-import { VivaverdeLogo } from "./vivaverde-logo";
+import { SenalandiaLogo } from "./senalandia-logo";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -185,7 +185,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-72 bg-gradient-sidebar text-sidebar-foreground p-4 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <VivaverdeLogo size="small" />
+              <SenalandiaLogo size="small" />
               <Button
                 size="icon"
                 variant="ghost"

@@ -1,7 +1,7 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { VivaverdeLogo } from "@/components/vivaverde-logo";
+import { SenalandiaLogo } from "@/components/senalandia-logo";
 
 export const Route = createFileRoute("/orcamento/$id")({
   head: () => ({ meta: [{ title: "Orçamento (DAV) - Impressão" }] }),
@@ -119,7 +119,7 @@ function ImprimirDAV() {
       {/* Cabeçalho */}
       <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-6">
         <div>
-          <VivaverdeLogo size="small" />
+          <SenalandiaLogo size="small" />
           <div className="mt-4 text-sm text-slate-600">
             <p className="font-bold text-slate-900">{dav.emissor_nome || "Premium Garden VASOS"}</p>
             {dav.emissor_cnpj && <p>CNPJ: {dav.emissor_cnpj}</p>}

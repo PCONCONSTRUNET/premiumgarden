@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { createFileRoute, Outlet, redirect, Link, useRouterState, isRedirect, useNavigate } from "@tanstack/react-router";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
-import { VivaverdeLogo } from "@/components/vivaverde-logo";
 import { Home, Calculator, LogOut, PackageSearch, Wallet, Menu, X } from "lucide-react";
+import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/parceiro")({
@@ -94,8 +94,8 @@ function ParceiroLayout() {
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       {/* Sidebar desktop */}
       <aside className="sticky top-0 h-screen hidden md:flex w-64 shrink-0 flex-col bg-white border-r border-slate-200">
-        <div className="p-5 border-b border-slate-200">
-          <VivaverdeLogo size="small" />
+        <div className="p-5 border-b border-slate-200 flex items-center justify-center">
+          <img src={premiumGardenLogo} alt="Premium Garden" className="h-14 w-auto object-contain" />
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-2">
           {PARCEIRO_NAV.map((it) => (
@@ -131,7 +131,7 @@ function ParceiroLayout() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-[80%] max-w-sm bg-white p-5 shadow-2xl flex flex-col">
             <div className="flex items-center justify-between mb-8">
-              <VivaverdeLogo size="small" />
+              <img src={premiumGardenLogo} alt="Premium Garden" className="h-10 w-auto object-contain" />
               <Button
                 size="icon"
                 variant="ghost"
@@ -179,7 +179,7 @@ function ParceiroLayout() {
             <Menu className="h-6 w-6" />
           </Button>
           <div className="flex-1 flex justify-center mr-6">
-             <VivaverdeLogo size="small" />
+             <img src={premiumGardenLogo} alt="Premium Garden" className="h-8 w-auto object-contain" />
           </div>
         </header>
         <main className="flex-1 p-4 md:p-8 max-w-4xl mx-auto w-full">

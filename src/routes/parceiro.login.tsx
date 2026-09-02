@@ -4,7 +4,7 @@ import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { VivaverdeLogo } from "@/components/vivaverde-logo";
+import { SenalandiaLogo } from "@/components/senalandia-logo";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import premiumGardenCapa from "@/assets/premium-garden-capa.png";
 

@@ -105,7 +105,8 @@ function NovoPedido() {
 
   const [itens, setItens] = useState<any[]>([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
-  const [quantidade, setQuantidade] = useState(1);
+  const [quantidade, setQuantidade] = useState<string>("1"); // string to allow free editing
+  const [draftItemQtys, setDraftItemQtys] = useState<Record<number, string>>({}); // per-item draft
   const [openProduto, setOpenProduto] = useState(false);
   const [openCliente, setOpenCliente] = useState(false);
   const [descontoValor, setDescontoValor] = useState(0);
@@ -174,11 +175,12 @@ function NovoPedido() {
   const totalPedido = Math.max(0, subtotal - descontoValor - percentualValue) + freteValor;
 
   const handleAddItem = () => {
-    if (!selectedProduct || quantidade <= 0) {
+    if (!selectedProduct || parseInt(quantidade) <= 0 || quantidade === "") {
       toast.info("Selecione um produto e informe a quantidade.");
       return;
     }
-    if (tipo === "VENDA" && Number(selectedProduct.estoque || 0) < quantidade) {
+    const qtd = Math.max(1, parseInt(quantidade) || 1);
+    if (tipo === "VENDA" && Number(selectedProduct.estoque || 0) < qtd) {
       toast.info(`Estoque insuficiente. Disponível: ${selectedProduct.estoque || 0}.`);
       return;
     }
@@ -188,7 +190,7 @@ function NovoPedido() {
       if (existingIndex >= 0) {
         return current.map((item, index) => {
           if (index !== existingIndex) return item;
-          const newQuantity = item.quantidade + quantidade;
+          const newQuantity = item.quantidade + qtd;
           return {
             ...item,
             quantidade: newQuantity,
@@ -203,14 +205,14 @@ function NovoPedido() {
           nome: selectedProduct.nome,
           codigo: selectedProduct.codigo,
           valor_unitario: Number(selectedProduct.valor || 0),
-          quantidade,
-          subtotal: Number(selectedProduct.valor || 0) * quantidade,
+          quantidade: qtd,
+          subtotal: Number(selectedProduct.valor || 0) * qtd,
           imagem: selectedProduct.imagem,
         },
       ];
     });
     setProdutoSelecionado("");
-    setQuantidade(1);
+    setQuantidade("1");
   };
 
   const handleUpdateItem = (
@@ -608,10 +610,16 @@ function NovoPedido() {
               <div className="w-full space-y-2 lg:w-28">
                 <Label>Quantidade</Label>
                 <Input
-                  type="number"
-                  min="1"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={quantidade}
-                  onChange={(event) => setQuantidade(Number(event.target.value))}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setQuantidade(e.target.value.replace(/[^0-9]/g, ""))}
+                  onBlur={() => {
+                    const n = parseInt(quantidade) || 1;
+                    setQuantidade(String(Math.max(1, n)));
+                  }}
                 />
               </div>
               <Button onClick={handleAddItem}>
@@ -666,12 +674,23 @@ function NovoPedido() {
                       </div>
                     </div>
                     <Input
-                      type="number"
-                      min="1"
-                      value={item.quantidade}
-                      onChange={(event) =>
-                        handleUpdateItem(index, "quantidade", Number(event.target.value))
-                      }
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={draftItemQtys[index] !== undefined ? draftItemQtys[index] : String(item.quantidade)}
+                      onFocus={(e) => {
+                        setDraftItemQtys((prev) => ({ ...prev, [index]: String(item.quantidade) }));
+                        e.target.select();
+                      }}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                        setDraftItemQtys((prev) => ({ ...prev, [index]: raw }));
+                      }}
+                      onBlur={() => {
+                        const n = Math.max(1, parseInt(draftItemQtys[index] ?? "") || 1);
+                        handleUpdateItem(index, "quantidade", n);
+                        setDraftItemQtys((prev) => { const d = { ...prev }; delete d[index]; return d; });
+                      }}
                       className="h-8 w-24"
                     />
                     <Input

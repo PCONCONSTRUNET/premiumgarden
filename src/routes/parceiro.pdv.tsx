@@ -1,4 +1,4 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
@@ -50,6 +50,8 @@ function ParceiroPDV() {
   const [searchTerm, setSearchTerm] = useState("");
   const [davGeradoId, setDavGeradoId] = useState<string | null>(null);
   const [davGeradoNumero, setDavGeradoNumero] = useState<string | number | null>(null);
+  // Draft quantities: stores raw string while user is typing
+  const [draftQtys, setDraftQtys] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const init = async () => {
@@ -532,11 +534,25 @@ function ParceiroPDV() {
                       −
                     </button>
                     <input
-                      type="number"
-                      min="1"
-                      value={i.q || ""}
-                      onChange={(e) => setQuantity(i.id, parseInt(e.target.value) || 1)}
-                      className="w-8 text-center text-xs font-bold bg-transparent border-0 outline-none p-0 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={draftQtys[i.id] !== undefined ? draftQtys[i.id] : String(i.q)}
+                      onFocus={(e) => {
+                        setDraftQtys((prev) => ({ ...prev, [i.id]: String(i.q) }));
+                        e.target.select();
+                      }}
+                      onChange={(e) => {
+                        // Allow freely typing — only digits
+                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                        setDraftQtys((prev) => ({ ...prev, [i.id]: raw }));
+                      }}
+                      onBlur={(e) => {
+                        const n = parseInt(draftQtys[i.id] ?? "") || 1;
+                        setQuantity(i.id, Math.max(1, n));
+                        setDraftQtys((prev) => { const d = { ...prev }; delete d[i.id]; return d; });
+                      }}
+                      className="w-8 text-center text-xs font-bold bg-transparent border-0 outline-none p-0 focus:ring-0"
                     />
                     <button
                       onClick={() => updateQuantity(i.id, 1)}

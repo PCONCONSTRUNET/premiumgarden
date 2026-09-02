@@ -52,6 +52,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/venda-nova")({
   head: () => ({ meta: [{ title: "Novo Pedido - PREMIUM GARDEN" }] }),
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      id: search.id as string | undefined,
+    };
+  },
   component: NovoPedido,
 });
 
@@ -89,6 +94,10 @@ function NovoPedido() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
   const [company, setCompany] = useState<any>(null);
+  
+  const search = Route.useSearch();
+  const isEditing = !!search.id;
+  const editId = search.id;
 
   const [clienteId, setClienteId] = useState("");
   const [tipo, setTipo] = useState("VENDA");
@@ -96,12 +105,21 @@ function NovoPedido() {
   const [dataEmissao, setDataEmissao] = useState(new Date().toISOString().split("T")[0]);
   const [contato, setContato] = useState("");
   const [condicaoPagamento, setCondicaoPagamento] = useState("");
-  const [freteValor, setFreteValor] = useState(0);
+  const [freteValor, setFreteValor] = useState<string | number>("");
   const [transportadora, setTransportadora] = useState("");
+  const [transportadoras, setTransportadoras] = useState<string[]>(["FOB", "CIF"]);
+  const [openNewCarrier, setOpenNewCarrier] = useState(false);
+  const [newCarrier, setNewCarrier] = useState({ nome: "", cidade: "", estado: "", telefone: "", info: "" });
   const [rastreamento, setRastreamento] = useState("");
   const [enderecoEntrega, setEnderecoEntrega] = useState("Endereço principal do cliente");
+  const [enderecos, setEnderecos] = useState<string[]>(["Endereço principal do cliente"]);
+  const [openNewAddress, setOpenNewAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState({ cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "" });
   const [observacoes, setObservacoes] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [openSuccessModal, setOpenSuccessModal] = useState(false);
+  const [savedVendaId, setSavedVendaId] = useState<string | null>(null);
+  const [savedNumero, setSavedNumero] = useState<number | null>(null);
 
   const [itens, setItens] = useState<any[]>([]);
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
@@ -109,8 +127,8 @@ function NovoPedido() {
   const [draftItemQtys, setDraftItemQtys] = useState<Record<number, string>>({}); // per-item draft
   const [openProduto, setOpenProduto] = useState(false);
   const [openCliente, setOpenCliente] = useState(false);
-  const [descontoValor, setDescontoValor] = useState(0);
-  const [descontoPercentual, setDescontoPercentual] = useState(0);
+  const [descontoValor, setDescontoValor] = useState<string | number>("");
+  const [descontoPercentual, setDescontoPercentual] = useState<string | number>("");
 
   const [openModalCliente, setOpenModalCliente] = useState(false);
   const [saveAfterClientCreation, setSaveAfterClientCreation] = useState(false);
@@ -149,19 +167,68 @@ function NovoPedido() {
   });
 
   const fetchData = async () => {
-    const [{ data: clients }, { data: products }, { data: config }] = await Promise.all([
-      supabase.from("clientes").select("*").order("nome"),
-      supabase.from("produtos").select("*").eq("status", "Ativo").order("nome"),
-      supabase.from("configuracoes").select("*").limit(1).maybeSingle(),
-    ]);
-    setClientes(clients || []);
-    setProdutos(products || []);
-    setCompany(config || null);
+    setLoading(true);
+    try {
+      const [{ data: clients }, { data: products }, { data: config }] = await Promise.all([
+        supabase.from("clientes").select("*").order("nome"),
+        supabase.from("produtos").select("*").eq("status", "Ativo").order("nome"),
+        supabase.from("configuracoes").select("*").limit(1).maybeSingle(),
+      ]);
+      setClientes(clients || []);
+      setProdutos(products || []);
+      setCompany(config || null);
+
+      if (isEditing && editId) {
+        const { data: vendaData, error: vendaError } = await supabase
+          .from("vendas")
+          .select("*")
+          .eq("id", editId)
+          .single();
+          
+        if (vendaError) throw vendaError;
+        if (vendaData) {
+          setClienteId(vendaData.cliente_id || "");
+          setTipo(vendaData.tipo || "VENDA");
+          setStatus(vendaData.status || "Pendente");
+          if (vendaData.created_at) {
+            setDataEmissao(vendaData.created_at.split("T")[0]);
+          }
+          setCondicaoPagamento(vendaData.condicao_pagamento || "");
+          setDescontoValor(Number(vendaData.desconto_valor) || 0);
+          setDescontoPercentual(Number(vendaData.desconto_percentual) || 0);
+          setSavedNumero(vendaData.numero);
+          
+          const { data: itensData } = await supabase
+            .from("vendas_itens")
+            .select("*, produtos(nome, codigo, imagem)")
+            .eq("venda_id", editId);
+            
+          if (itensData) {
+            setItens(
+              itensData.map((i: any) => ({
+                produto_id: i.produto_id,
+                nome: i.produtos?.nome || "Produto removido",
+                codigo: i.produtos?.codigo || "",
+                imagem: i.produtos?.imagem || "",
+                quantidade: i.quantidade,
+                valor_unitario: i.valor_unitario,
+                subtotal: i.subtotal,
+              }))
+            );
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao carregar dados.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [editId]);
 
   const selectedClient = clientes.find((client) => client.id === clienteId);
   const selectedProduct = produtos.find((product) => product.id === produtoSelecionado);
@@ -254,33 +321,56 @@ function NovoPedido() {
   const executarSalvamentoVenda = async (clientId: string) => {
     setLoading(true);
     try {
-      let nextNumero = 1;
-      const { data: maxVenda } = await supabase
-        .from("vendas")
-        .select("numero")
-        .not("numero", "is", null)
-        .order("numero", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (maxVenda?.numero) nextNumero = Number(maxVenda.numero) + 1;
+      let nextNumero = savedNumero || 1;
+      if (!isEditing) {
+        const { data: maxVenda } = await supabase
+          .from("vendas")
+          .select("numero")
+          .not("numero", "is", null)
+          .order("numero", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (maxVenda?.numero) nextNumero = Number(maxVenda.numero) + 1;
+      }
 
-      const { data: vendaData, error: vendaError } = await supabase
-        .from("vendas")
-        .insert([
-          {
-            cliente_id: clientId,
-            tipo,
-            status: tipo === "DAV" ? "Pendente" : status,
-            valor_total: totalPedido,
-            numero: nextNumero,
-            condicao_pagamento: condicaoPagamento,
-            desconto_percentual: descontoPercentual,
-            desconto_valor: descontoValor,
-          },
-        ])
-        .select()
-        .single();
-      if (vendaError) throw vendaError;
+      const vendaPayload = {
+        cliente_id: clientId,
+        tipo,
+        status: tipo === "DAV" ? "Em orçamento" : status, // Update to match the list's expected status for quote
+        valor_total: totalPedido,
+        numero: nextNumero,
+        condicao_pagamento: condicaoPagamento,
+        desconto_percentual: descontoPercentual,
+        desconto_valor: descontoValor,
+      };
+
+      let vendaData;
+      
+      if (isEditing && editId) {
+        const { data, error: vendaError } = await supabase
+          .from("vendas")
+          .update(vendaPayload)
+          .eq("id", editId)
+          .select()
+          .single();
+        if (vendaError) throw vendaError;
+        vendaData = data;
+        
+        // Remove old items
+        const { error: deleteError } = await supabase
+          .from("vendas_itens")
+          .delete()
+          .eq("venda_id", editId);
+        if (deleteError) throw deleteError;
+      } else {
+        const { data, error: vendaError } = await supabase
+          .from("vendas")
+          .insert([vendaPayload])
+          .select()
+          .single();
+        if (vendaError) throw vendaError;
+        vendaData = data;
+      }
 
       const { error: itemsError } = await supabase.from("vendas_itens").insert(
         itens.map((item) => ({
@@ -319,8 +409,14 @@ function NovoPedido() {
         ]);
       }
 
-      toast.success(tipo === "DAV" ? "Orçamento criado." : "Pedido gerado com sucesso.");
-      navigate({ to: "/app/vendas" });
+      if (tipo === "DAV") {
+        setSavedVendaId(vendaData.id);
+        setSavedNumero(nextNumero);
+        setOpenSuccessModal(true);
+      } else {
+        toast.success("Pedido gerado com sucesso.");
+        navigate({ to: "/app/vendas" });
+      }
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao gerar pedido: " + err.message);
@@ -794,7 +890,7 @@ function NovoPedido() {
                   min="0"
                   step="0.01"
                   value={descontoValor}
-                  onChange={(event) => setDescontoValor(Number(event.target.value))}
+                  onChange={(event) => setDescontoValor(event.target.value)}
                 />
               </div>
               <div className="space-y-1">
@@ -804,7 +900,7 @@ function NovoPedido() {
                   min="0"
                   max="100"
                   value={descontoPercentual}
-                  onChange={(event) => setDescontoPercentual(Number(event.target.value))}
+                  onChange={(event) => setDescontoPercentual(event.target.value)}
                 />
               </div>
             </div>
@@ -820,14 +916,76 @@ function NovoPedido() {
         </section>
 
         <div className="flex flex-wrap gap-2 border-t-2 border-foreground/80 bg-card px-5 py-4 md:px-8">
-          <Button onClick={handleSalvar} disabled={loading}>
-            <Save className="mr-2 h-4 w-4" /> {loading ? "Gerando..." : "Gerar pedido"}
-          </Button>
+          {isEditing && tipo === "DAV" ? (
+            <>
+              <Button onClick={handleSalvar} disabled={loading} variant="outline" className="border-primary text-primary hover:text-primary">
+                <Save className="mr-2 h-4 w-4" /> {loading ? "Salvando..." : "Salvar orçamento"}
+              </Button>
+              <Button onClick={() => { setTipo("VENDA"); setTimeout(handleSalvar, 100); }} disabled={loading}>
+                <Check className="mr-2 h-4 w-4" /> {loading ? "Gerando..." : "Gerar pedido"}
+              </Button>
+            </>
+          ) : (
+            <Button onClick={handleSalvar} disabled={loading}>
+              <Save className="mr-2 h-4 w-4" /> {loading ? "Salvando..." : (tipo === "DAV" ? "Gerar orçamento" : "Gerar pedido")}
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link to="/app/vendas">Cancelar</Link>
           </Button>
         </div>
       </div>
+
+      <Dialog open={openSuccessModal} onOpenChange={(open) => {
+        if (!open) {
+          setOpenSuccessModal(false);
+          navigate({ to: "/app/vendas" });
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Orçamento concluído com sucesso</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-4">
+            <Button 
+              className="w-full justify-start"
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  const { error } = await supabase.from("vendas").update({ tipo: "VENDA", status: "Pendente" }).eq("id", savedVendaId);
+                  if (error) throw error;
+                  toast.success("Orçamento transformado em pedido com sucesso!");
+                  navigate({ to: "/app/vendas" });
+                } catch (e: any) {
+                  toast.error("Erro ao transformar: " + e.message);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              <Package className="mr-2 h-4 w-4" /> Transformar em pedido
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start"
+              onClick={() => {
+                const message = `Olá! Segue o link para o seu orçamento: ${window.location.origin}/orcamento/${savedVendaId}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+              Enviar por WhatsApp
+            </Button>
+            <Button variant="outline" className="w-full justify-start" asChild>
+              <Link to="/app/venda-nova" search={{ id: undefined }} onClick={() => setOpenSuccessModal(false)}>
+                <Plus className="mr-2 h-4 w-4" /> Criar novo carrinho
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
@@ -914,7 +1072,7 @@ function NovoPedido() {
                     min="0"
                     step="0.01"
                     value={freteValor}
-                    onChange={(event) => setFreteValor(Number(event.target.value))}
+                    onChange={(event) => setFreteValor(event.target.value)}
                   />
                 </div>
                 <div className="space-y-2">

@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarDays,
   Check,
@@ -15,6 +15,13 @@ import {
   Trash2,
   UserRound,
   X,
+  FileDown,
+  Wallet,
+  Banknote,
+  FileSignature,
+  Info,
+  DollarSign,
+  Receipt,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -22,6 +29,15 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -55,6 +71,7 @@ function Pedidos() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [typeFilter, setTypeFilter] = useState("todos");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const [selectedVenda, setSelectedVenda] = useState<any>(null);
   const [openSheet, setOpenSheet] = useState(false);
@@ -62,6 +79,17 @@ function Pedidos() {
   const [loadingItens, setLoadingItens] = useState(false);
   const [isEditingTotal, setIsEditingTotal] = useState(false);
   const [newTotalValue, setNewTotalValue] = useState("");
+
+  const [openFaturar, setOpenFaturar] = useState(false);
+  const [faturarLoading, setFaturarLoading] = useState(false);
+  const [valorJaFaturado, setValorJaFaturado] = useState(0);
+  const [faturarValor, setFaturarValor] = useState<string>("");
+  const [faturarNota, setFaturarNota] = useState("");
+  const [faturarData, setFaturarData] = useState(new Date().toISOString().split("T")[0]);
+  const [faturarInfo, setFaturarInfo] = useState("");
+
+  const [openVisualizar, setOpenVisualizar] = useState(false);
+  const [empresaDados, setEmpresaDados] = useState<any>(null);
 
   const fetchVendas = async () => {
     setLoading(true);
@@ -84,6 +112,9 @@ function Pedidos() {
 
   useEffect(() => {
     fetchVendas();
+    supabase.from("configuracoes").select("*").eq("id", 1).single().then(({ data }) => {
+      if (data) setEmpresaDados(data);
+    });
   }, []);
 
   const getOrderNumber = (venda: any) =>
@@ -98,14 +129,100 @@ function Pedidos() {
     return venda.status || "Pendente";
   };
 
+  const handleOpenFaturar = async (venda: any) => {
+    setSelectedVenda(venda);
+    setFaturarData(new Date().toISOString().split("T")[0]);
+    setFaturarNota("");
+    setFaturarInfo("");
+    try {
+      // Calculate already invoiced from contas_receber
+      const { data } = await supabase.from("contas_receber").select("valor").eq("venda_id", venda.id);
+      const totalFaturado = (data || []).reduce((acc, curr) => acc + Number(curr.valor), 0);
+      setValorJaFaturado(totalFaturado);
+      
+      const totalRestante = Number(venda.valor_total || 0) - totalFaturado;
+      setFaturarValor(Math.max(0, totalRestante));
+      
+      setOpenFaturar(true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao carregar dados de faturamento.");
+    }
+  };
+
+  const handleFaturar = async () => {
+    const valorNum = Number(faturarValor);
+    if (!selectedVenda) return;
+    if (valorNum <= 0) {
+      toast.error("O valor a faturar deve ser maior que zero.");
+      return;
+    }
+    
+    setFaturarLoading(true);
+    try {
+      const valorTotal = Number(selectedVenda.valor_total || 0);
+      const novoTotalFaturado = valorJaFaturado + valorNum;
+      
+      // Se faturar tudo ou mais, é Concluído. Senão, Parcialmente Faturado.
+      const isFullyInvoiced = novoTotalFaturado >= valorTotal - 0.01; // allow small rounding diff
+      const newStatus = isFullyInvoiced ? "Concluído" : "Parcialmente Faturado";
+      
+      const dueDate = new Date(faturarData);
+      dueDate.setDate(dueDate.getDate() + 30);
+      
+      const { error: contasError } = await supabase.from("contas_receber").insert([{
+        venda_id: selectedVenda.id,
+        cliente_id: selectedVenda.cliente_id,
+        descricao: faturarNota ? `NF: ${faturarNota}` : `Pedido #${getOrderNumber(selectedVenda)}`,
+        valor: valorNum,
+        vencimento: dueDate.toISOString().split("T")[0],
+        status: "Pendente", // Could be Pago depending on condicao
+        observacoes: faturarInfo,
+      }]);
+      if (contasError) throw contasError;
+
+      const { error: vendaError } = await supabase.from("vendas").update({ status: newStatus }).eq("id", selectedVenda.id);
+      if (vendaError) throw vendaError;
+
+      setVendas((current) => current.map((v) => v.id === selectedVenda.id ? { ...v, status: newStatus } : v));
+      setSelectedVenda((current: any) => current ? { ...current, status: newStatus } : current);
+      toast.success("Faturamento registrado com sucesso!");
+      setOpenFaturar(false);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao faturar: " + err.message);
+    } finally {
+      setFaturarLoading(false);
+    }
+  };
+
+  const handleOpenVisualizar = async (venda: any) => {
+    setSelectedVenda(venda);
+    setLoadingItens(true);
+    setOpenVisualizar(true);
+    try {
+      const { data, error } = await supabase
+        .from("vendas_itens")
+        .select("*, produtos(nome, codigo, imagem, ncm, unidade_medida)")
+        .eq("venda_id", venda.id);
+      if (error) throw error;
+      setVendaItens(data || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao carregar os itens do pedido.");
+    } finally {
+      setLoadingItens(false);
+    }
+  };
+
   const getTone = (status: string) => {
-    if (["Pago", "Faturado", "Entregue"].includes(status)) {
+    if (["Concluído", "Pago", "Faturado", "Entregue"].includes(status)) {
       return "border-emerald-300 bg-emerald-50 text-emerald-700";
     }
     if (["Cancelado", "Rejeitado"].includes(status)) {
       return "border-red-300 bg-red-50 text-red-700";
     }
-    if (["Em orçamento", "Aguardando Pagamento"].includes(status)) {
+    if (["Parcialmente Faturado", "Em orçamento", "Aguardando Pagamento"].includes(status)) {
       return "border-amber-300 bg-amber-50 text-amber-700";
     }
     return "border-blue-300 bg-blue-50 text-blue-700";
@@ -233,6 +350,11 @@ function Pedidos() {
         }
       }
 
+      // Excluir registros filhos primeiro para não dar erro de foreign key constraint
+      await supabase.from("contas_receber").delete().eq("venda_id", venda.id);
+      await supabase.from("historico_faturamento").delete().eq("venda_id", venda.id);
+      await supabase.from("vendas_itens").delete().eq("venda_id", venda.id);
+
       const { error } = await supabase.from("vendas").delete().eq("id", venda.id);
       if (error) throw error;
       setVendas((current) => current.filter((item) => item.id !== venda.id));
@@ -304,7 +426,7 @@ function Pedidos() {
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between print:hidden">
             <div className="flex flex-wrap gap-2">
               <Button className="bg-primary text-primary-foreground" asChild>
-                <Link to="/app/venda-nova">
+                <Link to="/app/venda-nova" search={{ id: undefined }}>
                   <Plus className="mr-2 h-4 w-4" /> Criar pedido / orçamento
                 </Link>
               </Button>
@@ -395,11 +517,17 @@ function Pedidos() {
                           key={venda.id}
                           className="overflow-hidden rounded-md border bg-background"
                         >
-                          <button
-                            type="button"
-                            className="w-full text-left"
-                            onClick={() => setExpandedId(expanded ? null : venda.id)}
-                          >
+                            <button
+                              type="button"
+                              className="w-full text-left"
+                              onClick={() => {
+                                if (venda.tipo === "DAV" && status === "Em orçamento") {
+                                  navigate({ to: "/app/venda-nova", search: { id: venda.id } });
+                                } else {
+                                  setExpandedId(expanded ? null : venda.id);
+                                }
+                              }}
+                            >
                             <div className="flex items-center justify-between gap-4 bg-muted/40 px-4 py-3">
                               <div className="min-w-0">
                                 <p className="text-sm">
@@ -439,25 +567,27 @@ function Pedidos() {
 
                           {expanded && (
                             <div className="flex flex-wrap gap-2 border-t-2 border-foreground/80 bg-card px-4 py-3 print:hidden">
-                              {status !== "Faturado" && status !== "Entregue" && (
+                              {status !== "Concluído" && status !== "Cancelado" && (
                                 <Button
                                   size="sm"
-                                  onClick={() => handleStatusChange(venda.id, "Faturado")}
+                                  onClick={() => handleOpenFaturar(venda)}
                                 >
-                                  <Check className="mr-2 h-4 w-4" /> Gerar pedido
+                                  <Check className="mr-2 h-4 w-4" /> Faturar pedido
                                 </Button>
                               )}
                               <Button
                                 size="sm"
                                 variant="outline"
+                                onClick={() => handleOpenVisualizar(venda)}
+                              >
+                                <FileText className="mr-2 h-4 w-4" /> Visualizar / PDF
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
                                 onClick={() => handleOpenDetails(venda)}
                               >
-                                <Eye className="mr-2 h-4 w-4" /> Visualizar
-                              </Button>
-                              <Button size="sm" variant="outline" asChild>
-                                <Link to="/orcamento/$id" params={{ id: venda.id }}>
-                                  <Printer className="mr-2 h-4 w-4" /> PDF
-                                </Link>
+                                <Eye className="mr-2 h-4 w-4" /> Detalhes
                               </Button>
                               <Button
                                 size="sm"
@@ -632,8 +762,247 @@ function Pedidos() {
               </Button>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+          </SheetContent>
+        </Sheet>
+
+      {/* Faturar Modal */}
+      <Dialog open={openFaturar} onOpenChange={setOpenFaturar}>
+        <DialogContent className="sm:max-w-[450px] overflow-hidden p-0 rounded-2xl">
+          <div className="bg-gradient-to-b from-brand/10 to-transparent p-6 pb-4">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <Receipt className="w-5 h-5 text-brand" />
+                Faturar Pedido
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground mt-1">
+                Lance um faturamento parcial ou total para este pedido.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          
+          {selectedVenda && (
+            <div className="px-6 space-y-6 pb-2">
+              <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl shadow-sm">
+                <div>
+                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider block mb-1">Pagamento</span>
+                  <span className="font-semibold text-sm text-slate-700">{selectedVenda.condicao_pagamento || "Não informado"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider block mb-1">Já Faturado</span>
+                  <span className="font-semibold text-sm text-amber-600">{currency.format(valorJaFaturado)}</span>
+                </div>
+                <div className="col-span-2 pt-2 mt-2 border-t border-slate-200/60">
+                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider block mb-1">Total do Pedido</span>
+                  <span className="font-bold text-brand text-lg">{currency.format(selectedVenda.valor_total)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-emerald-500" /> Valor a faturar agora
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-slate-500 font-medium">R$</span>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      min="0"
+                      className="pl-9 h-11 text-base font-semibold focus-visible:ring-emerald-500 border-slate-300 shadow-sm"
+                      value={faturarValor} 
+                      onChange={(e) => setFaturarValor(e.target.value)} 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-600 flex items-center gap-1.5">
+                      <FileSignature className="w-3.5 h-3.5" /> Nota Fiscal
+                    </Label>
+                    <Input 
+                      value={faturarNota} 
+                      onChange={(e) => setFaturarNota(e.target.value)} 
+                      placeholder="Ex: NF 12345"
+                      className="h-10 text-sm shadow-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-600 flex items-center gap-1.5">
+                      <CalendarDays className="w-3.5 h-3.5" /> Vencimento
+                    </Label>
+                    <Input 
+                      type="date"
+                      value={faturarData} 
+                      onChange={(e) => setFaturarData(e.target.value)}
+                      className="h-10 text-sm shadow-sm" 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-600 flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5" /> Informações Adicionais
+                  </Label>
+                  <Input 
+                    value={faturarInfo} 
+                    onChange={(e) => setFaturarInfo(e.target.value)}
+                    className="h-10 text-sm shadow-sm" 
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="p-6 pt-4 bg-slate-50 border-t flex justify-end gap-3 rounded-b-2xl">
+            <Button variant="outline" className="h-10 px-4" onClick={() => setOpenFaturar(false)}>Cancelar</Button>
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white h-10 px-6 shadow-md transition-all active:scale-95" onClick={handleFaturar} disabled={faturarLoading}>
+              <Check className="w-4 h-4 mr-2" />
+              {faturarLoading ? "Faturando..." : "Confirmar Faturamento"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Visualizar / Imprimir Modal */}
+      <Dialog open={openVisualizar} onOpenChange={setOpenVisualizar}>
+        <DialogContent className="max-w-[800px] p-0 overflow-hidden bg-white text-black print:shadow-none print:border-none print:max-w-full">
+          {selectedVenda && (
+            <div className="max-h-[85vh] overflow-y-auto" id="print-area">
+              <div className="p-8 space-y-6 print:p-0">
+                {/* Header */}
+                <div className="flex justify-between items-start border-b border-gray-300 pb-4">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <img src="/logo.png" alt="Logo" className="h-12 w-12 object-contain hidden" />
+                      <h2 className="text-2xl font-bold">{empresaDados?.razao_social || "PREMIUM GARDEN"}</h2>
+                    </div>
+                    <div className="text-sm text-gray-500 mt-2 max-w-sm">
+                      {empresaDados?.endereco || "Endereço não configurado"}<br/>
+                      CNPJ: {empresaDados?.cnpj || "00.000.000/0000-00"}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <h3 className="text-xl font-semibold text-gray-800">Pedido #{getOrderNumber(selectedVenda)}</h3>
+                    <p className="text-sm font-medium text-gray-500">
+                      Emitido em: {new Date(selectedVenda.created_at).toLocaleDateString("pt-BR")}
+                    </p>
+                    <p className="text-sm font-medium text-gray-500">
+                      Vendedor: {selectedVenda.vendedores?.nome || "Admin"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Cliente Info */}
+                <div>
+                  <h4 className="font-semibold text-gray-700 uppercase text-xs mb-2 tracking-wider">Dados do Cliente</h4>
+                  <div className="bg-gray-50 p-4 rounded border border-gray-100 text-sm grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-gray-500">Nome:</span> <span className="font-medium">{selectedVenda.clientes?.nome}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Telefone:</span> <span>{selectedVenda.clientes?.telefone || "Não informado"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-gray-500">Endereço:</span> <span>{selectedVenda.clientes?.endereco ? `${selectedVenda.clientes?.endereco}, ${selectedVenda.clientes?.numero || 'S/N'} - ${selectedVenda.clientes?.cidade || ''}/${selectedVenda.clientes?.uf || ''}` : "Não informado"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Itens */}
+                <div>
+                  <h4 className="font-semibold text-gray-700 uppercase text-xs mb-2 tracking-wider">Itens do Pedido</h4>
+                  <table className="w-full text-sm text-left border-collapse">
+                    <thead className="bg-gray-100 text-gray-700">
+                      <tr>
+                        <th className="py-2 px-3 border-b font-semibold">Cód.</th>
+                        <th className="py-2 px-3 border-b font-semibold w-16">Foto</th>
+                        <th className="py-2 px-3 border-b font-semibold">Descrição</th>
+                        <th className="py-2 px-3 border-b font-semibold text-right">Qtd</th>
+                        <th className="py-2 px-3 border-b font-semibold text-right">Preço Un.</th>
+                        <th className="py-2 px-3 border-b font-semibold text-right">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loadingItens ? (
+                        <tr><td colSpan={5} className="py-4 text-center text-gray-500">Carregando itens...</td></tr>
+                      ) : vendaItens.length === 0 ? (
+                        <tr><td colSpan={5} className="py-4 text-center text-gray-500">Nenhum item.</td></tr>
+                      ) : (
+                        vendaItens.map((item) => (
+                          <tr key={item.id} className="border-b border-gray-50">
+                            <td className="py-2 px-3 text-gray-500">{item.produtos?.codigo || "-"}</td>
+                            <td className="py-2 px-3 text-center">
+                              {item.produtos?.imagem ? (
+                                <img src={item.produtos.imagem} alt="Foto" className="h-10 w-10 object-cover rounded-md bg-white border inline-block" />
+                              ) : (
+                                <div className="h-10 w-10 bg-slate-100 rounded-md inline-block border"></div>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 font-medium">{item.produtos?.nome}</td>
+                            <td className="py-2 px-3 text-right">{item.quantidade} {item.produtos?.unidade_medida || "un"}</td>
+                            <td className="py-2 px-3 text-right">{currency.format(Number(item.valor_unitario))}</td>
+                            <td className="py-2 px-3 text-right font-medium">{currency.format(Number(item.subtotal))}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Totais */}
+                <div className="flex justify-end pt-4">
+                  <div className="w-64 space-y-2 text-sm">
+                    <div className="flex justify-between border-b pb-1">
+                      <span className="text-gray-500">Subtotal:</span>
+                      <span>{currency.format((Number(selectedVenda.valor_total) || 0) + (Number(selectedVenda.desconto_valor) || 0))}</span>
+                    </div>
+                    {Number(selectedVenda.desconto_valor) > 0 && (
+                      <div className="flex justify-between border-b pb-1 text-red-600">
+                        <span>Desconto:</span>
+                        <span>-{currency.format(Number(selectedVenda.desconto_valor))}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-base font-bold pt-1">
+                      <span>Total:</span>
+                      <span className="text-blue-600">{currency.format(Number(selectedVenda.valor_total))}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Rodapé Adicional */}
+                <div className="pt-8 border-t border-gray-200 text-xs text-gray-500 grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="font-semibold text-gray-700 block">Condição de Pagamento</span>
+                    {selectedVenda.condicao_pagamento || "Não informada"}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-gray-700 block">Observações</span>
+                    Pedido gerado via sistema Premium Garden.
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões - Não aparecem na impressão */}
+              <div className="bg-gray-50 p-4 border-t flex justify-end gap-3 print:hidden">
+                <Button variant="outline" onClick={() => setOpenVisualizar(false)}>Fechar</Button>
+                <Button 
+                  onClick={() => {
+                    // Ocultar tudo na tela menos o modal
+                    const style = document.createElement('style');
+                    style.innerHTML = `@media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } }`;
+                    document.head.appendChild(style);
+                    window.print();
+                    document.head.removeChild(style);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Printer className="mr-2 h-4 w-4" /> Imprimir
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

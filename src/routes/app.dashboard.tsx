@@ -12,6 +12,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
   LineChart,
   Line,
   CartesianGrid,
@@ -114,12 +123,6 @@ function DonutCard({
             </li>
           ))}
         </ul>
-        <Link to={detailTo}>
-          <Button variant="outline" size="sm" className="w-full text-xs text-brand border-brand/30 hover:bg-brand/5">
-            <BarChart2 className="h-3.5 w-3.5 mr-1.5" />
-            {detailLabel}
-          </Button>
-        </Link>
       </CardContent>
     </Card>
   );
@@ -136,8 +139,15 @@ function Dashboard() {
 
   // KPIs
   const [vendidoMes, setVendidoMes] = useState(0);
-  const [objetivoMes] = useState(0); // pode ser definido futuramente
+  const [objetivoMes, setObjetivoMes] = useState(0);
+  const [metaModalOpen, setMetaModalOpen] = useState(false);
+  const [metaInput, setMetaInput] = useState("");
   const [evolucao, setEvolucao] = useState<any[]>([]);
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Clientes
   const [carteira, setCarteira] = useState({ ativos: 0, inativosRecentes: 0, inativosAntigos: 0, prospectos: 0 });
@@ -182,6 +192,10 @@ function Dashboard() {
       );
       setVendidoMes(totalMes);
 
+      // Recuperar meta do localStorage
+      const metaSalva = Number(localStorage.getItem(`meta_${ano}_${mes}`)) || 0;
+      setObjetivoMes(metaSalva);
+
       // Evolução diária do mês
       const diasNoMes = new Date(anoNum, mesNum, 0).getDate();
       const porDia: Record<number, number> = {};
@@ -192,7 +206,7 @@ function Dashboard() {
       const evolData = Array.from({ length: diasNoMes }, (_, i) => ({
         dia: i + 1,
         vendas: porDia[i + 1] || 0,
-        objetivo: 0,
+        objetivo: metaSalva > 0 ? (metaSalva / diasNoMes) * (i + 1) : 0,
       }));
       setEvolucao(evolData);
 
@@ -216,13 +230,13 @@ function Dashboard() {
       const prospectos = (clientes || []).filter((c) => c.status === "Prospecto").length;
       setCarteira({ ativos, inativosRecentes, inativosAntigos, prospectos });
 
-      // Positivados no mês
+      // Positivados no mês (clientes que compraram)
       const positivadosIds = clientesComVendaMes.size;
       setPositivados({
-        novos: prospectos,
-        ativos: Math.min(ativos, positivadosIds),
-        inativosRecentes,
-        inativosAntigos,
+        novos: 0,
+        ativos: positivadosIds,
+        inativosRecentes: 0,
+        inativosAntigos: 0,
       });
 
       // Curva ABC simplificada por receita
@@ -395,7 +409,15 @@ function Dashboard() {
                   <div className="p-4 flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Objetivo do mês</span>
-                      <button className="text-[10px] text-brand hover:underline">Definir metas</button>
+                      <button 
+                        onClick={() => {
+                          setMetaInput(objetivoMes > 0 ? objetivoMes.toString() : "");
+                          setMetaModalOpen(true);
+                        }}
+                        className="text-[10px] text-brand hover:underline"
+                      >
+                        Definir metas
+                      </button>
                     </div>
                     <span className="text-xl font-bold text-foreground">{fmt(objetivoMes)}</span>
                     <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
@@ -546,6 +568,42 @@ function Dashboard() {
             </div>
           </div>
         </div>
+      )}
+      {/* Modal de Definir Metas */}
+      {mounted && (
+        <Dialog open={metaModalOpen} onOpenChange={setMetaModalOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Definir Objetivo do Mês</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="meta">Valor da Meta (R$)</Label>
+                <Input
+                  id="meta"
+                  type="number"
+                  placeholder="Ex: 50000"
+                  value={metaInput}
+                  onChange={(e) => setMetaInput(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  A meta definida será válida para o mês de {MESES[parseInt(mes)-1]} de {ano}.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMetaModalOpen(false)}>Cancelar</Button>
+              <Button onClick={() => {
+                const valor = Number(metaInput);
+                localStorage.setItem(`meta_${ano}_${mes}`, String(valor));
+                setObjetivoMes(valor);
+                setMetaModalOpen(false);
+                const diasNoMes = new Date(parseInt(ano), parseInt(mes), 0).getDate();
+                setEvolucao(evolucao.map(d => ({ ...d, objetivo: valor > 0 ? (valor / diasNoMes) * d.dia : 0 })));
+              }}>Salvar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

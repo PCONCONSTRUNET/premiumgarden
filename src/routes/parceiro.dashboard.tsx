@@ -1,4 +1,4 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -25,6 +25,8 @@ function ParceiroDashboard() {
   const [vendedorId, setVendedorId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [status, setStatus] = useState("");
+  const [tipoComissao, setTipoComissao] = useState("porcentagem");
+  const [valorComissao, setValorComissao] = useState(0);
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +81,8 @@ function ParceiroDashboard() {
           setVendedorId(vData.id);
           setNome(vData.nome);
           setStatus(vData.status || "Ativo");
+          setTipoComissao(vData.tipo_comissao || "porcentagem");
+          setValorComissao(vData.valor_comissao || 0);
 
           // Busca as vendas dele ignorando os Orçamentos (DAV)
           const { data: vendasData } = await supabase
@@ -384,10 +388,17 @@ function ParceiroDashboard() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div>
-        <h1 className="text-2xl font-bold font-display text-slate-800">
-          Olá, {nome.split(" ")[0]}! 👋
-        </h1>
-        <p className="text-sm text-muted-foreground">Aqui está o resumo das suas vendas.</p>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold font-display text-slate-800">
+            Olá, {nome.split(" ")[0]}! 👋
+          </h1>
+          {(valorComissao > 0) && (
+            <div className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-full border border-emerald-200">
+              Contrato: {tipoComissao === "fixo" ? `R$ ${valorComissao.toFixed(2).replace(".", ",")}` : `${valorComissao}%`}
+            </div>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">Aqui está o resumo das suas vendas.</p>
       </div>
 
       <div className="bg-brand/5 border border-brand/20 p-4 rounded-xl flex items-center justify-between gap-4">

@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 import { 
   FileSpreadsheet, 
   Filter, 
@@ -44,7 +46,93 @@ function Tarefas() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
   const [date, setDate] = useState<Date>();
-  
+  const [time, setTime] = useState("");
+  const [meioContato, setMeioContato] = useState("ligacao");
+  const [clienteTexto, setClienteTexto] = useState("");
+  const [detalhes, setDetalhes] = useState("");
+  const [vendedorId, setVendedorId] = useState("");
+
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [vendedores, setVendedores] = useState<any[]>([]);
+  const [tarefas, setTarefas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const carregarDados = async () => {
+      try {
+        const [resClientes, resVendedores, resTarefas] = await Promise.all([
+          supabase.from("clientes").select("id, nome").order("nome"),
+          supabase.from("vendedores").select("id, nome").eq("status", "Ativo").order("nome"),
+          supabase.from("tarefas").select("*").order("created_at", { ascending: false })
+        ]);
+        
+        if (resClientes.data) setClientes(resClientes.data);
+        if (resVendedores.data) setVendedores(resVendedores.data);
+        // It's possible the table doesn't exist yet, so we silently ignore errors on tarefas
+        if (resTarefas.data) setTarefas(resTarefas.data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    carregarDados();
+  }, []);
+
+  const handleSalvarTarefa = async () => {
+    if (!date) {
+      toast.error("Por favor, selecione uma data.");
+      return;
+    }
+    setSaving(true);
+    
+    // Construct the data_hora combining date and time
+    const dataHora = new Date(date);
+    if (time) {
+      const [h, m] = time.split(":");
+      dataHora.setHours(parseInt(h, 10));
+      dataHora.setMinutes(parseInt(m, 10));
+    }
+    
+    const clienteEncontrado = clientes.find(c => c.nome.toLowerCase() === clienteTexto.toLowerCase());
+
+    const { data, error } = await supabase.from("tarefas").insert([{
+      data: dataHora.toISOString(),
+      meio_contato: meioContato,
+      cliente_nome: clienteTexto,
+      cliente_id: clienteEncontrado ? clienteEncontrado.id : null,
+      detalhes: detalhes,
+      vendedor_id: vendedorId || null,
+      status: "Pendente"
+    }]).select();
+
+    if (error) {
+      console.error(error);
+      if (error.code === 'PGRST205') {
+        toast.error("Tabela 'tarefas' não existe no banco de dados. Crie-a usando o painel do Supabase.");
+      } else {
+        toast.error("Erro ao salvar tarefa: " + error.message);
+      }
+    } else {
+      toast.success("Tarefa criada com sucesso!");
+      setIsCreateOpen(false);
+      
+      // Limpar form
+      setDate(undefined);
+      setTime("");
+      setMeioContato("ligacao");
+      setClienteTexto("");
+      setDetalhes("");
+      setVendedorId("");
+      
+      if (data && data.length > 0) {
+        setTarefas([data[0], ...tarefas]);
+      }
+    }
+    setSaving(false);
+  };
+
   return (
     <div className="flex h-full flex-col bg-[#F5F6F8]">
       {/* Top Navigation Tabs */}
@@ -109,27 +197,52 @@ function Tarefas() {
         </Button>
       </div>
 
-      {/* Main Content (Empty State) */}
-      <div className="flex flex-1 flex-col items-center justify-center p-8 text-center bg-[#F5F6F8]">
-        <div className="mb-6 relative">
-          <div className="flex h-28 w-28 items-center justify-center">
-            {/* Custom SVG similar to the empty state */}
-            <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="52" y="25" width="40" height="50" rx="2" fill="white" stroke="#CBD5E1" strokeWidth="1.5"/>
-              <path d="M62 45L72 55L82 35" stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="35" cy="50" r="14" stroke="#8B5CF6" strokeWidth="1.5" fill="white"/>
-              <path d="M10 80C10 66.1929 21.1929 55 35 55C48.8071 55 60 66.1929 60 80" stroke="#8B5CF6" strokeWidth="1.5" strokeLinecap="round" fill="white"/>
-              <ellipse cx="50" cy="85" rx="30" ry="3" fill="#E2E8F0" opacity="0.5"/>
-            </svg>
+      {/* Main Content */}
+      {tarefas.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center p-8 text-center bg-[#F5F6F8]">
+          <div className="mb-6 relative">
+            <div className="flex h-28 w-28 items-center justify-center">
+              <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="52" y="25" width="40" height="50" rx="2" fill="white" stroke="#CBD5E1" strokeWidth="1.5"/>
+                <path d="M62 45L72 55L82 35" stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="35" cy="50" r="14" stroke="#8B5CF6" strokeWidth="1.5" fill="white"/>
+                <path d="M10 80C10 66.1929 21.1929 55 35 55C48.8071 55 60 66.1929 60 80" stroke="#8B5CF6" strokeWidth="1.5" strokeLinecap="round" fill="white"/>
+                <ellipse cx="50" cy="85" rx="30" ry="3" fill="#E2E8F0" opacity="0.5"/>
+              </svg>
+            </div>
+          </div>
+          <h3 className="mb-2 text-lg font-bold text-slate-800">
+            Nenhuma tarefa ou atividade encontrada
+          </h3>
+          <p className="max-w-md text-sm text-slate-500 leading-relaxed">
+            Não encontramos nenhuma tarefa ou atividade. Crie uma nova tarefa, registre uma atividade ou verifique os filtros aplicados.
+          </p>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-auto p-6 bg-[#F5F6F8]">
+          <div className="flex flex-col gap-3">
+            {tarefas.map(t => (
+              <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4">
+                <div className="bg-[#4b2781]/10 text-[#4b2781] p-3 rounded-full flex-shrink-0">
+                  <CalendarIcon className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-slate-800">{t.cliente_nome || "Cliente Avulso"}</h3>
+                  <p className="text-sm text-slate-500 mt-1">{t.detalhes}</p>
+                  <div className="flex items-center gap-4 mt-3 text-xs text-slate-400 font-medium">
+                    <span className="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      {t.status}
+                    </span>
+                    <span>{t.data ? format(new Date(t.data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : ""}</span>
+                    <span className="uppercase">{t.meio_contato}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-        <h3 className="mb-2 text-lg font-bold text-slate-800">
-          Nenhuma tarefa ou atividade encontrada
-        </h3>
-        <p className="max-w-md text-sm text-slate-500 leading-relaxed">
-          Não encontramos nenhuma tarefa ou atividade. Crie uma nova tarefa, registre uma atividade ou verifique os filtros aplicados.
-        </p>
-      </div>
+      )}
 
       {/* Create Task Drawer */}
       <Sheet open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -169,7 +282,12 @@ function Tarefas() {
                 <div className="space-y-2 w-28 relative">
                   <div className="absolute -top-3 left-0 right-0 border-t border-transparent"></div>
                   <div className="pt-2">
-                    <Input placeholder="--:--" className="border-slate-300 h-10 text-center bg-white" />
+                    <Input 
+                      type="time" 
+                      className="border-slate-300 h-10 text-center bg-white flex items-center justify-center" 
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
@@ -180,7 +298,7 @@ function Tarefas() {
                   <span className="bg-[#fcfcfd] px-2 text-[10px] font-bold text-slate-400 absolute -top-2 left-0 uppercase tracking-wider">MEIO DE CONTATO</span>
                 </div>
                 <div className="pt-2">
-                  <Select defaultValue="ligacao">
+                  <Select value={meioContato} onValueChange={setMeioContato}>
                     <SelectTrigger className="w-full border-[#4b2781] ring-1 ring-[#4b2781] h-10 bg-white">
                       <SelectValue placeholder="Meio de contato" />
                     </SelectTrigger>
@@ -202,15 +320,18 @@ function Tarefas() {
                   <span className="bg-[#fcfcfd] px-2 text-[10px] font-bold text-slate-400 absolute -top-2 left-0 uppercase tracking-wider">CLIENTE</span>
                 </div>
                 <div className="pt-2">
-                  <Select>
-                    <SelectTrigger className="w-full border-slate-300 h-10 bg-white text-slate-500">
-                      <SelectValue placeholder="Selecione ou pesquise pelo nome" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="colonial">COLONIAL PRODUTOS E SERVICOS LTDA</SelectItem>
-                      <SelectItem value="comercio">Comércio de Gêneros Alimentícios LTDA</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input 
+                    list="clientes-list" 
+                    placeholder="Selecione ou pesquise pelo nome..." 
+                    className="w-full border-slate-300 h-10 bg-white text-slate-700"
+                    value={clienteTexto}
+                    onChange={(e) => setClienteTexto(e.target.value)}
+                  />
+                  <datalist id="clientes-list">
+                    {clientes.map(c => (
+                      <option key={c.id} value={c.nome} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
@@ -222,6 +343,8 @@ function Tarefas() {
                 <div className="pt-2">
                   <Textarea 
                     className="min-h-[140px] resize-none border-slate-300 bg-white"
+                    value={detalhes}
+                    onChange={(e) => setDetalhes(e.target.value)}
                   />
                 </div>
               </div>
@@ -232,12 +355,14 @@ function Tarefas() {
                   <span className="bg-[#fcfcfd] px-2 text-[10px] font-bold text-slate-400 absolute -top-2 left-0 uppercase tracking-wider">VENDEDOR</span>
                 </div>
                 <div className="pt-2">
-                  <Select defaultValue="lucas">
+                  <Select value={vendedorId} onValueChange={setVendedorId}>
                     <SelectTrigger className="w-full border-slate-300 h-10 bg-white text-slate-700">
-                      <SelectValue placeholder="Vendedor" />
+                      <SelectValue placeholder="Selecione o Vendedor" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="lucas">Lucas Pereira de Souza</SelectItem>
+                      {vendedores.map(v => (
+                        <SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -247,10 +372,14 @@ function Tarefas() {
           </div>
           
           <div className="px-6 py-4 border-t bg-[#f8f9fa] flex gap-4">
-            <Button className="bg-[#4b2781] hover:bg-[#4b2781]/90 sm:w-28 h-10 font-medium">
-              Salvar
+            <Button 
+              className="bg-[#4b2781] hover:bg-[#4b2781]/90 sm:w-28 h-10 font-medium"
+              onClick={handleSalvarTarefa}
+              disabled={saving}
+            >
+              {saving ? "Salvando..." : "Salvar"}
             </Button>
-            <Button variant="outline" className="border-slate-300 bg-white hover:bg-slate-50 sm:w-28 h-10 font-medium text-slate-700" onClick={() => setIsCreateOpen(false)}>
+            <Button variant="outline" className="sm:w-28 h-10 border-slate-300 text-slate-700 font-medium" onClick={() => setIsCreateOpen(false)}>
               Cancelar
             </Button>
           </div>

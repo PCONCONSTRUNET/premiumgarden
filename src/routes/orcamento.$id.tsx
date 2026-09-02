@@ -27,9 +27,14 @@ function ImprimirDAV() {
         setDav(d);
         const { data: i } = await supabase
           .from("dav_items")
-          .select("*")
+          .select("*, produto_info:produtos(imagem)")
           .eq("dav_id", id);
-        if (i) itemsData = i;
+        if (i) {
+          itemsData = i.map((item) => ({
+            ...item,
+            imagem: item.produto_info?.imagem || null
+          }));
+        }
       } else {
         // Tenta buscar na tabela de vendas (Vendas ou DAVs antigos)
         const { data: v } = await supabase
@@ -67,13 +72,14 @@ function ImprimirDAV() {
           
           const { data: vi } = await supabase
             .from("vendas_itens")
-            .select("*, produto:produtos(nome, codigo)")
+            .select("*, produto:produtos(nome, codigo, imagem)")
             .eq("venda_id", id);
           
           if (vi) {
              itemsData = vi.map(item => ({
                codigo: item.produto?.codigo,
                produto: item.produto?.nome || "Produto sem nome",
+               imagem: item.produto?.imagem,
                qtd: item.quantidade,
                valor_unitario: item.valor_unitario,
                total: item.subtotal
@@ -184,6 +190,7 @@ function ImprimirDAV() {
           <thead>
             <tr className="bg-slate-900 text-white">
               <th className="py-2 px-3 text-left">Código</th>
+              <th className="py-2 px-3 text-left w-16">Foto</th>
               <th className="py-2 px-3 text-left">Produto</th>
               <th className="py-2 px-3 text-center">Qtd</th>
               <th className="py-2 px-3 text-right">Vlr. Unit</th>
@@ -194,6 +201,13 @@ function ImprimirDAV() {
             {itens.map((item, i) => (
               <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                 <td className="py-2 px-3 text-slate-500 text-xs">{item.codigo || "—"}</td>
+                <td className="py-2 px-3 text-center">
+                  {item.imagem ? (
+                    <img src={item.imagem} alt="Foto" className="h-10 w-10 object-cover rounded-md bg-white border inline-block" />
+                  ) : (
+                    <div className="h-10 w-10 bg-slate-100 rounded-md inline-block border"></div>
+                  )}
+                </td>
                 <td className="py-2 px-3">{item.produto || "—"}</td>
                 <td className="py-2 px-3 text-center">{item.qtd}</td>
                 <td className="py-2 px-3 text-right">

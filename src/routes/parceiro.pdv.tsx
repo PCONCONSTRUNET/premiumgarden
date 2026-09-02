@@ -55,6 +55,7 @@ function ParceiroPDV() {
 
   useEffect(() => {
     const init = async () => {
+      let currentVendedorId = null;
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -65,6 +66,7 @@ function ParceiroPDV() {
           .eq("user_id", session.user.id)
           .single();
         if (vData) {
+          currentVendedorId = vData.id;
           setVendedorInfo({ id: vData.id, nome: vData.nome });
           if (vData.status === "Aguardando Aprovação") {
             navigate({ to: "/parceiro/dashboard" });
@@ -75,7 +77,27 @@ function ParceiroPDV() {
 
       const { data } = await supabase.from("produtos").select("*").eq("status", "Ativo").order("nome");
       if (data) {
-        setProdutos(data);
+        let finalProducts = [...data];
+
+        // Se tem vendedor logado, busca a tabela de preços personalizada dele
+        if (currentVendedorId) {
+          const { data: precos } = await supabase
+            .from("vendedor_precos")
+            .select("produto_id, valor_personalizado")
+            .eq("vendedor_id", currentVendedorId);
+          
+          if (precos && precos.length > 0) {
+            finalProducts = finalProducts.map(p => {
+              const custom = precos.find((c: any) => c.produto_id === p.id);
+              if (custom && custom.valor_personalizado != null) {
+                return { ...p, valor: custom.valor_personalizado };
+              }
+              return p;
+            });
+          }
+        }
+
+        setProdutos(finalProducts);
 
         // Verifica se veio um produto mágico pela URL (formato antigo)
         const params = new URLSearchParams(window.location.search);

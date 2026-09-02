@@ -24,6 +24,7 @@ function ClienteDetalhes() {
   const navigate = useNavigate();
   const [cliente, setCliente] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [empresaDados, setEmpresaDados] = useState<any>(null);
 
   useEffect(() => {
     const fetchCliente = async () => {
@@ -43,6 +44,9 @@ function ClienteDetalhes() {
       }
     };
     if (id) fetchCliente();
+    supabase.from("configuracoes").select("*").eq("id", 1).single().then(({ data }) => {
+      if (data) setEmpresaDados(data);
+    });
   }, [id]);
 
   if (loading) {
@@ -214,7 +218,7 @@ function ClienteDetalhes() {
                 <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Limite de Crédito</h2>
               </div>
               <div className="p-4">
-                <h3 className="text-[11px] font-bold text-slate-800 uppercase mb-4">P-CON CONSTRUNET</h3>
+                <h3 className="text-[11px] font-bold text-slate-800 uppercase mb-4">{empresaDados?.razao_social || "PREMIUM GARDEN"}</h3>
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[11px] text-slate-500 mb-1">Limite disponível</div>

@@ -103,7 +103,8 @@ function PublicCatalogo() {
   useEffect(() => {
     const fetchProdutos = async () => {
       const { data } = await supabase.from("produtos").select("*").eq("status", "Ativo").order("nome");
-      if (data) setProdutos(data);
+      
+      let finalProducts = data ? [...data] : [];
 
       const params = new URLSearchParams(window.location.search);
       const p = params.get("p");
@@ -111,21 +112,43 @@ function PublicCatalogo() {
       const identifier = v || p;
 
       if (identifier) {
-        // Busca o parceiro pelo ID (formato antigo) ou pelo Nome (novo formato)
-        let query = supabase.from("vendedores").select("id, nome, telefone").eq("status", "Ativo");
+        // Busca o parceiro localmente para poder normalizar o nome igual ao link
+        const { data: parceiros } = await supabase.from("vendedores").select("id, nome, telefone").eq("status", "Ativo");
 
-        if (identifier.length === 8 && /^[0-9a-fA-F-]+$/.test(identifier)) {
-          query = query.ilike("id", `${identifier}%`);
-        } else {
-          query = query.ilike("nome", `${identifier}%`);
+        let parceiro = null;
+        if (parceiros) {
+          if (identifier.length === 8 && /^[0-9a-fA-F-]+$/.test(identifier)) {
+             parceiro = parceiros.find(p => p.id.startsWith(identifier));
+          } else {
+             parceiro = parceiros.find(p => {
+               const pName = p.nome.split(" ")[0].replace(/[^a-zA-ZÀ-ÿ]/g, "");
+               return pName.toLowerCase() === identifier.toLowerCase();
+             });
+          }
         }
 
-        const { data: parceiros } = await query.limit(1);
-        if (parceiros && parceiros.length > 0) {
-          setPartner(parceiros[0]);
+        if (parceiro) {
+          setPartner(parceiro);
+          
+          // Buscar preços personalizados do parceiro
+          const { data: precos } = await supabase
+            .from("vendedor_precos")
+            .select("produto_id, valor_personalizado")
+            .eq("vendedor_id", parceiro.id);
+            
+          if (precos && precos.length > 0) {
+            finalProducts = finalProducts.map(prod => {
+              const custom = precos.find((c: any) => c.produto_id === prod.id);
+              if (custom && custom.valor_personalizado != null) {
+                return { ...prod, valor: custom.valor_personalizado };
+              }
+              return prod;
+            });
+          }
         }
       }
 
+      setProdutos(finalProducts);
       setLoading(false);
     };
     fetchProdutos();

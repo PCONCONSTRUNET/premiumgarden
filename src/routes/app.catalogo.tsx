@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -347,10 +347,10 @@ function Catalogo() {
                       className="overflow-hidden shadow-card hover:shadow-elevated transition-all group"
                     >
                       <div
-                        className={`relative aspect-square overflow-hidden bg-gradient-to-br ${getGradient(index)} grid place-items-center text-7xl`}
+                        className="relative aspect-[4/5] overflow-hidden bg-white grid place-items-center text-7xl p-2 border-b border-slate-100"
                       >
                         {p.imagem ? (
-                          <img src={p.imagem} alt={p.nome} className="w-full h-full object-cover" />
+                          <img src={p.imagem} alt={p.nome} className="w-full h-full object-contain mix-blend-multiply" />
                         ) : (
                           p.emoji || "🪴"
                         )}
@@ -363,11 +363,11 @@ function Catalogo() {
                           </Badge>
                         )}
                       </div>
-                      <div className="p-4 flex flex-col h-full">
-                        <h3 className="font-display text-base font-bold mt-0.5 truncate">{p.nome}</h3>
+                      <div className="p-3 flex flex-col h-full">
+                        <h3 className="font-display text-sm font-bold mt-0.5 leading-tight line-clamp-2" title={p.nome}>{p.nome}</h3>
 
                         <div className="mt-2 flex items-baseline justify-between border-b pb-2 mb-2">
-                          <p className="text-primary font-display text-xl font-extrabold">
+                          <p className="text-primary font-display text-lg font-extrabold">
                             R$ {Number(p.valor).toFixed(2).replace(".", ",")}
                           </p>
                           <span className="text-xs text-muted-foreground">{p.estoque} disp.</span>
@@ -404,16 +404,16 @@ function Catalogo() {
                           )}
                         </div>
 
-                        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                        <div className="mt-auto pt-3 grid grid-cols-[1fr_auto] gap-2">
                           <Button
                             onClick={() => handleShare(p.nome)}
                             size="sm"
-                            className="bg-success text-success-foreground hover:bg-success/90"
+                            className="bg-success text-success-foreground hover:bg-success/90 h-8 text-xs"
                           >
-                            <WhatsAppIcon className="mr-1.5 h-3.5 w-3.5" />
+                            <WhatsAppIcon className="mr-1.5 h-3 w-3" />
                             WhatsApp
                           </Button>
-                          <Button size="sm" variant="outline">
+                          <Button size="sm" variant="outline" className="h-8 w-8 p-0">
                             <ShoppingCart className="h-3.5 w-3.5" />
                           </Button>
                         </div>

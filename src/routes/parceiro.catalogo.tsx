@@ -21,8 +21,40 @@ function ParceiroCatalogo() {
 
   const fetchProdutos = async () => {
     try {
+      let currentVendedorId = null;
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        const { data: vData } = await supabase
+          .from("vendedores")
+          .select("id")
+          .eq("user_id", session.user.id)
+          .single();
+        if (vData) currentVendedorId = vData.id;
+      }
+
       const { data } = await supabase.from("produtos").select("*").eq("status", "Ativo").order("nome");
-      if (data) setProdutos(data);
+      
+      if (data) {
+        let finalProducts = [...data];
+        if (currentVendedorId) {
+          const { data: precos } = await supabase
+            .from("vendedor_precos")
+            .select("produto_id, valor_personalizado")
+            .eq("vendedor_id", currentVendedorId);
+          
+          if (precos && precos.length > 0) {
+            finalProducts = finalProducts.map(p => {
+              const custom = precos.find((c: any) => c.produto_id === p.id);
+              if (custom && custom.valor_personalizado != null) {
+                return { ...p, valor: custom.valor_personalizado };
+              }
+              return p;
+            });
+          }
+        }
+        setProdutos(finalProducts);
+      }
     } finally {
       setLoading(false);
     }

@@ -253,12 +253,6 @@ function Clientes() {
                   </div>
                 </div>
               </div>
-
-              <div className="p-4 border-t border-slate-100 bg-slate-50/50">
-                <Button className="w-full bg-white hover:bg-slate-50 text-[#4a148c] border border-slate-200 shadow-sm font-semibold h-9 rounded-sm">
-                  <List className="mr-2 h-4 w-4" /> Detalhar carteira
-                </Button>
-              </div>
             </div>
           </div>
 

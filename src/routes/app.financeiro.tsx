@@ -1,4 +1,4 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Wallet, TrendingUp, TrendingDown, PiggyBank, Check, Plus, Trash2 } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, PiggyBank, Check, Plus, Trash2, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -358,87 +358,7 @@ function Financeiro() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 mb-6">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Fluxo de caixa</CardTitle>
-            <CardDescription>Últimas 4 semanas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={flow}>
-                <defs>
-                  <linearGradient id="fe" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22C55E" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis
-                  dataKey="d"
-                  stroke="#64748b"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="#64748b"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `R$ ${v / 1000}k`}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12 }}
-                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="e"
-                  stroke="#22C55E"
-                  strokeWidth={2.5}
-                  fill="url(#fe)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Receitas × Despesas</CardTitle>
-            <CardDescription>Evolução por semana</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={flow}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis
-                  dataKey="d"
-                  stroke="#64748b"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="#64748b"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `R$ ${v / 1000}k`}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: 12 }}
-                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
-                />
-                <Bar dataKey="e" name="Receitas" fill="#22C55E" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="s" name="Despesas" fill="#EF4444" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="shadow-card overflow-x-auto">
+      <Card className="shadow-card overflow-x-auto mb-6">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Lançamentos</CardTitle>
           {renderDatePicker()}
@@ -525,70 +445,179 @@ function Financeiro() {
         </Table>
       </Card>
 
+      <div className="grid gap-6 lg:grid-cols-2 mb-6">
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>Fluxo de caixa</CardTitle>
+            <CardDescription>Últimas 4 semanas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={flow}>
+                <defs>
+                  <linearGradient id="fe" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22C55E" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis
+                  dataKey="d"
+                  stroke="#64748b"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#64748b"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `R$ ${v / 1000}k`}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12 }}
+                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="e"
+                  stroke="#22C55E"
+                  strokeWidth={2.5}
+                  fill="url(#fe)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>Receitas × Despesas</CardTitle>
+            <CardDescription>Evolução por semana</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={flow}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis
+                  dataKey="d"
+                  stroke="#64748b"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#64748b"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `R$ ${v / 1000}k`}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12 }}
+                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                />
+                <Bar dataKey="e" name="Receitas" fill="#22C55E" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="s" name="Despesas" fill="#EF4444" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
       <Dialog open={openModal} onOpenChange={setOpenModal}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>
-              {tipoLancamento === "receita" ? "Nova Receita" : "Nova Despesa"}
-            </DialogTitle>
+            <div className="flex items-center gap-3">
+              <div
+                className={`p-2.5 rounded-xl ${
+                  tipoLancamento === "receita"
+                    ? "bg-success/15 text-success"
+                    : "bg-destructive/15 text-destructive"
+                }`}
+              >
+                {tipoLancamento === "receita" ? (
+                  <ArrowUpCircle className="w-6 h-6" />
+                ) : (
+                  <ArrowDownCircle className="w-6 h-6" />
+                )}
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-display font-bold">
+                  {tipoLancamento === "receita" ? "Nova Receita" : "Nova Despesa"}
+                </DialogTitle>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {tipoLancamento === "receita"
+                    ? "Adicione uma nova entrada ao seu caixa."
+                    : "Registre uma nova saída ou gasto."}
+                </p>
+              </div>
+            </div>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Descrição</Label>
+              <Label className="text-sm font-semibold">Descrição</Label>
               <Input
                 placeholder="Ex: Conta de Luz, Aluguel..."
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
+                className="h-10 border-slate-300 focus-visible:ring-primary"
               />
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label className="text-sm font-semibold">Status</Label>
               <Select value={statusLancamento} onValueChange={setStatusLancamento}>
-                <SelectTrigger>
+                <SelectTrigger className="h-10 border-slate-300 focus-visible:ring-primary">
                   <SelectValue placeholder="Selecione o status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Pendente">Pendente</SelectItem>
+                  <SelectItem value="Pendente">⏳ Pendente</SelectItem>
                   {tipoLancamento === "receita" ? (
-                    <SelectItem value="Recebido">Recebido (Pago ao sistema)</SelectItem>
+                    <SelectItem value="Recebido">✅ Recebido (Pago ao sistema)</SelectItem>
                   ) : (
-                    <SelectItem value="Pago">Pago (Despesa quitada)</SelectItem>
+                    <SelectItem value="Pago">✅ Pago (Despesa quitada)</SelectItem>
                   )}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Valor (R$)</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={valor}
-                  onChange={(e) => setValor(e.target.value)}
-                />
+                <Label className="text-sm font-semibold">Valor (R$)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-sm text-muted-foreground font-medium">R$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={valor}
+                    onChange={(e) => setValor(e.target.value)}
+                    className="h-10 pl-9 border-slate-300 focus-visible:ring-primary"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label>Data de Vencimento</Label>
+                <Label className="text-sm font-semibold">Vencimento</Label>
                 <Input
                   type="date"
                   value={vencimento}
                   onChange={(e) => setVencimento(e.target.value)}
+                  className="h-10 border-slate-300 focus-visible:ring-primary"
                 />
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenModal(false)}>
+          <DialogFooter className="border-t pt-4 mt-2">
+            <Button variant="outline" onClick={() => setOpenModal(false)} className="h-10">
               Cancelar
             </Button>
             <Button
               onClick={handleSalvarLancamento}
               disabled={salvando}
-              className={
+              className={`h-10 ${
                 tipoLancamento === "receita"
                   ? "bg-success hover:bg-success/90 text-white"
                   : "bg-destructive hover:bg-destructive/90 text-white"
-              }
+              }`}
             >
               {salvando ? "Salvando..." : "Salvar Lançamento"}
             </Button>

@@ -1,8 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Database, PackageOpen, Plus } from "lucide-react";
-import { useState } from "react";
+import { Label } from "@/components/ui/label";
+import { Database, PackageOpen, Plus, Building2, Save } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — PREMIUM GARDEN" }] }),
@@ -11,8 +14,47 @@ export const Route = createFileRoute("/app/configuracoes")({
 
 function Configuracoes() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("categorias");
+  const [activeTab, setActiveTab] = useState("empresa");
   const [novaCategoria, setNovaCategoria] = useState("");
+
+  const [empresa, setEmpresa] = useState({
+    razao_social: "",
+    cnpj: "",
+    endereco: "",
+  });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadEmpresa() {
+      const { data } = await supabase.from("configuracoes").select("*").eq("id", 1).single();
+      if (data) {
+        setEmpresa({
+          razao_social: data.razao_social || "",
+          cnpj: data.cnpj || "",
+          endereco: data.endereco || "",
+        });
+      }
+    }
+    loadEmpresa();
+  }, []);
+
+  const handleSaveEmpresa = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.from("configuracoes").upsert({
+        id: 1,
+        razao_social: empresa.razao_social,
+        cnpj: empresa.cnpj,
+        endereco: empresa.endereco,
+      });
+      if (error) throw error;
+      toast.success("Dados da empresa salvos com sucesso!");
+    } catch (err: any) {
+      toast.error("Erro ao salvar dados: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F6F8]">
@@ -38,6 +80,13 @@ function Configuracoes() {
 
       {/* Sub Tabs */}
       <div className="bg-white border-b px-6 flex gap-6 text-sm text-muted-foreground overflow-x-auto">
+        <div 
+          className={`py-3 flex items-center gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'empresa' ? 'border-b-2 border-foreground text-foreground font-bold' : 'hover:text-foreground transition-colors font-medium'}`}
+          onClick={() => setActiveTab('empresa')}
+        >
+          <Building2 className="w-4 h-4" />
+          Perfil da Empresa
+        </div>
         <div 
           className={`py-3 flex items-center gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'categorias' ? 'border-b-2 border-foreground text-foreground font-bold' : 'hover:text-foreground transition-colors font-medium'}`}
           onClick={() => setActiveTab('categorias')}
@@ -71,6 +120,45 @@ function Configuracoes() {
       <div className="p-4 md:p-6 max-w-full mx-auto">
         <div className="bg-white rounded-lg shadow-sm border border-border/50 min-h-[60vh] flex flex-col">
           
+          {activeTab === 'empresa' && (
+            <div className="p-6 md:p-8 max-w-2xl">
+              <h2 className="text-xl font-bold mb-6 text-slate-800">Dados da Empresa</h2>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Razão Social / Nome</Label>
+                  <Input 
+                    value={empresa.razao_social}
+                    onChange={(e) => setEmpresa({...empresa, razao_social: e.target.value})}
+                    placeholder="Ex: GARDEN PREMIUM PRODUTOS JARDINAGEM LTDA"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>CNPJ</Label>
+                  <Input 
+                    value={empresa.cnpj}
+                    onChange={(e) => setEmpresa({...empresa, cnpj: e.target.value})}
+                    placeholder="Ex: 46.595.008/0001-49"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Endereço Completo</Label>
+                  <Input 
+                    value={empresa.endereco}
+                    onChange={(e) => setEmpresa({...empresa, endereco: e.target.value})}
+                    placeholder="Rua Antonieta da Silva Gomes, 316..."
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Este endereço será exibido nos comprovantes e faturamentos gerados pelo sistema.</p>
+                </div>
+                <div className="pt-4">
+                  <Button onClick={handleSaveEmpresa} disabled={loading} className="bg-brand text-white w-full sm:w-auto">
+                    <Save className="w-4 h-4 mr-2" />
+                    {loading ? "Salvando..." : "Salvar Configurações"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'categorias' && (
             <>
               <div className="p-4 border-b flex items-center gap-2">

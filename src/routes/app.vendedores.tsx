@@ -1,4 +1,4 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,6 +48,9 @@ import {
   Trash2,
   Mail,
   Phone,
+  Tag,
+  Save,
+  Search,
 } from "lucide-react";
 
 export const Route = createFileRoute("/app/vendedores")({
@@ -79,6 +82,14 @@ function VendedoresAdmin() {
     desc: string;
     onConfirm: () => void;
   }>({ isOpen: false, title: "", desc: "", onConfirm: () => {} });
+
+  const [isPricesModalOpen, setIsPricesModalOpen] = useState(false);
+  const [selectedVendedorForPrices, setSelectedVendedorForPrices] = useState<any>(null);
+  const [produtosComPreco, setProdutosComPreco] = useState<any[]>([]);
+  const [loadingPrices, setLoadingPrices] = useState(false);
+  const [savingPrices, setSavingPrices] = useState(false);
+  const [searchPricesQuery, setSearchPricesQuery] = useState("");
+
 
   const handleConfirmAction = () => {
     confirmModal.onConfirm();
@@ -132,10 +143,74 @@ function VendedoresAdmin() {
         console.error("Erro ao buscar vendas:", error);
         toast.error("Erro ao buscar vendas dos parceiros: " + error.message);
       }
-    } catch (e) {
-      console.warn("Erro:", e);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao carregar dados dos vendedores.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openPricesModal = async (vendedor: any) => {
+    setSelectedVendedorForPrices(vendedor);
+    setIsPricesModalOpen(true);
+    setLoadingPrices(true);
+    setProdutosComPreco([]);
+    try {
+      const { data: prods, error: pError } = await supabase.from("produtos").select("*").order("nome");
+      if (pError) throw pError;
+      
+      const { data: precos, error: precosError } = await supabase.from("vendedor_precos").select("produto_id, valor_personalizado").eq("vendedor_id", vendedor.id);
+      
+      const merged = (prods || []).map(p => {
+        const custom = precos?.find((c: any) => c.produto_id === p.id);
+        return {
+          ...p,
+          valor_personalizado: custom ? custom.valor_personalizado : "",
+        };
+      });
+      setProdutosComPreco(merged);
+    } catch (err: any) {
+      console.error(err);
+      if (err?.code === 'PGRST205') {
+        toast.error("Tabela vendedor_precos não foi criada no banco de dados.");
+      } else {
+        toast.error("Erro ao carregar os produtos: " + (err.message || err.toString()));
+      }
+    } finally {
+      setLoadingPrices(false);
+    }
+  };
+
+  const handlePriceChange = (produtoId: string, val: string) => {
+    setProdutosComPreco(prev => prev.map(p => p.id === produtoId ? { ...p, valor_personalizado: val } : p));
+  };
+
+  const handleSavePrices = async () => {
+    setSavingPrices(true);
+    try {
+      const toUpsert = produtosComPreco
+        .filter(p => p.valor_personalizado !== "" && p.valor_personalizado !== null)
+        .map(p => ({
+          vendedor_id: selectedVendedorForPrices.id,
+          produto_id: p.id,
+          valor_personalizado: Number(p.valor_personalizado),
+        }));
+
+      // Primeiro limpa os preços atuais (opcional, ou apenas upsert/delete os que estão vazios)
+      await supabase.from("vendedor_precos").delete().eq("vendedor_id", selectedVendedorForPrices.id);
+
+      if (toUpsert.length > 0) {
+        const { error } = await supabase.from("vendedor_precos").insert(toUpsert);
+        if (error) throw error;
+      }
+      toast.success("Tabela de preços salva com sucesso!");
+      setIsPricesModalOpen(false);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Erro: ${err.message || "Erro desconhecido ao salvar preços."}`);
+    } finally {
+      setSavingPrices(false);
     }
   };
 
@@ -547,6 +622,14 @@ function VendedoresAdmin() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 px-2"
+                              onClick={() => openPricesModal(v)}
+                            >
+                              <Tag className="w-3 h-3" /> Preços
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
@@ -972,6 +1055,90 @@ function VendedoresAdmin() {
               onClick={handleConfirmAction}
             >
               Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Tabela de Preços por Vendedor */}
+      <Dialog open={isPricesModalOpen} onOpenChange={setIsPricesModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tag className="w-5 h-5 text-brand" />
+              Tabela de Preços: {selectedVendedorForPrices?.nome}
+            </DialogTitle>
+            <DialogDescription>
+              Defina um valor personalizado para os produtos. Caso deixe em branco, o sistema usará o valor base (Geral).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto mt-4 border rounded-md">
+            {loadingPrices ? (
+              <div className="p-8 text-center text-muted-foreground">Carregando tabela...</div>
+            ) : (
+              <div className="flex flex-col">
+                <div className="p-4 border-b bg-slate-50">
+                  <div className="relative max-w-sm">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Buscar produto por código ou nome..."
+                      className="pl-9 bg-white"
+                      value={searchPricesQuery}
+                      onChange={(e) => setSearchPricesQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <Table>
+                  <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+                    <TableRow>
+                      <TableHead>Produto</TableHead>
+                      <TableHead>Cód.</TableHead>
+                      <TableHead className="text-right">Valor Base</TableHead>
+                      <TableHead className="w-[180px]">Valor Personalizado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {produtosComPreco.filter(p => p.nome.toLowerCase().includes(searchPricesQuery.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(searchPricesQuery.toLowerCase()))).map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium">
+                        {p.emoji && <span className="mr-2">{p.emoji}</span>}
+                        {p.nome}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{p.codigo || "-"}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        R$ {Number(p.valor || 0).toFixed(2).replace(".", ",")}
+                      </TableCell>
+                      <TableCell>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-sm text-muted-foreground">R$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Geral"
+                            className="pl-8 h-9 text-sm focus-visible:ring-primary border-slate-300"
+                            value={p.valor_personalizado}
+                            onChange={(e) => handlePriceChange(p.id, e.target.value)}
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                    {produtosComPreco.filter(p => p.nome.toLowerCase().includes(searchPricesQuery.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(searchPricesQuery.toLowerCase()))).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Nenhum produto encontrado.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="mt-4 border-t pt-4">
+            <Button variant="outline" onClick={() => setIsPricesModalOpen(false)}>Cancelar</Button>
+            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleSavePrices} disabled={savingPrices || loadingPrices}>
+              <Save className="w-4 h-4 mr-2" />
+              {savingPrices ? "Salvando..." : "Salvar Tabela"}
             </Button>
           </DialogFooter>
         </DialogContent>

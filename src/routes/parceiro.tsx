@@ -24,7 +24,8 @@ export const Route = createFileRoute("/parceiro")({
       }
 
       // Bloqueia o acesso de Administradores (Dono) ao portal de Parceiros
-      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "senalandia2@gmail.com,premiumgarden@gmail.com";
+      const envAdmin = import.meta.env.VITE_ADMIN_EMAIL || "";
+      const adminEmail = `${envAdmin},senalandia2@gmail.com,premiumgarden@gmail.com`;
       const ADMIN_EMAILS = adminEmail
         .split(",")
         .map((e: string) => e.trim().toLowerCase())

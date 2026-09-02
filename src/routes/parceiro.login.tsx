@@ -39,14 +39,31 @@ function LoginParceiro() {
     setError("");
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (signInError) throw signInError;
 
-      // Sucesso! Redireciona para onde o usuário tentou ir (ou dashboard)
+      // Verifica se o usuário logando é um administrador
+      const envAdmin = import.meta.env.VITE_ADMIN_EMAIL || "";
+      const adminEmail = `${envAdmin},senalandia2@gmail.com,premiumgarden@gmail.com`;
+      const ADMIN_EMAILS = adminEmail
+        .split(",")
+        .map((e: string) => e.trim().toLowerCase())
+        .filter(Boolean);
+
+      if (data.session?.user.email && ADMIN_EMAILS.includes(data.session.user.email.toLowerCase())) {
+        // Desloga do cliente parceiro, loga no cliente principal e manda pro painel admin
+        await supabase.auth.signOut();
+        const { supabase: mainSupabase } = await import("@/lib/supabase");
+        await mainSupabase.auth.signInWithPassword({ email, password });
+        window.location.href = "/app/dashboard";
+        return;
+      }
+
+      // Sucesso para parceiros reais! Redireciona para onde o usuário tentou ir (ou dashboard)
       const redirectUrl = sessionStorage.getItem("parceiro_redirect");
       if (redirectUrl) {
         sessionStorage.removeItem("parceiro_redirect");

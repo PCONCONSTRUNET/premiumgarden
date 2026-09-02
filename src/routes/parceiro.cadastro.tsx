@@ -4,7 +4,7 @@ import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { SenalandiaLogo } from "@/components/senalandia-logo";
+import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 
 export const Route = createFileRoute("/parceiro/cadastro")({
   beforeLoad: async () => {
@@ -85,7 +85,7 @@ function CadastroParceiro() {
     <div className="flex min-h-[80vh] items-center justify-center py-8">
       <Card className="w-full max-w-sm shadow-xl border-0 ring-1 ring-slate-900/5">
         <div className="pt-8 pb-4 flex justify-center">
-          <SenalandiaLogo size="small" />
+          <img src={premiumGardenLogo} alt="Premium Garden" className="h-24 w-auto object-contain" />
         </div>
         <CardContent className="p-6">
           <div className="text-center mb-6">

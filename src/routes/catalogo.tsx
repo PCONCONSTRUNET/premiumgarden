@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ShoppingCart, Trash2, Search, Check, ChevronsUpDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { SenalandiaLogo } from "@/components/senalandia-logo";
+import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { ColorDock } from "@/components/color-dock";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -215,7 +215,7 @@ function PublicCatalogo() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white px-4 md:px-8 shadow-sm">
-        <SenalandiaLogo size="small" />
+        <img src={premiumGardenLogo} alt="Premium Garden" className="h-10 w-auto object-contain" />
       </header>
 
       <main className="mx-auto max-w-6xl p-4 py-8">

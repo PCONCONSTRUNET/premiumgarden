@@ -1,19 +1,8 @@
-﻿import { toast } from "sonner";
-import { formatCpfCnpj, formatPhone } from "@/lib/utils";
-import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/app-shell";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Database, Shield, Users, User, Settings as Cog, Plus, Trash2, FileText, CheckCircle2, XCircle, Loader2, Eye, EyeOff, Search } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useConfirm } from "@/contexts/ConfirmContext";
-import { supabase } from "@/lib/supabase";
-import { testarConexao, BRASIL_NFE_TOKEN, labelAmbiente } from "@/lib/brasilnfe";
+import { Database, PackageOpen, Plus } from "lucide-react";
+import { useState } from "react";
 
 export const Route = createFileRoute("/app/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — PREMIUM GARDEN" }] }),
@@ -21,596 +10,128 @@ export const Route = createFileRoute("/app/configuracoes")({
 });
 
 function Configuracoes() {
-  const confirm = useConfirm();
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [perfil, setPerfil] = useState({
-    razao_social: "",
-    cnpj: "",
-    inscricao_estadual: "",
-    regime_tributario: "",
-    endereco: "",
-    telefone: "",
-    email_contato: "",
-  });
-  const [users, setUsers] = useState<any[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loadingConfigs, setLoadingConfigs] = useState(true);
-
-  const [novoUserNome, setNovoUserNome] = useState("");
-  const [novoUserEmail, setNovoUserEmail] = useState("");
-
-  const fetchUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const { data, error } = await supabase
-        .from("usuarios")
-        .select("*")
-        .order("created_at", { ascending: true });
-      if (!error && data) {
-        setUsers(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-
-    const fetchConfigs = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("configuracoes")
-          .select("*")
-          .eq("id", 1)
-          .single();
-        if (data && !error) {
-          // Remover os campos id e created_at caso existam no retorno para evitar erro no upsert depois
-          const { id, created_at, ...rest } = data;
-          setPerfil((prev) => ({ ...prev, ...rest }));
-        }
-      } catch (err) {
-        console.error("Erro ao carregar configurações", err);
-      } finally {
-        setLoadingConfigs(false);
-      }
-    };
-    fetchConfigs();
-  }, []);
-
-  const handleAddUser = async () => {
-    if (!novoUserNome || !novoUserEmail) return;
-    try {
-      const { error } = await supabase.from("usuarios").insert([
-        {
-          nome: novoUserNome,
-          email: novoUserEmail,
-          funcao: "Visualizador",
-          cor: "bg-secondary text-foreground",
-        },
-      ]);
-      if (error) throw error;
-
-      setNovoUserNome("");
-      setNovoUserEmail("");
-      toast.success("Usuário convidado com sucesso! Um e-mail foi enviado para ele.");
-      fetchUsers();
-    } catch (err: any) {
-      toast.error("Erro ao adicionar usuário: " + err.message);
-    }
-  };
-
-  const handleRemoveUser = async (id: string) => {
-    if (
-      await confirm({
-        description: "Tem certeza que deseja remover o acesso deste usuário?",
-        variant: "destructive",
-      })
-    ) {
-      try {
-        await supabase.from("usuarios").delete().eq("id", id);
-        fetchUsers();
-      } catch (err: any) {
-        toast.error("Erro ao remover usuário: " + err.message);
-      }
-    }
-  };
-
-  const handleSaveSettings = async () => {
-    setSavingProfile(true);
-    try {
-      const { error } = await supabase.from("configuracoes").upsert([{ id: 1, ...perfil }]);
-      if (error) throw error;
-      toast.success("Configurações salvas com sucesso!");
-    } catch (err: any) {
-      toast.error(
-        "Erro ao salvar configurações: " +
-          err.message +
-          "\n\nSe a tabela 'configuracoes' não existir no banco, execute o script SQL para criá-la.",
-      );
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  const [isBackingUp, setIsBackingUp] = useState(false);
-
-  const buscarCnpj = async (doc: string) => {
-    const cnpjLimpo = doc.replace(/\D/g, "");
-    if (cnpjLimpo.length !== 14) return;
-    
-    try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-      if (!res.ok) {
-        toast.error("CNPJ não encontrado na Receita Federal.");
-        return;
-      }
-      const data = await res.json();
-      
-      const tel = data.ddd_telefone_1 ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3") : "";
-      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
-      const tipoLogradouro = data.descricao_tipo_de_logradouro ? data.descricao_tipo_de_logradouro + " " : "";
-      const cidade = data.municipio ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase() : "";
-      
-      setPerfil((prev: any) => ({
-        ...prev,
-        razao_social: data.razao_social || prev.razao_social,
-        telefone: tel || prev.telefone,
-        endereco: tipoLogradouro + (data.logradouro || "") + (data.numero ? `, ${data.numero}` : "") + (data.bairro ? ` - ${data.bairro}` : "") + (cidade ? ` - ${cidade}/${data.uf || ""}` : ""),
-      }));
-      toast.success("Dados da empresa preenchidos via Receita Federal!");
-    } catch (error) {
-      console.error(error);
-      toast.error("Erro ao consultar o CNPJ.");
-    }
-  };
-
-  const handleBackup = async () => {
-    setIsBackingUp(true);
-    try {
-      const tables = [
-        "vendas",
-        "vendas_itens",
-        "produtos",
-        "clientes",
-        "vendedores",
-        "contas_receber",
-        "contas_pagar",
-        "movimentacoes_estoque",
-      ];
-      const backupData: Record<string, any[]> = {};
-
-      for (const table of tables) {
-        const { data, error } = await supabase.from(table).select("*");
-        if (!error && data) {
-          backupData[table] = data;
-        }
-      }
-
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `backup_PREMIUM GARDEN_${new Date().toISOString().split("T")[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast.success("Backup baixado com sucesso!");
-    } catch (err: any) {
-      toast.error("Erro ao gerar backup: " + err.message);
-    } finally {
-      setIsBackingUp(false);
-    }
-  };
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("categorias");
+  const [novaCategoria, setNovaCategoria] = useState("");
 
   return (
-    <>
-      <PageHeader
-        title="Configurações do ERP"
-        subtitle="Gerencie usuários, permissões e integrações do sistema"
-      />
+    <div className="min-h-screen bg-[#F5F6F8]">
+      {/* Top Tabs */}
+      <div className="bg-white border-b px-6 pt-4 flex gap-6 text-sm font-semibold text-muted-foreground uppercase tracking-wide overflow-x-auto">
+        <Link to="/app/produtos" className="pb-3 flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors whitespace-nowrap text-muted-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+          Produtos
+        </Link>
+        <Link to="/app/promocoes" className="pb-3 flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors whitespace-nowrap text-muted-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          Promoções
+        </Link>
+        <Link to="/app/produtos" className="pb-3 flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors whitespace-nowrap text-muted-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Destaques
+        </Link>
+        <Link to="/app/configuracoes" className="border-b-2 border-brand text-brand pb-3 flex items-center gap-2 cursor-pointer whitespace-nowrap">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          Configurações
+        </Link>
+      </div>
 
-      <Tabs defaultValue="perfil">
-        <TabsList className="mb-4">
-          <TabsTrigger value="perfil">
-            <User className="mr-1.5 h-4 w-4" />
-            Perfil da Empresa
-          </TabsTrigger>
-          <TabsTrigger value="usuarios">
-            <Users className="mr-1.5 h-4 w-4" />
-            Usuários
-          </TabsTrigger>
-          <TabsTrigger value="backup">
-            <Database className="mr-1.5 h-4 w-4" />
-            Saúde / Backup
-          </TabsTrigger>
-          <TabsTrigger value="preferencias">
-            <Cog className="mr-1.5 h-4 w-4" />
-            Preferências
-          </TabsTrigger>
-        </TabsList>
+      {/* Sub Tabs */}
+      <div className="bg-white border-b px-6 flex gap-6 text-sm text-muted-foreground overflow-x-auto">
+        <div 
+          className={`py-3 flex items-center gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'categorias' ? 'border-b-2 border-foreground text-foreground font-bold' : 'hover:text-foreground transition-colors font-medium'}`}
+          onClick={() => setActiveTab('categorias')}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          Categorias
+        </div>
+        <div 
+          className={`py-3 flex items-center gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'variacoes' ? 'border-b-2 border-foreground text-foreground font-bold' : 'hover:text-foreground transition-colors font-medium'}`}
+          onClick={() => setActiveTab('variacoes')}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8"></path><path d="M8 12h8"></path></svg>
+          Variações de produto
+        </div>
+        <div 
+          className={`py-3 flex items-center gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'inatividade' ? 'border-b-2 border-foreground text-foreground font-bold' : 'hover:text-foreground transition-colors font-medium'}`}
+          onClick={() => setActiveTab('inatividade')}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          Período de inatividade
+        </div>
+        <div 
+          className={`py-3 flex items-center gap-2 cursor-pointer whitespace-nowrap ${activeTab === 'tributacoes' ? 'border-b-2 border-foreground text-foreground font-bold' : 'hover:text-foreground transition-colors font-medium'}`}
+          onClick={() => setActiveTab('tributacoes')}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          Tributações
+        </div>
+      </div>
 
-        <TabsContent value="perfil">
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle>Dados da Empresa (Emissor NF-e)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingConfigs ? (
-                <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="ml-3 text-muted-foreground">Carregando dados...</span>
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label>Razão Social</Label>
-                <Input
-                  className="mt-1.5"
-                  value={perfil.razao_social || ""}
-                  onChange={(e) => setPerfil((p) => ({ ...p, razao_social: e.target.value }))}
+      <div className="p-4 md:p-6 max-w-full mx-auto">
+        <div className="bg-white rounded-lg shadow-sm border border-border/50 min-h-[60vh] flex flex-col">
+          
+          {activeTab === 'categorias' && (
+            <>
+              <div className="p-4 border-b flex items-center gap-2">
+                <Input 
+                  placeholder="Criar nova categoria" 
+                  className="max-w-xs border-brand text-sm h-9"
+                  value={novaCategoria}
+                  onChange={(e) => setNovaCategoria(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label>CNPJ</Label>
-                <div className="flex gap-2 mt-1.5">
-                  <Input
-                    value={perfil.cnpj || ""}
-                    onChange={(e) => setPerfil((p) => ({ ...p, cnpj: formatCpfCnpj(e.target.value) }))}
-                    onBlur={(e) => buscarCnpj(e.target.value)}
-                  />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="px-3 shrink-0"
-                    onClick={() => buscarCnpj(perfil.cnpj)}
-                    title="Buscar dados do CNPJ"
-                  >
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div>
-                <Label>Inscrição Estadual</Label>
-                <Input
-                  className="mt-1.5"
-                  value={perfil.inscricao_estadual || ""}
-                  onChange={(e) => setPerfil((p) => ({ ...p, inscricao_estadual: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Regime Tributário</Label>
-                <Input
-                  className="mt-1.5"
-                  value={perfil.regime_tributario || ""}
-                  onChange={(e) => setPerfil((p) => ({ ...p, regime_tributario: e.target.value }))}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Label>Endereço</Label>
-                <Input
-                  className="mt-1.5"
-                  value={perfil.endereco || ""}
-                  onChange={(e) => setPerfil((p) => ({ ...p, endereco: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Telefone</Label>
-                <Input
-                  className="mt-1.5"
-                  value={perfil.telefone || ""}
-                  onChange={(e) => setPerfil((p) => ({ ...p, telefone: formatPhone(e.target.value) }))}
-                />
-              </div>
-              <div>
-                <Label>E-mail de Contato</Label>
-                <Input
-                  className="mt-1.5"
-                  value={perfil.email_contato || ""}
-                  onChange={(e) => setPerfil((p) => ({ ...p, email_contato: e.target.value }))}
-                />
-              </div>
-              <div className="md:col-span-2 flex justify-end">
-                <Button
-                  onClick={handleSaveSettings}
-                  disabled={savingProfile}
-                  className="bg-gradient-brand text-primary-foreground"
-                >
-                  {savingProfile ? "Salvando..." : "Salvar alterações"}
+                <Button className="bg-[#4b2781] hover:bg-[#4b2781]/90 h-9 px-6 font-medium text-xs">
+                  OK
                 </Button>
               </div>
-              </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="usuarios">
-          <Card className="shadow-card mb-6">
-            <CardHeader>
-              <CardTitle>Adicionar Novo Usuário</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4 items-end flex-wrap">
-                <div className="space-y-2 flex-1 min-w-[200px]">
-                  <Label>Nome Completo</Label>
-                  <Input
-                    value={novoUserNome}
-                    onChange={(e) => setNovoUserNome(e.target.value)}
-                    placeholder="Ex: João da Silva"
-                  />
-                </div>
-                <div className="space-y-2 flex-1 min-w-[200px]">
-                  <Label>E-mail</Label>
-                  <Input
-                    value={novoUserEmail}
-                    onChange={(e) => setNovoUserEmail(e.target.value)}
-                    placeholder="joao@PREMIUM GARDEN.com.br"
-                    type="email"
-                  />
-                </div>
-                <Button onClick={handleAddUser} className="bg-primary text-primary-foreground">
-                  <Plus className="mr-2 h-4 w-4" /> Convidar
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle>Usuários Ativos do Sistema ({users.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {loadingUsers ? (
-                <div className="text-center p-4 text-muted-foreground">Carregando usuários...</div>
-              ) : users.length === 0 ? (
-                <div className="text-center p-4 text-muted-foreground">Nenhum usuário ativo.</div>
-              ) : (
-                users.map((u) => (
-                  <div
-                    key={u.id}
-                    className="flex items-center justify-between rounded-xl border p-4 hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-10 w-10 rounded-full bg-gradient-brand grid place-items-center text-sm font-bold text-primary-foreground shrink-0">
-                        {u.nome
-                          ? u.nome
-                              .split(" ")
-                              .map((x: string) => x[0])
-                              .join("")
-                              .substring(0, 2)
-                              .toUpperCase()
-                          : "US"}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold truncate">{u.nome || "Sem Nome"}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {u.email || "Sem E-mail"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <Badge className={`${u.cor} border-0`}>{u.funcao}</Badge>
-                      <Button
-                        onClick={() => handleRemoveUser(u.id)}
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive h-8 w-8"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
+                <div className="mb-6 relative">
+                  <div className="w-24 h-24 flex items-center justify-center text-[#a896bd]">
+                    <Database className="w-16 h-16" strokeWidth={1} />
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="backup">
-          <Card className="shadow-card mb-6">
-            <CardHeader>
-              <CardTitle>Saúde do Sistema</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border p-4 bg-success/10 border-success/20">
-                <p className="text-sm font-semibold text-success">Status do Servidor Supabase</p>
-                <p className="text-2xl font-bold text-success mt-1">Online & Operante</p>
-              </div>
-              <div className="rounded-xl border p-4 bg-info/10 border-info/20">
-                <p className="text-sm font-semibold text-info">Uso de Armazenamento</p>
-                <p className="text-2xl font-bold text-info mt-1">14% (1.4GB / 10GB)</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle>Backup Manual do Banco de Dados</CardTitle>
-              <CardDescription>
-                Faça o download de todos os seus dados em formato JSON.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={handleBackup}
-                disabled={isBackingUp}
-                className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto font-bold h-12"
-              >
-                <Database className="mr-2 h-5 w-5" />
-                {isBackingUp ? "Gerando Backup..." : "Fazer Backup Completo Agora"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="preferencias">
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle>Preferências e Notificações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                "Enviar e-mail para contas a pagar vencendo no dia",
-                "Alertar quando estoque atingir mínimo",
-                "Resumo financeiro semanal por WhatsApp",
-                "Habilitar sons de 'Caixa Registradora' no PDV",
-              ].map((p) => (
-                <div key={p} className="flex items-center justify-between rounded-xl border p-4">
-                  <p className="font-semibold text-sm">{p}</p>
-                  <Switch defaultChecked />
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </>
-  );
-}
-
-// ─── Componente Aba Fiscal ────────────────────────────────────────────────────
-
-function FiscalTab() {
-  const [testando, setTestando] = useState(false);
-  const [resultadoTeste, setResultadoTeste] = useState<boolean | null>(null);
-  const [showToken, setShowToken] = useState(false);
-
-  const handleTestarConexao = async () => {
-    setTestando(true);
-    setResultadoTeste(null);
-    try {
-      const ok = await testarConexao();
-      setResultadoTeste(ok);
-    } catch {
-      setResultadoTeste(false);
-    } finally {
-      setTestando(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Card de Status */}
-      <Card className="shadow-card border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            Brasil NFe — Integração Fiscal
-          </CardTitle>
-          <CardDescription>
-            API para emissão de NF-e, NFC-e e outros documentos fiscais diretamente à SEFAZ.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Token */}
-          <div>
-            <Label className="mb-1.5 block">Token de Autenticação</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type={showToken ? "text" : "password"}
-                  value={BRASIL_NFE_TOKEN}
-                  readOnly
-                  className="pr-10 font-mono text-xs"
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowToken((v) => !v)}
-                >
-                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              <Button
-                variant="outline"
-                onClick={handleTestarConexao}
-                disabled={testando}
-                className="shrink-0"
-              >
-                {testando ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Testando…</>
-                ) : (
-                  <>Testar Conexão</>
-                )}
-              </Button>
-            </div>
-            {resultadoTeste === true && (
-              <p className="flex items-center gap-2 text-sm text-success mt-2">
-                <CheckCircle2 className="h-4 w-4" />
-                Conexão com Brasil NFe estabelecida com sucesso!
-              </p>
-            )}
-            {resultadoTeste === false && (
-              <p className="flex items-center gap-2 text-sm text-destructive mt-2">
-                <XCircle className="h-4 w-4" />
-                Falha na conexão. Verifique o token e tente novamente.
-              </p>
-            )}
-          </div>
-
-          {/* Ambiente Padrão */}
-          <div className="rounded-xl border p-4 bg-warning/5 border-warning/20">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-semibold text-sm">Ambiente Padrão: Homologação</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  As emissões são feitas em homologação por padrão (sem valor fiscal).
-                  Para produção, altere o ambiente diretamente no modal de emissão de cada NF-e.
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Nenhuma categoria cadastrada</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Organize seus produtos em até 3 níveis de categorias para que clientes e usuários encontrem eles rapidamente. Vamos começar?
                 </p>
               </div>
-              <Badge className="bg-warning/15 text-warning border-0 shrink-0 ml-4">
-                Homologação
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </>
+          )}
 
-      {/* Card de Documentos Suportados */}
-      <Card className="shadow-card">
-        <CardHeader>
-          <CardTitle className="text-base">Documentos Suportados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              { doc: "NF-e", mod: "Modelo 55", desc: "Nota Fiscal Eletrônica para operações entre empresas", status: "Ativo" },
-              { doc: "NFC-e", mod: "Modelo 65", desc: "Nota Fiscal ao Consumidor Eletrônica (PDV)", status: "Em breve" },
-              { doc: "NFS-e", mod: "Modelo 10", desc: "Nota Fiscal de Serviços Eletrônica", status: "Em breve" },
-              { doc: "CT-e", mod: "Modelo 57", desc: "Conhecimento de Transporte Eletrônico", status: "Em breve" },
-            ].map((item) => (
-              <div key={item.doc} className="flex items-start gap-3 rounded-lg border p-3">
-                <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary shrink-0">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-semibold text-sm">
-                      {item.doc}{" "}
-                      <span className="text-muted-foreground font-normal text-xs">({item.mod})</span>
-                    </p>
-                    <Badge
-                      className={
-                        item.status === "Ativo"
-                          ? "bg-success/15 text-success border-0 text-xs"
-                          : "bg-muted text-muted-foreground border-0 text-xs"
-                      }
-                    >
-                      {item.status}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
-                </div>
+          {activeTab === 'variacoes' && (
+            <>
+              <div className="p-4 border-b">
+                <Button className="bg-[#4b2781] hover:bg-[#4b2781]/90 h-9 px-4 font-medium text-xs">
+                  <Plus className="w-4 h-4 mr-2" /> Nova variação
+                </Button>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
+                <div className="mb-6 relative">
+                  <div className="w-32 h-24 flex items-center justify-center text-[#a896bd] relative">
+                    <PackageOpen className="w-16 h-16" strokeWidth={1} />
+                    <div className="absolute top-2 left-0 w-8 h-8 rounded-full border border-[#a896bd] bg-white flex items-center justify-center text-xs font-bold">GG</div>
+                    <div className="absolute bottom-2 left-6 w-6 h-6 rounded-full border border-[#a896bd] bg-white flex items-center justify-center text-[10px] font-bold">PP</div>
+                    <div className="absolute top-8 left-12 w-10 h-10 rounded-full border border-[#a896bd] bg-white flex items-center justify-center text-sm font-bold z-10 shadow-sm">M</div>
+                    <div className="absolute top-0 right-6 w-8 h-8 rounded-full border border-[#a896bd] bg-white flex items-center justify-center text-xs font-bold">G</div>
+                    <div className="absolute bottom-4 right-0 w-8 h-8 rounded-full border border-[#a896bd] bg-white flex items-center justify-center text-xs font-bold">XG</div>
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Nenhuma variação cadastrada</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Cadastre aqui as variações existentes em seu catálogo de produtos, como Cores, Tamanhos, Acabamentos, Voltagens, etc.<br/>Vamos começar?
+                </p>
+              </div>
+            </>
+          )}
+
+          {(activeTab === 'inatividade' || activeTab === 'tributacoes') && (
+            <div className="flex-1 flex items-center justify-center p-8 text-center text-muted-foreground">
+              Seção em desenvolvimento.
+            </div>
+          )}
+
+        </div>
+      </div>
     </div>
   );
 }

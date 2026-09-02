@@ -31,6 +31,9 @@ import { Route as AppVendaNovaRouteImport } from './routes/app.venda-nova'
 import { Route as AppTarefasRouteImport } from './routes/app.tarefas'
 import { Route as AppRelatoriosRouteImport } from './routes/app.relatorios'
 import { Route as AppRegistroRouteImport } from './routes/app.registro'
+import { Route as AppPromocoesRouteImport } from './routes/app.promocoes'
+import { Route as AppPromocaoNovaRouteImport } from './routes/app.promocao-nova'
+import { Route as AppProdutosImportarRouteImport } from './routes/app.produtos-importar'
 import { Route as AppProdutosRouteImport } from './routes/app.produtos'
 import { Route as AppProdutoNovoRouteImport } from './routes/app.produto-novo'
 import { Route as AppPdvRouteImport } from './routes/app.pdv'
@@ -161,6 +164,21 @@ const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
 const AppRegistroRoute = AppRegistroRouteImport.update({
   id: '/registro',
   path: '/registro',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPromocoesRoute = AppPromocoesRouteImport.update({
+  id: '/promocoes',
+  path: '/promocoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPromocaoNovaRoute = AppPromocaoNovaRouteImport.update({
+  id: '/promocao-nova',
+  path: '/promocao-nova',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProdutosImportarRoute = AppProdutosImportarRouteImport.update({
+  id: '/produtos-importar',
+  path: '/produtos-importar',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProdutosRoute = AppProdutosRouteImport.update({
@@ -295,6 +313,9 @@ export interface FileRoutesByFullPath {
   '/app/pdv': typeof AppPdvRoute
   '/app/produto-novo': typeof AppProdutoNovoRoute
   '/app/produtos': typeof AppProdutosRoute
+  '/app/produtos-importar': typeof AppProdutosImportarRoute
+  '/app/promocao-nova': typeof AppPromocaoNovaRoute
+  '/app/promocoes': typeof AppPromocoesRoute
   '/app/registro': typeof AppRegistroRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
@@ -338,6 +359,9 @@ export interface FileRoutesByTo {
   '/app/pdv': typeof AppPdvRoute
   '/app/produto-novo': typeof AppProdutoNovoRoute
   '/app/produtos': typeof AppProdutosRoute
+  '/app/produtos-importar': typeof AppProdutosImportarRoute
+  '/app/promocao-nova': typeof AppPromocaoNovaRoute
+  '/app/promocoes': typeof AppPromocoesRoute
   '/app/registro': typeof AppRegistroRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
@@ -384,6 +408,9 @@ export interface FileRoutesById {
   '/app/pdv': typeof AppPdvRoute
   '/app/produto-novo': typeof AppProdutoNovoRoute
   '/app/produtos': typeof AppProdutosRoute
+  '/app/produtos-importar': typeof AppProdutosImportarRoute
+  '/app/promocao-nova': typeof AppPromocaoNovaRoute
+  '/app/promocoes': typeof AppPromocoesRoute
   '/app/registro': typeof AppRegistroRoute
   '/app/relatorios': typeof AppRelatoriosRoute
   '/app/tarefas': typeof AppTarefasRoute
@@ -431,6 +458,9 @@ export interface FileRouteTypes {
     | '/app/pdv'
     | '/app/produto-novo'
     | '/app/produtos'
+    | '/app/produtos-importar'
+    | '/app/promocao-nova'
+    | '/app/promocoes'
     | '/app/registro'
     | '/app/relatorios'
     | '/app/tarefas'
@@ -474,6 +504,9 @@ export interface FileRouteTypes {
     | '/app/pdv'
     | '/app/produto-novo'
     | '/app/produtos'
+    | '/app/produtos-importar'
+    | '/app/promocao-nova'
+    | '/app/promocoes'
     | '/app/registro'
     | '/app/relatorios'
     | '/app/tarefas'
@@ -519,6 +552,9 @@ export interface FileRouteTypes {
     | '/app/pdv'
     | '/app/produto-novo'
     | '/app/produtos'
+    | '/app/produtos-importar'
+    | '/app/promocao-nova'
+    | '/app/promocoes'
     | '/app/registro'
     | '/app/relatorios'
     | '/app/tarefas'
@@ -704,6 +740,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRegistroRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/promocoes': {
+      id: '/app/promocoes'
+      path: '/promocoes'
+      fullPath: '/app/promocoes'
+      preLoaderRoute: typeof AppPromocoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/promocao-nova': {
+      id: '/app/promocao-nova'
+      path: '/promocao-nova'
+      fullPath: '/app/promocao-nova'
+      preLoaderRoute: typeof AppPromocaoNovaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/produtos-importar': {
+      id: '/app/produtos-importar'
+      path: '/produtos-importar'
+      fullPath: '/app/produtos-importar'
+      preLoaderRoute: typeof AppProdutosImportarRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/produtos': {
       id: '/app/produtos'
       path: '/produtos'
@@ -876,6 +933,9 @@ interface AppRouteChildren {
   AppPdvRoute: typeof AppPdvRoute
   AppProdutoNovoRoute: typeof AppProdutoNovoRoute
   AppProdutosRoute: typeof AppProdutosRoute
+  AppProdutosImportarRoute: typeof AppProdutosImportarRoute
+  AppPromocaoNovaRoute: typeof AppPromocaoNovaRoute
+  AppPromocoesRoute: typeof AppPromocoesRoute
   AppRegistroRoute: typeof AppRegistroRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppTarefasRoute: typeof AppTarefasRoute
@@ -909,6 +969,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppPdvRoute: AppPdvRoute,
   AppProdutoNovoRoute: AppProdutoNovoRoute,
   AppProdutosRoute: AppProdutosRoute,
+  AppProdutosImportarRoute: AppProdutosImportarRoute,
+  AppPromocaoNovaRoute: AppPromocaoNovaRoute,
+  AppPromocoesRoute: AppPromocoesRoute,
   AppRegistroRoute: AppRegistroRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppTarefasRoute: AppTarefasRoute,

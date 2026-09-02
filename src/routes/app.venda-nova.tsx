@@ -716,6 +716,25 @@ function NovoPedido() {
                 ))
               )}
             </div>
+
+            {/* Summary bar + finish button */}
+            {itens.length > 0 && (
+              <div className="flex flex-col gap-3 rounded-md border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
+                  <span><strong className="text-foreground">{itens.length}</strong> {itens.length === 1 ? "item" : "itens"} no pedido</span>
+                  <span>Qtd. total: <strong className="text-foreground">{itens.reduce((s, i) => s + i.quantidade, 0)}</strong></span>
+                  <span>Valor total: <strong className="text-primary">{currency.format(subtotal)}</strong></span>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="shrink-0 bg-primary"
+                  onClick={() => setDetailsOpen(true)}
+                >
+                  <Check className="mr-2 h-4 w-4" /> Terminei de adicionar os produtos
+                </Button>
+              </div>
+            )}
           </div>
         </OrderSection>
 

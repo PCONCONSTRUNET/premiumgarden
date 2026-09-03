@@ -18,6 +18,7 @@ function Clientes() {
   const navigate = useNavigate();
   const [clientes, setClientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState("");
 
   const fetchClientes = async () => {
     try {
@@ -72,6 +73,17 @@ function Clientes() {
   ];
   if (ativos === 0) chartData[0].color = "#e2e8f0"; // Grey out if 0
 
+  const filteredClientes = clientes.filter((c) => {
+    if (!busca) return true;
+    const searchStr = busca.toLowerCase();
+    return (
+      c.nome?.toLowerCase().includes(searchStr) ||
+      c.cpf_cnpj?.toLowerCase().includes(searchStr) ||
+      c.cidade?.toLowerCase().includes(searchStr) ||
+      c.uf?.toLowerCase().includes(searchStr)
+    );
+  });
+
   return (
     <div className="min-h-screen bg-[#f3f4f6]">
       {/* Container principal ocupando mais espaço na tela */}
@@ -113,6 +125,8 @@ function Clientes() {
                     <Input 
                       placeholder="Pesquise por nome ou CNPJ" 
                       className="w-full md:w-64 h-9 pr-10 rounded-sm rounded-r-none border-slate-300 focus-visible:ring-0 focus-visible:border-[#4a148c]" 
+                      value={busca}
+                      onChange={(e) => setBusca(e.target.value)}
                     />
                   </div>
                   <Button variant="outline" className="h-9 px-3 rounded-sm rounded-l-none border-slate-300 border-l-0 bg-slate-50 hover:bg-slate-100 text-slate-600">
@@ -136,10 +150,10 @@ function Clientes() {
                 <div className="space-y-4">
                   {loading ? (
                     <div className="text-center py-8 text-slate-500 text-sm">Carregando clientes...</div>
-                  ) : clientes.length === 0 ? (
+                  ) : filteredClientes.length === 0 ? (
                     <div className="text-center py-8 text-slate-500 text-sm">Nenhum cliente encontrado.</div>
                   ) : (
-                    clientes.map((c) => (
+                    filteredClientes.map((c) => (
                       <div 
                         key={c.id} 
                         onClick={() => navigate({ to: "/app/cliente-detalhes", search: { id: c.id } })}

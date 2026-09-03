@@ -389,9 +389,8 @@ function Produtos() {
                       <TableHead className="font-semibold text-slate-700">Código</TableHead>
                       <TableHead className="font-semibold text-slate-700">Nome</TableHead>
                       <TableHead className="font-semibold text-slate-700">Variações</TableHead>
-                      <TableHead className="font-semibold text-slate-700">IPI</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Estoque</TableHead>
                       <TableHead className="font-semibold text-slate-700">Unidade</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Comissão</TableHead>
                       <TableHead className="font-semibold text-slate-700">Preço Mínimo</TableHead>
                       <TableHead className="font-semibold text-slate-700">Preço de Tabela</TableHead>
                       <TableHead className="text-right pr-4"><div className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#4b2781] text-white"><Plus className="w-3.5 h-3.5"/></div></TableHead>
@@ -445,9 +444,10 @@ function Produtos() {
                           <TableCell className="text-sm text-muted-foreground">
                             {p.cores && p.cores.length > 0 ? p.cores.join(", ") : "---"}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">---</TableCell>
+                          <TableCell className="text-sm font-medium text-slate-700">
+                            {p.estoque || 0}
+                          </TableCell>
                           <TableCell className="text-sm text-muted-foreground">Unidade</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">---</TableCell>
                           <TableCell className="text-sm font-medium">
                             R$ {(Number(p.valor) * 0.9).toFixed(2).replace(".", ",")}
                           </TableCell>

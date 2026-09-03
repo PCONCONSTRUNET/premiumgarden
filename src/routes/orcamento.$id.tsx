@@ -254,13 +254,52 @@ function ImprimirDAV() {
         </div>
       </div>
 
-      {/* Observações */}
-      {dav.observacoes && (
-        <div className="mt-6 bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
-          <h2 className="font-bold uppercase tracking-wider text-slate-500 mb-2 text-xs">Observações</h2>
-          <p>{dav.observacoes}</p>
+      {/* Observações e Condições de Pagamento */}
+      <div className="mt-6 flex flex-col gap-4">
+        {dav.observacoes && (
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
+            <h2 className="font-bold uppercase tracking-wider text-slate-500 mb-2 text-xs">Observações</h2>
+            <p className="whitespace-pre-wrap">{dav.observacoes}</p>
+          </div>
+        )}
+        
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
+          <h2 className="font-bold uppercase tracking-wider text-slate-500 mb-3 text-xs">Forma de Pagamento (Assinale)</h2>
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
+              <span>Cheque</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
+              <span>Boleto</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
+              <span>Pix</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
+              <span>À vista</span>
+            </div>
+            <div className="ml-2 flex items-center gap-4">
+              <span className="font-semibold text-slate-600">Parcelas:</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
+                <span>30</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
+                <span>45</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
+                <span>60</span>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Assinatura */}
       <div className="mt-8 grid grid-cols-2 gap-12 text-center text-sm break-inside-avoid">

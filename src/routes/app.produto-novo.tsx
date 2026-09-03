@@ -391,6 +391,18 @@ function NovoProduto() {
                     />
                   </div>
                 </div>
+
+                <div className="w-[150px] space-y-2">
+                  <Label className="text-xs font-normal text-slate-800">Estoque inicial</Label>
+                  <Input 
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    className="text-right bg-[#f8f9fa] border-slate-300 h-9"
+                    value={produto.estoque === 0 ? "" : produto.estoque}
+                    onChange={(e) => setProduto({...produto, estoque: Number(e.target.value) || 0})}
+                  />
+                </div>
               </TabsContent>
 
               <TabsContent value="info" className="pt-8 space-y-8">

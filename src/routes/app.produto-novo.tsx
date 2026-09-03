@@ -246,22 +246,34 @@ function NovoProduto() {
             {/* Top section (Image + Basic Info) */}
             <div className="flex gap-8 mb-10">
               {/* Image Box */}
-              <div 
-                className="w-24 h-24 bg-muted/30 border-2 border-dashed border-border rounded flex flex-col items-center justify-center text-muted-foreground cursor-pointer hover:bg-muted/50 overflow-hidden"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {produto.imagem ? (
-                  <img src={produto.imagem} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <ImageIcon className="w-8 h-8 opacity-40" />
+              <div className="relative w-24 h-24 flex-shrink-0 group">
+                <div 
+                  className="w-24 h-24 bg-muted/30 border-2 border-dashed border-border rounded flex flex-col items-center justify-center text-muted-foreground cursor-pointer hover:bg-muted/50 overflow-hidden"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {produto.imagem ? (
+                    <img src={produto.imagem} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-8 h-8 opacity-40" />
+                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                </div>
+                {produto.imagem && (
+                  <button
+                    type="button"
+                    title="Remover foto"
+                    onClick={(e) => { e.stopPropagation(); setProduto({ ...produto, imagem: "" }); }}
+                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
                 )}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                />
               </div>
               
               {/* Basic Fields */}

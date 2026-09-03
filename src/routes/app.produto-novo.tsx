@@ -17,6 +17,7 @@ import {
 import { ImageIcon, Plus, Info } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useProdutos } from "@/contexts/ProdutosContext";
 
 export const Route = createFileRoute("/app/produto-novo")({
   validateSearch: (search: Record<string, unknown>): { id?: string } => {
@@ -34,6 +35,7 @@ function NovoProduto() {
   const isEditing = !!search.id;
   const [loading, setLoading] = useState(false);
   const [isFetchingInfo, setIsFetchingInfo] = useState(isEditing);
+  const { fetchProdutos } = useProdutos();
 
   const [produto, setProduto] = useState({
     codigo: "",
@@ -211,6 +213,8 @@ function NovoProduto() {
         }
         toast.success("Produto cadastrado com sucesso!");
       }
+
+      await fetchProdutos(true);
 
       if (cadastrarOutro) {
         navigate({ to: "/app/produto-novo" });

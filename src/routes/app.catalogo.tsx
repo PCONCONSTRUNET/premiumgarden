@@ -375,6 +375,12 @@ function Catalogo() {
 
                         {/* Especificações Sura */}
                         <div className="py-1 text-xs text-muted-foreground space-y-1 border-b pb-3 mb-3 flex-1">
+                          {p.codigo && (
+                            <p>
+                              <span className="font-semibold text-foreground">Cód:</span> {p.codigo}
+                            </p>
+                          )}
+
                           {p.numero && (
                             <p>
                               <span className="font-semibold text-foreground">Número:</span> {p.numero}
@@ -398,8 +404,14 @@ function Catalogo() {
                           )}
                           {p.cores && p.cores.length > 0 && (
                             <div className="pt-2">
-                              <p className="font-semibold text-foreground mb-1">Cores:</p>
-                              <ColorDock colors={p.cores} />
+                              <p className="font-semibold text-foreground mb-1">Variações:</p>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {p.cores.map((v: string, i: number) => (
+                                  <Badge key={i} variant="secondary" className="text-[10px] font-normal rounded-sm">
+                                    {v}
+                                  </Badge>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>

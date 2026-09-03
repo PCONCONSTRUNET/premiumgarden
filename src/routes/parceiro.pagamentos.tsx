@@ -27,19 +27,18 @@ function ParceiroPagamentos() {
 
       const { data: vendedor } = await supabase
         .from("vendedores")
-        .select("id, comissao")
+        .select("id, tipo_comissao, valor_comissao")
         .eq("user_id", session.user.id)
         .single();
 
       if (vendedor) {
-        if (vendedor.comissao) {
-          setComissaoPercentual(vendedor.comissao / 100);
-        }
+        setComissaoPercentual(Number(vendedor.valor_comissao) || 0);
         
         const { data: vendasData } = await supabase
           .from("vendas")
           .select("*, clientes(nome)")
           .eq("vendedor_id", vendedor.id)
+          .neq("tipo", "DAV")
           .order("created_at", { ascending: false });
 
         if (vendasData) setVendas(vendasData);
@@ -60,7 +59,14 @@ function ParceiroPagamentos() {
 
   const totalAprovadas = vendas.filter(v => v.status_aprovacao === "Aprovada").reduce((acc, v) => acc + Number(v.valor_total), 0);
   const totalPendentes = vendas.filter(v => v.status_aprovacao === "Pendente").reduce((acc, v) => acc + Number(v.valor_total), 0);
-  const comissaoAprovada = totalAprovadas * comissaoPercentual;
+  
+  const comissaoPendente = vendas
+    .filter(v => v.status_aprovacao === "Aprovada" && v.status_pagamento_comissao !== "Paga")
+    .reduce((acc, v) => acc + (Number(v.valor_comissao) || 0), 0);
+    
+  const comissaoPaga = vendas
+    .filter(v => v.status_aprovacao === "Aprovada" && v.status_pagamento_comissao === "Paga")
+    .reduce((acc, v) => acc + (Number(v.valor_comissao) || 0), 0);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -70,17 +76,29 @@ function ParceiroPagamentos() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4">
-        <Card className="bg-gradient-to-br from-brand/10 to-brand/5 border-0 ring-1 ring-brand/20 shadow-sm">
+        <Card className="col-span-2 sm:col-span-2 bg-gradient-to-br from-brand/10 to-brand/5 border-0 ring-1 ring-brand/20 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-brand mb-2">
               <TrendingUp className="h-4 w-4" />
-              <span className="text-xs font-bold uppercase">Volume Vendas</span>
+              <span className="text-xs font-bold uppercase">Volume Vendas (Aprovadas)</span>
             </div>
             <p className="text-xl sm:text-2xl font-black text-slate-900">
               R$ {totalAprovadas.toFixed(2).replace(".", ",")}
             </p>
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
-              R$ {totalPendentes.toFixed(2).replace(".", ",")} pendentes
+              + R$ {totalPendentes.toFixed(2).replace(".", ",")} em análise
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-amber-100 to-amber-50 border-0 ring-1 ring-amber-200 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-amber-700 mb-2">
+              <Clock className="h-4 w-4" />
+              <span className="text-xs font-bold uppercase">A Receber</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-black text-amber-900">
+              R$ {comissaoPendente.toFixed(2).replace(".", ",")}
             </p>
           </CardContent>
         </Card>
@@ -88,14 +106,11 @@ function ParceiroPagamentos() {
         <Card className="bg-gradient-to-br from-emerald-100 to-emerald-50 border-0 ring-1 ring-emerald-200 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-emerald-700 mb-2">
-              <Wallet className="h-4 w-4" />
-              <span className="text-xs font-bold uppercase">Comissões</span>
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="text-xs font-bold uppercase">Pagas</span>
             </div>
             <p className="text-xl sm:text-2xl font-black text-emerald-900">
-              R$ {comissaoAprovada.toFixed(2).replace(".", ",")}
-            </p>
-            <p className="text-[10px] sm:text-xs text-emerald-700/70 mt-1">
-              Ref. às vendas aprovadas ({(comissaoPercentual * 100).toFixed(0)}%)
+              R$ {comissaoPaga.toFixed(2).replace(".", ",")}
             </p>
           </CardContent>
         </Card>
@@ -134,7 +149,7 @@ function ParceiroPagamentos() {
                     <p className="font-bold text-brand">R$ {Number(venda.valor_total).toFixed(2).replace(".", ",")}</p>
                     {venda.status_aprovacao === "Aprovada" && (
                       <p className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center justify-end gap-1">
-                        💰 R$ {(Number(venda.valor_total) * comissaoPercentual).toFixed(2).replace(".", ",")}
+                        💰 R$ {(Number(venda.valor_comissao) || 0).toFixed(2).replace(".", ",")}
                       </p>
                     )}
                   </div>
@@ -153,6 +168,20 @@ function ParceiroPagamentos() {
                   {venda.status_aprovacao === "Aprovada" && (
                     <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 gap-1">
                       <CheckCircle2 className="h-3 w-3" /> Aprovada
+                    </Badge>
+                  )}
+                  {venda.status_aprovacao === "Aprovada" && Number(venda.valor_comissao) > 0 && (
+                    <Badge 
+                      variant="outline" 
+                      className={venda.status_pagamento_comissao === "Paga" 
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300 gap-1"
+                        : "bg-amber-100 text-amber-800 border-amber-300 gap-1"
+                      }
+                    >
+                      {venda.status_pagamento_comissao === "Paga" 
+                        ? <><CheckCircle2 className="h-3 w-3" /> Comissão Paga</>
+                        : <><Clock className="h-3 w-3" /> Comissão Pendente</>
+                      }
                     </Badge>
                   )}
                   {venda.status_aprovacao === "Rejeitada" && (

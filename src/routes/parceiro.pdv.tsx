@@ -6,7 +6,7 @@ import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Trash2, ShoppingCart, CheckCircle2 } from "lucide-react";
+import { Search, Trash2, ShoppingCart, CheckCircle2, MessageCircle } from "lucide-react";
 import { CnpjLoader } from "@/components/cnpj-loader";
 import {
   Dialog,
@@ -614,33 +614,41 @@ function ParceiroPDV() {
 
       {/* Modal de Sucesso */}
       <Dialog open={isSuccessModalOpen} onOpenChange={closeSuccessModal}>
-        <DialogContent className="w-[90vw] sm:max-w-[425px] rounded-2xl text-center">
-          <div className="flex flex-col items-center justify-center space-y-4 py-4">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8" />
+        <DialogContent className="w-[90vw] sm:max-w-[425px] rounded-3xl p-0 overflow-hidden border-0 shadow-2xl gap-0">
+          <div className="bg-gradient-to-br from-emerald-400 to-emerald-600 p-8 text-center relative overflow-hidden">
+             {/* decorative background shapes */}
+            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/10 blur-2xl"></div>
+            <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 rounded-full bg-black/10 blur-xl"></div>
+            
+            <div className="relative z-10 w-20 h-20 bg-white shadow-xl text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-emerald-100">
+              <CheckCircle2 className="w-10 h-10" />
             </div>
-            <DialogTitle className="text-2xl">Pedido Enviado!</DialogTitle>
-            <DialogDescription className="text-center text-base">
+            <DialogTitle className="text-2xl font-bold text-white relative z-10">Pedido Enviado!</DialogTitle>
+          </div>
+          
+          <div className="px-6 pt-6 pb-6 bg-white flex flex-col items-center">
+            <DialogDescription className="text-center text-base text-slate-600 mb-6">
               A venda foi registrada com sucesso e está aguardando a aprovação da loja para liberar
               sua comissão.
             </DialogDescription>
-          </div>
-          <div className="pt-2 flex flex-col gap-3 w-full">
-            {davGeradoId && (
+            <div className="flex flex-col gap-3 w-full">
+              {davGeradoId && (
+                <Button
+                  className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white h-12 text-base font-bold shadow-md rounded-xl transition-all hover:-translate-y-0.5"
+                  onClick={handleShareWhatsApp}
+                >
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  Enviar no WhatsApp
+                </Button>
+              )}
               <Button
-                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white h-12 text-sm sm:text-base font-bold shadow-md"
-                onClick={handleShareWhatsApp}
+                variant="outline"
+                className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 h-12 text-base font-semibold rounded-xl"
+                onClick={closeSuccessModal}
               >
-                Enviar Orçamento no WhatsApp
+                Voltar ao Painel
               </Button>
-            )}
-            <Button
-              variant="outline"
-              className="w-full border-slate-300 text-slate-800 hover:bg-slate-100 h-12 text-sm sm:text-base font-bold"
-              onClick={closeSuccessModal}
-            >
-              Voltar ao Painel
-            </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

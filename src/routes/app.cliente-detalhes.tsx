@@ -1,9 +1,19 @@
 import { toast } from "sonner";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { MapPin, Pencil, ChevronDown, Plus, Edit2, FileText } from "lucide-react";
+import { MapPin, Pencil, ChevronDown, Plus, FileText, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 type ClienteSearch = {
   id: string;
@@ -24,7 +34,27 @@ function ClienteDetalhes() {
   const navigate = useNavigate();
   const [cliente, setCliente] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [empresaDados, setEmpresaDados] = useState<any>(null);
+  const [vendas, setVendas] = useState<any[]>([]);
+  const [tarefas, setTarefas] = useState<any[]>([]);
+
+  // Modal states
+  const [openTarefa, setOpenTarefa] = useState(false);
+  const [openAtividade, setOpenAtividade] = useState(false);
+  const [salvandoTarefa, setSalvandoTarefa] = useState(false);
+  const [salvandoAtividade, setSalvandoAtividade] = useState(false);
+  const [tarefaTitulo, setTarefaTitulo] = useState("");
+  const [tarefaData, setTarefaData] = useState("");
+  const [atividadeDesc, setAtividadeDesc] = useState("");
+
+  const fetchTarefas = async () => {
+    const { data } = await supabase
+      .from("tarefas")
+      .select("id, titulo, data_vencimento, status")
+      .eq("cliente_id", id)
+      .order("data_vencimento", { ascending: true })
+      .limit(5);
+    if (data) setTarefas(data);
+  };
 
   useEffect(() => {
     const fetchCliente = async () => {
@@ -43,11 +73,81 @@ function ClienteDetalhes() {
         setLoading(false);
       }
     };
-    if (id) fetchCliente();
-    supabase.from("configuracoes").select("*").eq("id", 1).single().then(({ data }) => {
-      if (data) setEmpresaDados(data);
-    });
+
+    const fetchVendas = async () => {
+      const { data, error } = await supabase
+        .from("vendas")
+        .select("id, numero, valor_total, total, status, status_aprovacao, created_at")
+        .eq("cliente_id", id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) console.error("Erro ao buscar vendas do cliente:", error);
+      if (data) setVendas(data);
+    };
+
+    if (id) {
+      fetchCliente();
+      fetchVendas();
+      fetchTarefas();
+    }
   }, [id]);
+
+  const handleCriarPedido = () => {
+    navigate({ to: "/app/venda-nova", search: { cliente_id: id } as any });
+  };
+
+  const handleSugerirReposicao = () => {
+    toast.info("Analisando histórico de compras para sugestão...");
+  };
+
+  const handleSalvarTarefa = async () => {
+    if (!tarefaTitulo.trim()) {
+      toast.info("Informe o título da tarefa.");
+      return;
+    }
+    setSalvandoTarefa(true);
+    try {
+      const { error } = await supabase.from("tarefas").insert({
+        titulo: tarefaTitulo,
+        data_vencimento: tarefaData || null,
+        cliente_id: id,
+        status: "Pendente",
+      });
+      if (error) throw error;
+      toast.success("Tarefa criada com sucesso!");
+      setTarefaTitulo("");
+      setTarefaData("");
+      setOpenTarefa(false);
+      fetchTarefas();
+    } catch (err: any) {
+      toast.error("Erro ao criar tarefa: " + err.message);
+    } finally {
+      setSalvandoTarefa(false);
+    }
+  };
+
+  const handleSalvarAtividade = async () => {
+    if (!atividadeDesc.trim()) {
+      toast.info("Informe a descrição da atividade.");
+      return;
+    }
+    setSalvandoAtividade(true);
+    try {
+      const { error } = await supabase.from("tarefas").insert({
+        titulo: atividadeDesc,
+        cliente_id: id,
+        status: "Concluída",
+      });
+      if (error) throw error;
+      toast.success("Atividade registrada!");
+      setAtividadeDesc("");
+      setOpenAtividade(false);
+    } catch (err: any) {
+      toast.error("Erro ao registrar atividade: " + err.message);
+    } finally {
+      setSalvandoAtividade(false);
+    }
+  };
 
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Carregando detalhes do cliente...</div>;
@@ -83,13 +183,6 @@ function ClienteDetalhes() {
                   Alterar
                 </Link>
               </Button>
-              <Button variant="outline" className="border-slate-300 text-slate-600 rounded-sm h-8 px-4">
-                <svg className="w-3.5 h-3.5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                Vínculos e Permissões
-              </Button>
-              <Button variant="outline" className="border-slate-300 text-slate-600 rounded-sm h-8 px-4">
-                Mais opções <ChevronDown className="ml-2 h-3.5 w-3.5" />
-              </Button>
             </div>
           </div>
 
@@ -117,48 +210,91 @@ function ClienteDetalhes() {
             <div className="bg-white border border-slate-200 rounded-sm">
               <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Tarefas</h2>
-                <Button className="bg-[#4a148c] hover:bg-[#4a148c]/90 text-white h-7 rounded-sm text-xs px-3">
+                <Button
+                  className="bg-[#4a148c] hover:bg-[#4a148c]/90 text-white h-7 rounded-sm text-xs px-3"
+                  onClick={() => setOpenTarefa(true)}
+                >
                   Criar tarefa
                 </Button>
               </div>
-              <div className="p-12 text-center text-sm text-slate-400">
-                Crie uma tarefa na agenda para lembrar de contatar este cliente.
-              </div>
-            </div>
-
-            {/* OPORTUNIDADES ABERTAS */}
-            <div className="bg-white border border-slate-200 rounded-sm">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Oportunidades Abertas</h2>
-                <Button variant="outline" className="border-slate-300 text-[#4a148c] h-7 rounded-sm text-xs px-3">
-                  Criar oportunidade
-                </Button>
-              </div>
-              <div className="p-12 text-center text-sm text-slate-400">
-                Acompanhe as oportunidades criadas para seu cliente.
-              </div>
+              {tarefas.length === 0 ? (
+                <div className="p-12 text-center text-sm text-slate-400">
+                  Crie uma tarefa na agenda para lembrar de contatar este cliente.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {tarefas.map(t => (
+                    <div key={t.id} className="p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">{t.titulo}</p>
+                        {t.data_vencimento && (
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Vence: {new Date(t.data_vencimento).toLocaleDateString("pt-BR")}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        t.status === "Concluída" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                      }`}>{t.status}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* PEDIDOS E ATIVIDADES */}
             <div className="bg-white border border-slate-200 rounded-sm">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Pedidos e Atividades</h2>
-                <div className="flex gap-2">
-                  <Button className="bg-[#4a148c] hover:bg-[#4a148c]/90 text-white h-7 rounded-sm text-xs px-3">
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    className="bg-[#4a148c] hover:bg-[#4a148c]/90 text-white h-7 rounded-sm text-xs px-3"
+                    onClick={handleCriarPedido}
+                  >
                     Criar pedido
                   </Button>
-                  <Button variant="outline" className="border-slate-300 text-[#4a148c] h-7 rounded-sm text-xs px-3">
+                  <Button
+                    variant="outline"
+                    className="border-slate-300 text-[#4a148c] h-7 rounded-sm text-xs px-3"
+                    onClick={() => setOpenAtividade(true)}
+                  >
                     Registrar atividade
-                  </Button>
-                  <Button variant="outline" className="border-green-600 text-green-600 hover:bg-green-50 hover:text-green-700 h-7 rounded-sm text-xs px-3 flex items-center">
-                    <span className="text-lg leading-none mr-1.5">✨</span>
-                    Sugerir reposição
                   </Button>
                 </div>
               </div>
-              <div className="p-12 text-center text-sm text-slate-400">
-                Veja os pedidos criados e registre as atividades realizadas neste cliente.
-              </div>
+              {vendas.length === 0 ? (
+                <div className="p-12 text-center text-sm text-slate-400">
+                  Veja os pedidos criados e registre as atividades realizadas neste cliente.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {vendas.map(v => (
+                    <div
+                      key={v.id}
+                      className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer"
+                      onClick={() => navigate({ to: "/app/vendas", search: { id: v.id } as any })}
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Pedido #{v.numero || v.id.slice(0, 8)}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {new Date(v.created_at).toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-slate-800">
+                          R$ {Number(v.valor_total || v.total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          v.status === "Pago" ? "bg-green-100 text-green-700" :
+                          v.status === "Em aberto" ? "bg-blue-100 text-blue-700" :
+                          v.status === "Faturado" ? "bg-purple-100 text-purple-700" :
+                          "bg-slate-100 text-slate-600"
+                        }`}>{v.status || v.status_aprovacao || "—"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* NOTAS FISCAIS */}
@@ -200,7 +336,10 @@ function ClienteDetalhes() {
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-blue-400" />
                     <div>
-                      <span className="font-bold text-lg text-slate-800">0</span>
+                      <span className="font-bold text-lg text-slate-800">{vendas.filter(v => {
+                        const diff = (Date.now() - new Date(v.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30);
+                        return diff <= 6;
+                      }).length}</span>
                       <span className="text-sm text-slate-500 ml-1">Pedidos realizados</span>
                     </div>
                   </div>
@@ -212,32 +351,6 @@ function ClienteDetalhes() {
               </div>
             </div>
 
-            {/* LIMITE DE CRÉDITO */}
-            <div className="bg-white border border-slate-200 rounded-sm">
-              <div className="p-4 border-b border-slate-100">
-                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Limite de Crédito</h2>
-              </div>
-              <div className="p-4">
-                <h3 className="text-[11px] font-bold text-slate-800 uppercase mb-4">{empresaDados?.razao_social || "PREMIUM GARDEN"}</h3>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="text-[11px] text-slate-500 mb-1">Limite disponível</div>
-                    <div className="flex items-center gap-2 text-slate-800 font-semibold">
-                      <span className="text-slate-400">$</span> Não definido
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] text-slate-500 mb-1">Limite total</div>
-                    <div className="flex items-center gap-2 text-slate-800 font-semibold">
-                      <span className="text-slate-400">$</span> Não definido
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600">
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
 
             {/* TÍTULOS */}
             <div className="bg-white border border-slate-200 rounded-sm">
@@ -262,6 +375,75 @@ function ClienteDetalhes() {
           </div>
         </div>
       </div>
+
+      {/* MODAL: Criar Tarefa */}
+      <Dialog open={openTarefa} onOpenChange={setOpenTarefa}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Tarefa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Título da tarefa *</Label>
+              <Input
+                value={tarefaTitulo}
+                onChange={e => setTarefaTitulo(e.target.value)}
+                placeholder="Ex: Ligar para o cliente, Enviar proposta..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data de vencimento</Label>
+              <Input
+                type="date"
+                value={tarefaData}
+                onChange={e => setTarefaData(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenTarefa(false)}>Cancelar</Button>
+            <Button
+              className="bg-[#4a148c] hover:bg-[#4a148c]/90 text-white"
+              onClick={handleSalvarTarefa}
+              disabled={salvandoTarefa}
+            >
+              {salvandoTarefa ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Criar tarefa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: Registrar Atividade */}
+      <Dialog open={openAtividade} onOpenChange={setOpenAtividade}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Atividade</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Descrição da atividade *</Label>
+              <Textarea
+                value={atividadeDesc}
+                onChange={e => setAtividadeDesc(e.target.value)}
+                placeholder="Ex: Ligação realizada, visita técnica, e-mail enviado..."
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenAtividade(false)}>Cancelar</Button>
+            <Button
+              className="bg-[#4a148c] hover:bg-[#4a148c]/90 text-white"
+              onClick={handleSalvarAtividade}
+              disabled={salvandoAtividade}
+            >
+              {salvandoAtividade ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Registrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

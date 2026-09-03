@@ -1,182 +1,162 @@
 """
-Extrai imagens do PDF do pedido Garden Premium e atualiza os produtos no Supabase.
-O PDF tem imagens de produtos embutidas - este script as extrai e faz upload como base64
-diretamente na coluna 'imagem' da tabela 'produtos'.
+Versão 2 — extrai imagens buscando texto ao redor (esquerda, direita, acima, abaixo).
+Focada nos produtos que ficaram sem foto.
 """
 
-import fitz  # PyMuPDF
+import pymupdf
 import base64
 import os
-import re
-import sys
-from supabase import create_client
 
-# ── Config ───────────────────────────────────────────────────────────────────
-PDF_PATH = r"C:\Users\Lucas\Desktop\Pedido n. 3276-2026 (GARDEN PREMIUM PRODUTOS JARDINAGEM LTDA ).pdf"
 SUPABASE_URL = "https://yzvesbpnbewpmnpkomic.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6dmVzYnBuYmV3cG1ucGtvbWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODA1OTYsImV4cCI6MjEwMzc1NjU5Nn0.ogrdQJoEjOD82OOXH8PD47L86SLTCz7nglzZkgH2otQ"
+PDF_PATH = r"C:\Users\Lucas\Desktop\Pedido n. 3276-2026 (GARDEN PREMIUM PRODUTOS JARDINAGEM LTDA ).pdf"
 
-# ── Mapeamento: nome-do-produto -> nomes-parciais para busca no banco ─────────
-# O script vai extrair pares (texto_proximo, imagem) do PDF e tentar fazer match
-# com os produtos existentes no banco.
+# Produtos que ainda faltam imagem
+TARGETS = [
+    "UREIA",
+    "TERRA VEGETAL 25 KILOS",
+    "TERRA GARDEN PREMIUM 2 KILOS",
+    "SUPORTE CORAÇÃO 4",
+    "SUPORTE CORAÇÃO 3",
+    "SUPORTE CORAÇÃO 2",
+    "SUPORTE CORAÇÃO 1",
+    "SUPORTE A4",
+    "SUPORTE A3",
+    "SUPORTE A1",
+    "ROSAS DESERTO & BROMELLIAS FARDO 10 UNIDADES",
+    "PEDRA SEIXO 10 KILOS",
+    "PEDRA SEIXO 1 KILOS",
+    "PEDRA DE RIO AREIA 1KG",
+    "HUMUS 20 KILOS",
+    "ESTERCO CURRAL ORGANICO",
+    "ESTERCO CURRAL ORGÂNICO",
+    "ESTACA COCO 60/CM",
+    "CORRENTE 74",
+    "CORRENTE 64",
+    "CORRENTE 54",
+    "CORRENTE 44",
+    "CORRENTAO 64",
+    "CALCARIO 1/5 KILOS",
+    "CALCÁRIO 1/5 KILOS",
+    "04/14/08 FERTILIZANTES",
+]
 
+from supabase import create_client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def img_to_base64_webp(pixmap):
-    """Converte um PyMuPDF Pixmap para string base64 WebP."""
-    # Salva como PNG em memória depois converte
-    png_bytes = pixmap.tobytes("png")
-    # Retorna como data URI base64 PNG (o frontend já aceita assim)
-    b64 = base64.b64encode(png_bytes).decode("utf-8")
-    return f"data:image/png;base64,{b64}"
+def normalize(text):
+    import unicodedata
+    text = unicodedata.normalize("NFD", text)
+    text = "".join(c for c in text if unicodedata.category(c) != "Mn")
+    return text.upper().strip()
 
-def extract_images_with_context(pdf_path):
-    """
-    Extrai imagens do PDF junto com o texto mais próximo acima delas.
-    Retorna lista de dicts: {image_b64, nearby_text, page}
-    """
-    doc = fitz.open(pdf_path)
-    results = []
+def get_nearby_text(page, img_rect, radius=200):
+    """Pega todo texto ao redor da imagem (expanded bbox)."""
+    expanded = pymupdf.Rect(
+        img_rect.x0 - 10,
+        img_rect.y0 - 10,
+        img_rect.x1 + radius,   # texto à direita é o nome do produto
+        img_rect.y1 + 50,
+    )
+    return page.get_text("text", clip=expanded).strip()
 
-    for page_num, page in enumerate(doc):
-        # Pega todos os blocos de texto e suas posições
-        text_blocks = page.get_text("blocks")  # (x0, y0, x1, y1, text, block_no, block_type)
-        text_blocks = [(b[0], b[1], b[2], b[3], b[4].strip()) for b in text_blocks if b[6] == 0 and b[4].strip()]
-
-        # Pega todas as imagens da página
-        img_list = page.get_images(full=True)
-
-        for img_info in img_list:
-            xref = img_info[0]
-            # Pega a posição da imagem na página
-            img_rects = page.get_image_rects(xref)
-            if not img_rects:
-                continue
-            img_rect = img_rects[0]
-
-            # Ignora imagens muito pequenas (logos, ícones)
-            if img_rect.width < 50 or img_rect.height < 50:
-                continue
-            # Ignora imagens muito grandes (que provavelmente são backgrounds/logos)
-            if img_rect.width > 400 or img_rect.height > 300:
-                # Skip the very large background/logo images
-                continue
-
-            # Pega o texto mais próximo ACIMA ou AO LADO da imagem
-            nearby_text = ""
-            best_dist = float("inf")
-            for (x0, y0, x1, y1, text) in text_blocks:
-                # Texto que está acima ou na mesma linha da imagem
-                if y1 <= img_rect.y1 + 20:  # texto está acima ou levemente abaixo do topo da imagem
-                    dist = abs(img_rect.y0 - y1) + abs(img_rect.x0 - x0) * 0.1
-                    if dist < best_dist:
-                        best_dist = dist
-                        nearby_text = text
-
-            # Extrai a imagem como pixmap
-            try:
-                base_img = doc.extract_image(xref)
-                img_bytes = base_img["image"]
-                img_ext = base_img["ext"]
-                b64 = base64.b64encode(img_bytes).decode("utf-8")
-                img_b64 = f"data:image/{img_ext};base64,{b64}"
-
-                results.append({
-                    "image_b64": img_b64,
-                    "nearby_text": nearby_text,
-                    "page": page_num + 1,
-                    "rect": img_rect,
-                    "width": img_rect.width,
-                    "height": img_rect.height,
-                })
-            except Exception as e:
-                print(f"  ⚠️  Erro ao extrair imagem xref={xref}: {e}")
-
-    doc.close()
-    return results
-
-def match_product(nearby_text, produtos_db):
-    """
-    Tenta encontrar o produto no banco de dados com base no texto próximo.
-    """
-    if not nearby_text:
-        return None
-
-    # Normaliza o texto
-    nearby_lower = nearby_text.lower().strip()
-
-    best_match = None
-    best_score = 0
-
-    for prod in produtos_db:
-        nome = prod["nome"].lower()
-        # Pontuação: quantas palavras do nome aparecem no texto próximo
-        words = [w for w in nome.split() if len(w) > 2]
-        if not words:
-            continue
-        matches = sum(1 for w in words if w in nearby_lower)
-        score = matches / len(words)
-
-        if score > best_score and score >= 0.4:
-            best_score = score
-            best_match = prod
-
-    return best_match
+def score_match(nearby_text, product_name):
+    """Pontuação de match entre texto próximo e nome do produto."""
+    nearby_norm = normalize(nearby_text)
+    prod_norm = normalize(product_name)
+    words = [w for w in prod_norm.split() if len(w) > 2]
+    if not words:
+        return 0
+    hits = sum(1 for w in words if w in nearby_norm)
+    return hits / len(words)
 
 def main():
     print("=" * 60)
-    print("Extrator de Imagens do PDF — Garden Premium")
+    print("Extrator v2 — produtos sem imagem")
     print("=" * 60)
 
-    # Busca todos os produtos sem imagem no banco
-    print("\n📦 Buscando produtos no Supabase...")
+    # Busca produtos do banco
     resp = supabase.table("produtos").select("id,nome,imagem").execute()
-    produtos_db = resp.data
-    sem_imagem = [p for p in produtos_db if not p.get("imagem")]
-    print(f"   Total de produtos: {len(produtos_db)}")
-    print(f"   Sem imagem:        {len(sem_imagem)}")
+    todos = resp.data
+    # Filtra só os que faltam E estão na lista de targets
+    sem_foto = [p for p in todos if not p.get("imagem")]
+    print(f"\nProdutos sem foto no banco: {len(sem_foto)}")
 
-    # Extrai imagens do PDF
-    print(f"\n📄 Abrindo PDF: {PDF_PATH}")
-    imagens = extract_images_with_context(PDF_PATH)
-    print(f"   Imagens encontradas: {len(imagens)}")
+    # Abre o PDF
+    doc = pymupdf.open(PDF_PATH)
+    print(f"Paginas no PDF: {len(doc)}\n")
 
-    if not imagens:
-        print("\n❌ Nenhuma imagem encontrada no PDF.")
-        return
+    # Extrai todas as imagens com contexto expandido
+    imagens = []
+    for page_num, page in enumerate(doc):
+        img_list = page.get_images(full=True)
+        for img_info in img_list:
+            xref = img_info[0]
+            img_rects = page.get_image_rects(xref)
+            if not img_rects:
+                continue
+            rect = img_rects[0]
+            # Filtra: ignora imagens muito pequenas, muito largas (logo/banner)
+            if rect.width < 40 or rect.height < 40:
+                continue
+            if rect.width > 400 or rect.height > 300:
+                continue
 
-    # Mostra o que foi encontrado
-    print("\n🔍 Imagens extraídas (primeiras 10):")
-    for i, img in enumerate(imagens[:10]):
-        print(f"   [{i+1}] Pág {img['page']} | {img['width']:.0f}x{img['height']:.0f}px | Texto: {img['nearby_text'][:60]!r}")
+            nearby = get_nearby_text(page, rect)
 
-    # Faz o matching e atualiza
-    print("\n🔗 Associando imagens aos produtos...")
-    atualizados = 0
-    sem_match = 0
-
-    # Evita atualizar o mesmo produto duas vezes
-    atualizados_ids = set()
-
-    for img in imagens:
-        match = match_product(img["nearby_text"], sem_imagem)
-        if match and match["id"] not in atualizados_ids:
-            print(f"   ✅ '{match['nome']}' ← texto: {img['nearby_text'][:50]!r}")
             try:
-                supabase.table("produtos").update({"imagem": img["image_b64"]}).eq("id", match["id"]).execute()
-                atualizados_ids.add(match["id"])
+                base_img = doc.extract_image(xref)
+                img_bytes = base_img["image"]
+                ext = base_img["ext"]
+                b64 = base64.b64encode(img_bytes).decode("utf-8")
+                img_b64 = f"data:image/{ext};base64,{b64}"
+                imagens.append({
+                    "b64": img_b64,
+                    "text": nearby,
+                    "page": page_num + 1,
+                    "rect": rect,
+                })
+            except Exception as e:
+                print(f"  Erro xref={xref}: {e}")
+
+    doc.close()
+    print(f"Total de imagens extraidas: {len(imagens)}\n")
+
+    # Para cada produto sem foto, acha a melhor imagem
+    atualizados = 0
+    usadas = set()
+
+    for produto in sem_foto:
+        best_score = 0
+        best_img = None
+        best_idx = -1
+
+        for idx, img in enumerate(imagens):
+            if idx in usadas:
+                continue
+            s = score_match(img["text"], produto["nome"])
+            if s > best_score:
+                best_score = s
+                best_img = img
+                best_idx = idx
+
+        if best_img and best_score >= 0.5:
+            print(f"  OK [{best_score:.2f}] '{produto['nome']}'")
+            print(f"       texto: {best_img['text'][:80]!r}")
+            try:
+                supabase.table("produtos").update({"imagem": best_img["b64"]}).eq("id", produto["id"]).execute()
+                usadas.add(best_idx)
                 atualizados += 1
             except Exception as e:
-                print(f"   ❌ Erro ao atualizar {match['nome']}: {e}")
+                print(f"  ERRO ao atualizar {produto['nome']}: {e}")
         else:
-            if not match:
-                print(f"   ⚠️  Sem match | Pág {img['page']} | texto: {img['nearby_text'][:50]!r}")
-                sem_match += 1
+            print(f"  SEM MATCH [{best_score:.2f}] '{produto['nome']}'")
+            if best_img:
+                print(f"       melhor texto: {best_img['text'][:60]!r}")
 
-    print("\n" + "=" * 60)
-    print(f"✅ Produtos atualizados com imagem: {atualizados}")
-    print(f"⚠️  Imagens sem match:               {sem_match}")
-    print("=" * 60)
+    print(f"\n{'='*60}")
+    print(f"Produtos atualizados: {atualizados}/{len(sem_foto)}")
+    print(f"{'='*60}")
 
 if __name__ == "__main__":
     main()

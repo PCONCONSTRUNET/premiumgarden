@@ -6,7 +6,8 @@ import {
   FileSpreadsheet, 
   Filter, 
   X,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Trash2
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,10 +28,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
@@ -79,6 +97,54 @@ function Tarefas() {
     };
     carregarDados();
   }, []);
+
+  const handleStatusChange = async (id: string, novoStatus: string) => {
+    setTarefas(tarefas.map(t => t.id === id ? { ...t, status: novoStatus } : t));
+    
+    const { error } = await supabase
+      .from("tarefas")
+      .update({ status: novoStatus })
+      .eq("id", id);
+      
+    if (error) {
+      toast.error("Erro ao atualizar status: " + error.message);
+    } else {
+      toast.success("Status atualizado!");
+    }
+  };
+
+  const handleExcluirTarefa = async (id: string) => {
+    const prevTarefas = [...tarefas];
+    setTarefas(tarefas.filter(t => t.id !== id));
+    
+    const { error } = await supabase.from("tarefas").delete().eq("id", id);
+    if (error) {
+      setTarefas(prevTarefas);
+      toast.error("Erro ao excluir: " + error.message);
+    } else {
+      toast.success("Tarefa excluída.");
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "pendente": return "text-amber-600 bg-amber-50 ring-1 ring-amber-600/20";
+      case "em andamento": return "text-blue-600 bg-blue-50 ring-1 ring-blue-600/20";
+      case "concluído":
+      case "concluido": return "text-green-600 bg-green-50 ring-1 ring-green-600/20";
+      default: return "text-slate-600 bg-slate-50 ring-1 ring-slate-600/20";
+    }
+  };
+
+  const getStatusDotColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "pendente": return "bg-amber-500";
+      case "em andamento": return "bg-blue-500";
+      case "concluído":
+      case "concluido": return "bg-green-500";
+      default: return "bg-slate-500";
+    }
+  };
 
   const handleSalvarTarefa = async () => {
     if (!date) {
@@ -222,22 +288,64 @@ function Tarefas() {
         <div className="flex-1 overflow-auto p-6 bg-[#F5F6F8]">
           <div className="flex flex-col gap-3">
             {tarefas.map(t => (
-              <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4">
+              <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4 group">
                 <div className="bg-[#4b2781]/10 text-[#4b2781] p-3 rounded-full flex-shrink-0">
                   <CalendarIcon className="w-5 h-5" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-slate-800">{t.cliente_nome || "Cliente Avulso"}</h3>
+                  <h3 className="font-bold text-slate-800">
+                    <span className="uppercase text-[#4b2781] mr-1">{t.meio_contato}</span> 
+                    - {t.cliente_nome || "Cliente Avulso"}
+                  </h3>
                   <p className="text-sm text-slate-500 mt-1">{t.detalhes}</p>
                   <div className="flex items-center gap-4 mt-3 text-xs text-slate-400 font-medium">
-                    <span className="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                      {t.status}
-                    </span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="focus:outline-none">
+                        <span className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${getStatusColor(t.status)}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${getStatusDotColor(t.status)}`}></span>
+                          {t.status}
+                        </span>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => handleStatusChange(t.id, "Pendente")}>
+                          Pendente
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(t.id, "Em andamento")}>
+                          Em andamento
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(t.id, "Concluído")}>
+                          Concluído
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <span>{t.data ? format(new Date(t.data), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : ""}</span>
-                    <span className="uppercase">{t.meio_contato}</span>
+                    <span className="uppercase bg-[#4b2781]/10 text-[#4b2781] px-2 py-0.5 rounded-md font-bold text-[10px] tracking-wider">{t.meio_contato}</span>
                   </div>
                 </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button 
+                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all self-center"
+                      title="Excluir tarefa"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir tarefa</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tem certeza que deseja excluir esta tarefa? Essa ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleExcluirTarefa(t.id)} className="bg-red-600 hover:bg-red-700">
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             ))}
           </div>

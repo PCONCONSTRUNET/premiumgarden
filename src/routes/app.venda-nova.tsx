@@ -300,7 +300,7 @@ function NovoPedido() {
     setItens((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
 
-  const handleSalvar = async () => {
+  const handleSalvar = async (comoOrcamento = false) => {
     if (itens.length === 0) {
       toast.info("Adicione pelo menos um produto ao pedido.");
       return;
@@ -315,10 +315,10 @@ function NovoPedido() {
       setOpenModalCliente(true);
       return;
     }
-    await executarSalvamentoVenda(clienteId);
+    await executarSalvamentoVenda(clienteId, comoOrcamento);
   };
 
-  const executarSalvamentoVenda = async (clientId: string) => {
+  const executarSalvamentoVenda = async (clientId: string, comoOrcamento = false) => {
     setLoading(true);
     try {
       let nextNumero = savedNumero || 1;
@@ -336,7 +336,7 @@ function NovoPedido() {
       const vendaPayload = {
         cliente_id: clientId,
         tipo,
-        status: tipo === "DAV" ? "Em orçamento" : status, // Update to match the list's expected status for quote
+        status: comoOrcamento ? "Em orçamento" : (tipo === "DAV" ? "Em orçamento" : status),
         valor_total: totalPedido,
         numero: nextNumero,
         condicao_pagamento: condicaoPagamento,
@@ -383,7 +383,7 @@ function NovoPedido() {
       );
       if (itemsError) throw itemsError;
 
-      if (tipo === "VENDA") {
+      if (tipo === "VENDA" && !comoOrcamento) {
         for (const item of itens) {
           const product = produtos.find((candidate) => candidate.id === item.produto_id);
           if (product) {
@@ -409,7 +409,7 @@ function NovoPedido() {
         ]);
       }
 
-      if (tipo === "DAV") {
+      if (tipo === "DAV" || comoOrcamento) {
         setSavedVendaId(vendaData.id);
         setSavedNumero(nextNumero);
         setOpenSuccessModal(true);
@@ -549,8 +549,16 @@ function NovoPedido() {
         </div>
 
         <div className="flex flex-wrap gap-2 border-y-2 border-foreground/80 px-5 py-3">
-          <Button onClick={handleSalvar} disabled={loading}>
+          <Button onClick={() => handleSalvar(false)} disabled={loading}>
             <Save className="mr-2 h-4 w-4" /> {loading ? "Gerando..." : "Gerar pedido"}
+          </Button>
+          <Button 
+            variant="secondary" 
+            className="bg-amber-100 text-amber-800 hover:bg-amber-200" 
+            onClick={() => handleSalvar(true)} 
+            disabled={loading}
+          >
+            <FileText className="mr-2 h-4 w-4" /> {loading ? "Gerando..." : "Salvar orçamento"}
           </Button>
           <Button variant="outline" onClick={() => setDetailsOpen(true)}>
             <Pencil className="mr-2 h-4 w-4" /> Detalhes do pedido

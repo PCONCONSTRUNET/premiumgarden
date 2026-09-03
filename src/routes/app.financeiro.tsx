@@ -75,7 +75,7 @@ function Financeiro() {
     try {
       const { data: rec } = await supabase
         .from("contas_receber")
-        .select("*")
+        .select("*, clientes(nome)")
         .order("created_at", { ascending: false });
       const { data: des } = await supabase
         .from("contas_pagar")
@@ -95,30 +95,71 @@ function Financeiro() {
     fetchFinanceiro();
   }, []);
 
-  const handleBaixa = async (id: string, tipo: "receber" | "pagar") => {
-    if (
-      !(await confirm({
-        description: "Deseja confirmar o pagamento/recebimento deste título?",
-        variant: "default",
-      }))
-    )
-      return;
+  const [baixaModal, setBaixaModal] = useState<{
+    open: boolean;
+    lancamento: any;
+    valor: string;
+    loading: boolean;
+  }>({ open: false, lancamento: null, valor: "", loading: false });
+
+  const openBaixa = (r: any) => {
+    setBaixaModal({
+      open: true,
+      lancamento: r,
+      valor: String(r.valor),
+      loading: false,
+    });
+  };
+
+  const handleConfirmarBaixa = async () => {
+    const { lancamento, valor } = baixaModal;
+    const valorPago = Number(valor.replace(",", "."));
+    const valorOriginal = Number(lancamento.valor);
+
+    if (valorPago <= 0) return toast.error("O valor deve ser maior que zero.");
+    if (valorPago > valorOriginal) return toast.error("O valor pago não pode ser maior que o valor do título.");
+
+    setBaixaModal((prev) => ({ ...prev, loading: true }));
     try {
-      const tabela = tipo === "receber" ? "contas_receber" : "contas_pagar";
-      const statusFinal = tipo === "receber" ? "Recebido" : "Pago";
+      const tabela = lancamento.tipo === "receber" ? "contas_receber" : "contas_pagar";
+      const statusFinal = lancamento.tipo === "receber" ? "Recebido" : "Pago";
       const dataHoje = new Date().toISOString().split("T")[0];
 
-      await supabase
-        .from(tabela)
-        .update({
+      if (valorPago < valorOriginal) {
+        // Pagamento parcial: subtrai do atual e cria um novo já baixado
+        await supabase
+          .from(tabela)
+          .update({ valor: valorOriginal - valorPago })
+          .eq("id", lancamento.id);
+
+        const novoLancamento: any = {
+          descricao: `${lancamento.descricao} (Parcial)`,
+          valor: valorPago,
+          vencimento: lancamento.vencimento,
           status: statusFinal,
           data_pagamento: dataHoje,
-        })
-        .eq("id", id);
+        };
+        if (lancamento.venda_id) novoLancamento.venda_id = lancamento.venda_id;
+        if (lancamento.cliente_id) novoLancamento.cliente_id = lancamento.cliente_id;
 
+        await supabase.from(tabela).insert([novoLancamento]);
+      } else {
+        // Pagamento total
+        await supabase
+          .from(tabela)
+          .update({
+            status: statusFinal,
+            data_pagamento: dataHoje,
+          })
+          .eq("id", lancamento.id);
+      }
+
+      toast.success("Baixa realizada com sucesso!");
+      setBaixaModal({ open: false, lancamento: null, valor: "", loading: false });
       fetchFinanceiro();
     } catch (err) {
       toast.error("Erro ao dar baixa.");
+      setBaixaModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -205,16 +246,15 @@ function Financeiro() {
 
   // Calcular totais reais para os cards (somente os recebidos/pagos do período)
   const totalReceitas = receitasFiltradas
-    .filter((r) => r.status === "Recebido")
+    .filter((r) => r.status === "Recebido" || r.status === "Pago")
     .reduce((acc, curr) => acc + Number(curr.valor), 0);
   const totalDespesas = despesasFiltradas
-    .filter((d) => d.status === "Pago")
+    .filter((d) => d.status === "Pago" || d.status === "Pago")
     .reduce((acc, curr) => acc + Number(curr.valor), 0);
   const lucro = totalReceitas - totalDespesas;
-  // Caixa contínuo (o caixa atual não deveria ser filtrado por data, mas para efeito de exibição da variação, mantemos a base + lucro)
-  // Mas o ideal para caixa atual é sempre o total histórico. Vamos calcular o total absoluto para o Caixa Atual.
+  // Caixa contínuo
   const totalAbsolutoReceitas = receitas
-    .filter((r) => r.status === "Recebido")
+    .filter((r) => r.status === "Recebido" || r.status === "Pago")
     .reduce((acc, curr) => acc + Number(curr.valor), 0);
   const totalAbsolutoDespesas = despesas
     .filter((d) => d.status === "Pago")
@@ -358,92 +398,107 @@ function Financeiro() {
         ))}
       </div>
 
-      <Card className="shadow-card overflow-x-auto mb-6">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle>Lançamentos</CardTitle>
+      <div className="mt-8 mb-6">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-800">Lançamentos</h2>
+          </div>
           {renderDatePicker()}
-        </CardHeader>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Emissão</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Vencimento</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead className="text-center">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-4">
-                  Carregando...
-                </TableCell>
-              </TableRow>
-            ) : lancamentos.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
-                  Nenhum lançamento encontrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              lancamentos.map((r, i) => (
-                <TableRow key={i}>
-                  <TableCell>{new Date(r.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                  <TableCell className="font-medium">{r.descricao}</TableCell>
-                  <TableCell>{new Date(r.vencimento).toLocaleDateString("pt-BR")}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={
+        </div>
+        <div className="flex flex-col gap-3">
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+          ) : lancamentos.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground bg-white rounded-xl border border-slate-100 shadow-sm">
+              Nenhum lançamento encontrado.
+            </div>
+          ) : (
+            lancamentos.map((r, i) => {
+              let displayDescricao = r.descricao || "Lançamento Sem Nome";
+              if (!r.neg && r.clientes?.nome) {
+                displayDescricao = displayDescricao.replace(` - ${r.clientes.nome}`, "");
+              }
+              const hidePrefix = displayDescricao.toLowerCase().startsWith("pedido") || 
+                                 displayDescricao.toLowerCase().startsWith("despesa") || 
+                                 displayDescricao.toLowerCase().startsWith("nf:") ||
+                                 displayDescricao.toLowerCase().startsWith("comissão");
+
+              // Extrai nome do vendedor de entradas de comissão (ex: "Comissão - NOME - Pedido #...")
+              let displayCliente = r.clientes?.nome;
+              if (!displayCliente && r.neg && displayDescricao.toLowerCase().startsWith("comissão")) {
+                const parts = displayDescricao.split(" - ");
+                if (parts.length >= 2) {
+                  displayCliente = parts[1]; // nome do vendedor
+                }
+              }
+
+              return (
+              <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between shadow-sm hover:shadow-md transition-shadow gap-4">
+                <div className="flex-1">
+                  <div className="font-semibold text-slate-800 text-sm mb-1">
+                    <span className="text-slate-500 font-normal">{r.neg && displayDescricao.toLowerCase().startsWith("comissão") ? "Vendedor:" : "Cliente:"}</span>{" "}
+                    {displayCliente || (r.neg ? "Despesa Geral" : "Não informado")}
+                  </div>
+                  <div className="font-medium text-slate-700 text-sm mb-2">
+                    {!hidePrefix && (
+                      <span className="text-slate-500 font-normal">{r.neg ? "Despesa: " : "Pedido: "}</span>
+                    )}
+                    {displayDescricao}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Emissão: {new Date(r.created_at).toLocaleDateString("pt-BR")} | Venc.: {new Date(r.vencimento).toLocaleDateString("pt-BR")}
+                  </div>
+                </div>
+                <div className="sm:text-right flex flex-col sm:items-end items-start w-full sm:w-auto gap-3">
+                  <div className="flex items-center gap-3 justify-between w-full sm:w-auto sm:justify-end">
+                    <div className={`font-bold text-lg ${r.neg ? "text-destructive" : "text-success"}`}>
+                      {r.neg ? "-" : "+"} {Number(r.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className={`font-medium ${
                         r.status === "Recebido" || r.status === "Pago"
                           ? "border-success text-success bg-success/10"
                           : "border-warning text-warning bg-warning/10"
-                      }
+                      }`}
                     >
+                      {r.status === "Recebido" || r.status === "Pago" ? (
+                        <Check className="w-3 h-3 mr-1" />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-warning mr-1.5" />
+                      )}
                       {r.status}
                     </Badge>
-                  </TableCell>
-                  <TableCell
-                    className={`text-right font-bold ${r.neg ? "text-destructive" : "text-success"}`}
-                  >
-                    {r.neg ? "-" : "+"} R${" "}
-                    {Number(r.valor).toLocaleString("pt-BR", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {r.status === "Pendente" && (
-                        <Button
-                          onClick={() => handleBaixa(r.id, r.tipo)}
-                          size="icon"
-                          variant="outline"
-                          className="h-8 w-8 text-primary"
-                          title="Dar baixa"
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                      )}
+                  </div>
+                  <div className="flex gap-2">
+                    {r.status === "Pendente" && (
                       <Button
-                        onClick={() => handleExcluir(r.id, r.tipo)}
+                        onClick={() => openBaixa(r)}
                         size="icon"
                         variant="outline"
-                        className="h-8 w-8 text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive"
-                        title="Excluir"
+                        className="h-8 w-8 text-primary border-primary/20 hover:bg-primary/10 hover:text-primary rounded-full"
+                        title="Dar baixa"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Check className="h-4 w-4" />
                       </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+                    )}
+                    <Button
+                      onClick={() => handleExcluir(r.id, r.tipo)}
+                      size="icon"
+                      variant="outline"
+                      className="h-8 w-8 text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive rounded-full"
+                      title="Excluir"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              );
+            })
+          )}
+        </div>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2 mb-6">
         <Card className="shadow-card">
@@ -620,6 +675,52 @@ function Financeiro() {
               }`}
             >
               {salvando ? "Salvando..." : "Salvar Lançamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={baixaModal.open} onOpenChange={(val) => !val && setBaixaModal({ open: false, lancamento: null, valor: "", loading: false })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-display font-bold">Dar Baixa</DialogTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Informe o valor que está sendo pago/recebido. Se for menor que o total, um título parcial será gerado e o original continuará pendente com a diferença.
+            </p>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2 bg-slate-50 p-3 rounded-lg border">
+              <span className="text-xs text-muted-foreground uppercase font-semibold">Valor Total do Título</span>
+              <p className="text-lg font-bold text-slate-800">
+                R$ {Number(baixaModal.lancamento?.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Valor a Baixar (R$)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-sm text-muted-foreground font-medium">R$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={baixaModal.lancamento?.valor}
+                  value={baixaModal.valor}
+                  onChange={(e) => setBaixaModal({ ...baixaModal, valor: e.target.value })}
+                  className="h-10 pl-9 border-slate-300 focus-visible:ring-primary"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="border-t pt-4 mt-2">
+            <Button variant="outline" onClick={() => setBaixaModal({ open: false, lancamento: null, valor: "", loading: false })} className="h-10">
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmarBaixa}
+              disabled={baixaModal.loading}
+              className="h-10 bg-success hover:bg-success/90 text-white"
+            >
+              {baixaModal.loading ? "Processando..." : "Confirmar Baixa"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -91,12 +91,14 @@ function Pedidos() {
   const [openVisualizar, setOpenVisualizar] = useState(false);
   const [empresaDados, setEmpresaDados] = useState<any>(null);
 
+  const [openPrintModal, setOpenPrintModal] = useState(false);
+
   const fetchVendas = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("vendas")
-        .select("*, clientes(nome), vendedores(nome)")
+        .select("*, clientes(nome, telefone, endereco, numero, cidade, uf), vendedores(nome), contas_receber(valor)")
         .or("status_aprovacao.neq.Pendente,status_aprovacao.is.null")
         .order("created_at", { ascending: false });
 
@@ -129,6 +131,22 @@ function Pedidos() {
     return venda.status || "Pendente";
   };
 
+  const handleAprovarOrcamento = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("vendas")
+        .update({ status: "Em aberto" })
+        .eq("id", id);
+      if (error) throw error;
+      setVendas((current) =>
+        current.map((v) => (v.id === id ? { ...v, status: "Em aberto" } : v))
+      );
+      toast.success("Orçamento aprovado e transformado em pedido!");
+    } catch (err: any) {
+      toast.error("Erro ao aprovar orçamento: " + err.message);
+    }
+  };
+
   const handleOpenFaturar = async (venda: any) => {
     setSelectedVenda(venda);
     setFaturarData(new Date().toISOString().split("T")[0]);
@@ -141,7 +159,7 @@ function Pedidos() {
       setValorJaFaturado(totalFaturado);
       
       const totalRestante = Number(venda.valor_total || 0) - totalFaturado;
-      setFaturarValor(Math.max(0, totalRestante));
+      setFaturarValor(Math.max(0, Math.round(totalRestante * 100) / 100));
       
       setOpenFaturar(true);
     } catch (err) {
@@ -161,23 +179,27 @@ function Pedidos() {
     setFaturarLoading(true);
     try {
       const valorTotal = Number(selectedVenda.valor_total || 0);
-      const novoTotalFaturado = valorJaFaturado + valorNum;
+      // Recalculate from DB to avoid stale state
+      const { data: contasExistentes } = await supabase
+        .from("contas_receber")
+        .select("valor")
+        .eq("venda_id", selectedVenda.id);
+      const totalJaFaturadoDB = (contasExistentes || []).reduce((acc, c) => acc + Number(c.valor), 0);
+      const novoTotalFaturado = totalJaFaturadoDB + valorNum;
       
-      // Se faturar tudo ou mais, é Concluído. Senão, Parcialmente Faturado.
-      const isFullyInvoiced = novoTotalFaturado >= valorTotal - 0.01; // allow small rounding diff
+      // Só marca como Concluído quando o valor total foi coberto
+      const isFullyInvoiced = novoTotalFaturado >= valorTotal - 0.01;
       const newStatus = isFullyInvoiced ? "Concluído" : "Parcialmente Faturado";
       
-      const dueDate = new Date(faturarData);
-      dueDate.setDate(dueDate.getDate() + 30);
-      
+      const today = new Date().toISOString().split("T")[0];
       const { error: contasError } = await supabase.from("contas_receber").insert([{
         venda_id: selectedVenda.id,
         cliente_id: selectedVenda.cliente_id,
-        descricao: faturarNota ? `NF: ${faturarNota}` : `Pedido #${getOrderNumber(selectedVenda)}`,
+        descricao: `${faturarNota ? `NF: ${faturarNota}` : `Pedido #${getOrderNumber(selectedVenda)}`}${selectedVenda.clientes?.nome ? ` - ${selectedVenda.clientes.nome}` : ''}${faturarInfo ? ` | ${faturarInfo}` : ''}`,
         valor: valorNum,
-        vencimento: dueDate.toISOString().split("T")[0],
-        status: "Pendente", // Could be Pago depending on condicao
-        observacoes: faturarInfo,
+        vencimento: faturarData,
+        status: "Pago",
+        data_pagamento: today,
       }]);
       if (contasError) throw contasError;
 
@@ -200,19 +222,123 @@ function Pedidos() {
     setSelectedVenda(venda);
     setLoadingItens(true);
     setOpenVisualizar(true);
+    setValorJaFaturado(0);
     try {
       const { data, error } = await supabase
         .from("vendas_itens")
-        .select("*, produtos(nome, codigo, imagem, ncm, unidade_medida)")
+        .select("*, produtos(nome, codigo, imagem, ncm)")
         .eq("venda_id", venda.id);
       if (error) throw error;
       setVendaItens(data || []);
+
+      const { data: contasData } = await supabase
+        .from("contas_receber")
+        .select("valor")
+        .eq("venda_id", venda.id);
+      const pago = (contasData || []).reduce((acc, c) => acc + Number(c.valor), 0);
+      setValorJaFaturado(pago);
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar os itens do pedido.");
     } finally {
       setLoadingItens(false);
     }
+  };
+
+  const handlePrint = () => {
+    if (!selectedVenda) return;
+    const cur = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+    const venda = selectedVenda;
+    const itensHTML = vendaItens.map((item: any) => `
+      <tr>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${item.produtos?.codigo || "-"}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center">
+          ${item.produtos?.imagem ? `<img src="${item.produtos.imagem}" style="height:36px;width:36px;object-fit:cover;border-radius:4px" />` : ""}
+        </td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-weight:500">${item.produtos?.nome || ""}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${item.quantidade} ${item.produtos?.unidade_medida || "un"}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${cur.format(Number(item.valor_unitario))}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:500">${cur.format(Number(item.subtotal))}</td>
+      </tr>
+    `).join("");
+    const subtotalVal = (Number(venda.valor_total) || 0) + (Number(venda.desconto_valor) || 0);
+    const desconto = Number(venda.desconto_valor) || 0;
+    const total = Number(venda.valor_total) || 0;
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <title>Pedido #${getOrderNumber(venda)}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;padding:32px}
+    h1{font-size:20px;font-weight:700}h2{font-size:15px;font-weight:600}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:16px;margin-bottom:20px}
+    .section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:8px}
+    .client-box{background:#f9fafb;border:1px solid #e5e7eb;padding:12px;border-radius:4px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    thead{background:#f3f4f6}
+    th{padding:7px 8px;text-align:left;font-size:11px;font-weight:700;border-bottom:2px solid #e5e7eb}
+    .totals{display:flex;justify-content:flex-end}
+    .totals-box{width:240px}
+    .totals-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb;font-size:12px}
+    .totals-total{display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:15px}
+    .footer{margin-top:32px;display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding-top:16px;font-size:11px;color:#555}
+    @media print{body{padding:16px}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>${empresaDados?.razao_social || "PREMIUM GARDEN"}</h1>
+      <div style="font-size:12px;color:#555;margin-top:4px">${empresaDados?.endereco || ""}</div>
+      <div style="font-size:12px;color:#555">CNPJ: ${empresaDados?.cnpj || ""}</div>
+    </div>
+    <div style="text-align:right">
+      <h2>Pedido #${getOrderNumber(venda)}</h2>
+      <div style="font-size:12px;color:#555;margin-top:4px">Emitido em: ${new Date(venda.created_at).toLocaleDateString("pt-BR")}</div>
+      <div style="font-size:12px;color:#555">Vendedor: ${venda.vendedores?.nome || "Admin"}</div>
+    </div>
+  </div>
+
+  <div class="section-title">Dados do Cliente</div>
+  <div class="client-box">
+    <div><span style="color:#888">Nome:</span> <strong>${venda.clientes?.nome || ""}</strong></div>
+    <div><span style="color:#888">Telefone:</span> ${venda.clientes?.telefone || "Não informado"}</div>
+    <div style="grid-column:span 2"><span style="color:#888">Endereço:</span> ${venda.clientes?.endereco ? `${venda.clientes.endereco}, ${venda.clientes.numero || "S/N"} - ${venda.clientes.cidade || ""}/${venda.clientes.uf || ""}` : "Não informado"}</div>
+  </div>
+
+  <div class="section-title">Itens do Pedido</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Cód.</th><th>Foto</th><th>Descrição</th><th style="text-align:right">Qtd</th><th style="text-align:right">Preço Un.</th><th style="text-align:right">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>${itensHTML}</tbody>
+  </table>
+
+  <div class="totals">
+    <div class="totals-box">
+      <div class="totals-row"><span style="color:#555">Subtotal:</span><span>${cur.format(subtotalVal)}</span></div>
+      ${desconto > 0 ? `<div class="totals-row" style="color:#dc2626"><span>Desconto:</span><span>-${cur.format(desconto)}</span></div>` : ""}
+      <div class="totals-total"><span>Total:</span><span style="color:#2563eb">${cur.format(total)}</span></div>
+      ${valorJaFaturado > 0 ? `<div class="totals-row" style="color:#16a34a;font-weight:600"><span>Valor Pago:</span><span>${cur.format(valorJaFaturado)}</span></div>${total - valorJaFaturado > 0.01 ? `<div class="totals-row" style="color:#d97706;font-weight:600"><span>Restante:</span><span>${cur.format(total - valorJaFaturado)}</span></div>` : ""}` : ""}
+    </div>
+  </div>
+
+  <div class="footer">
+    <div><strong>Condição de Pagamento</strong><br/>${venda.condicao_pagamento || "À vista"}</div>
+    <div><strong>Observações</strong><br/>${venda.informacoes || "Pedido gerado via sistema Premium Garden."}</div>
+  </div>
+</body>
+</html>`;
+    const pw = window.open("", "_blank", "width=900,height=750");
+    if (!pw) { alert("Permita pop-ups para imprimir."); return; }
+    pw.document.write(html);
+    pw.document.close();
+    pw.focus();
+    setTimeout(() => pw.print(), 600);
   };
 
   const getTone = (status: string) => {
@@ -430,7 +556,7 @@ function Pedidos() {
                   <Plus className="mr-2 h-4 w-4" /> Criar pedido / orçamento
                 </Link>
               </Button>
-              <Button variant="outline" onClick={() => window.print()}>
+              <Button variant="outline" onClick={() => setOpenPrintModal(true)}>
                 <Printer className="mr-2 h-4 w-4" /> Imprimir pedidos
               </Button>
             </div>
@@ -512,6 +638,10 @@ function Pedidos() {
                     {orders.map((venda) => {
                       const status = getStatusLabel(venda);
                       const expanded = expandedId === venda.id;
+                      const valorTotal = Number(venda.valor_total || 0);
+                      const valorPago = (venda.contas_receber || []).reduce((acc: number, c: any) => acc + Number(c.valor), 0);
+                      const valorRestante = valorTotal - valorPago;
+
                       return (
                         <article
                           key={venda.id}
@@ -521,11 +651,7 @@ function Pedidos() {
                               type="button"
                               className="w-full text-left"
                               onClick={() => {
-                                if (venda.tipo === "DAV" && status === "Em orçamento") {
-                                  navigate({ to: "/app/venda-nova", search: { id: venda.id } });
-                                } else {
-                                  setExpandedId(expanded ? null : venda.id);
-                                }
+                                setExpandedId(expanded ? null : venda.id);
                               }}
                             >
                             <div className="flex items-center justify-between gap-4 bg-muted/40 px-4 py-3">
@@ -553,9 +679,17 @@ function Pedidos() {
                               </div>
                             </div>
                             <div className="flex items-center justify-between px-4 py-4">
-                              <span className="font-semibold">
-                                {currency.format(Number(venda.valor_total || 0))}
-                              </span>
+                              <div className="flex items-center gap-3">
+                                <span className="font-semibold">
+                                  {currency.format(valorTotal)}
+                                </span>
+                                {status === "Parcialmente Faturado" && (
+                                  <span className="text-xs">
+                                    <span className="text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded-full">Pago: {currency.format(valorPago)}</span>
+                                    <span className="text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded-full ml-2">Falta: {currency.format(valorRestante)}</span>
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-xs text-muted-foreground">
                                 {new Date(venda.created_at).toLocaleString("pt-BR", {
                                   hour: "2-digit",
@@ -567,12 +701,32 @@ function Pedidos() {
 
                           {expanded && (
                             <div className="flex flex-wrap gap-2 border-t-2 border-foreground/80 bg-card px-4 py-3 print:hidden">
-                              {status !== "Concluído" && status !== "Cancelado" && (
+                              {status === "Em orçamento" && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    className="bg-amber-100 text-amber-800 hover:bg-amber-200 border-0"
+                                    onClick={() => handleAprovarOrcamento(venda.id)}
+                                  >
+                                    <Check className="mr-2 h-4 w-4" /> Aprovar orçamento (Gerar Pedido)
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => navigate({ to: "/app/venda-nova", search: { id: venda.id } as any })}
+                                  >
+                                    <Pencil className="mr-2 h-4 w-4" /> Editar orçamento
+                                  </Button>
+                                </>
+                              )}
+
+                              {status !== "Em orçamento" && status !== "Concluído" && status !== "Cancelado" && status !== "Entregue" && (
                                 <Button
                                   size="sm"
                                   onClick={() => handleOpenFaturar(venda)}
                                 >
-                                  <Check className="mr-2 h-4 w-4" /> Faturar pedido
+                                  <Check className="mr-2 h-4 w-4" />
+                                  {status === "Parcialmente Faturado" ? "Faturar restante" : "Faturar pedido"}
                                 </Button>
                               )}
                               <Button
@@ -652,13 +806,18 @@ function Pedidos() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="Em orçamento">Em orçamento</SelectItem>
                     <SelectItem value="Pendente">Pendente</SelectItem>
+                    <SelectItem value="Em aberto">Em aberto</SelectItem>
                     <SelectItem value="Aguardando Pagamento">Aguardando pagamento</SelectItem>
                     <SelectItem value="Em Separação">Em separação</SelectItem>
                     <SelectItem value="Faturado">Faturado</SelectItem>
+                    <SelectItem value="Parcialmente Faturado">Parcialmente Faturado</SelectItem>
+                    <SelectItem value="Concluído">Concluído</SelectItem>
                     <SelectItem value="Pago">Pago</SelectItem>
                     <SelectItem value="Entregue">Entregue</SelectItem>
                     <SelectItem value="Cancelado">Cancelado</SelectItem>
+                    <SelectItem value="Rejeitado">Rejeitado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -867,7 +1026,7 @@ function Pedidos() {
       <Dialog open={openVisualizar} onOpenChange={setOpenVisualizar}>
         <DialogContent className="max-w-[800px] p-0 overflow-hidden bg-white text-black print:shadow-none print:border-none print:max-w-full">
           {selectedVenda && (
-            <div className="max-h-[85vh] overflow-y-auto" id="print-area">
+            <div className="max-h-[85vh] overflow-y-auto print:overflow-visible print:max-h-none print:h-auto" id="print-area">
               <div className="p-8 space-y-6 print:p-0">
                 {/* Header */}
                 <div className="flex justify-between items-start border-b border-gray-300 pb-4">
@@ -966,6 +1125,20 @@ function Pedidos() {
                       <span>Total:</span>
                       <span className="text-blue-600">{currency.format(Number(selectedVenda.valor_total))}</span>
                     </div>
+                    {valorJaFaturado > 0 && (
+                      <div className="mt-2 pt-2 border-t space-y-1">
+                        <div className="flex justify-between text-sm font-semibold text-emerald-600">
+                          <span>Valor Pago:</span>
+                          <span>{currency.format(valorJaFaturado)}</span>
+                        </div>
+                        {Number(selectedVenda.valor_total) - valorJaFaturado > 0.01 && (
+                          <div className="flex justify-between text-sm font-semibold text-amber-600">
+                            <span>Restante / Pendente:</span>
+                            <span>{currency.format(Number(selectedVenda.valor_total) - valorJaFaturado)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -986,14 +1159,7 @@ function Pedidos() {
               <div className="bg-gray-50 p-4 border-t flex justify-end gap-3 print:hidden">
                 <Button variant="outline" onClick={() => setOpenVisualizar(false)}>Fechar</Button>
                 <Button 
-                  onClick={() => {
-                    // Ocultar tudo na tela menos o modal
-                    const style = document.createElement('style');
-                    style.innerHTML = `@media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } }`;
-                    document.head.appendChild(style);
-                    window.print();
-                    document.head.removeChild(style);
-                  }}
+                  onClick={handlePrint}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Printer className="mr-2 h-4 w-4" /> Imprimir
@@ -1001,6 +1167,46 @@ function Pedidos() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Modal */}
+      <Dialog open={openPrintModal} onOpenChange={setOpenPrintModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Imprimir Pedido</DialogTitle>
+            <DialogDescription>Selecione qual pedido da lista você deseja imprimir.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-2 mt-4 px-1">
+            {filteredVendas.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-4">
+                Nenhum pedido encontrado nos filtros atuais.
+              </p>
+            ) : (
+              filteredVendas.map((v) => (
+                <div key={v.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
+                  <div>
+                    <p className="font-semibold text-sm text-primary">
+                      #{getOrderNumber(v)} - {v.clientes?.nome || "Cliente Padrão"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(v.created_at).toLocaleDateString()} • {currency.format(Number(v.valor_total || 0))}
+                    </p>
+                  </div>
+                  <Button size="sm" className="bg-brand text-brand-foreground hover:bg-brand/90" asChild>
+                    <a href={`/orcamento/${v.id}`} target="_blank" rel="noopener noreferrer">
+                      <Printer className="w-4 h-4 mr-2" /> Imprimir
+                    </a>
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenPrintModal(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

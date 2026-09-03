@@ -182,7 +182,7 @@ function Produtos() {
 
   const saveEstoque = async (produto: any) => {
     const valStr = draftEstoque[produto.id];
-    if (valStr === undefined) return; // No change
+    if (valStr === undefined || valStr === "") return; // No change or empty
     
     const val = parseInt(valStr, 10);
     if (isNaN(val)) {
@@ -202,7 +202,7 @@ function Produtos() {
         clearDraft(produto.id);
         return;
       }
-      novoEstoque = Number(produto.estoque) + val;
+      novoEstoque = Number(produto.estoque || 0) + val;
     }
 
     setSavingEstoque(prev => ({ ...prev, [produto.id]: true }));
@@ -212,7 +212,7 @@ function Produtos() {
       if (error) throw error;
       
       // 2. Registrar movimentação
-      const diff = novoEstoque - Number(produto.estoque);
+      const diff = novoEstoque - Number(produto.estoque || 0);
       await supabase.from("movimentacoes_estoque").insert({
         produto_id: produto.id,
         tipo: estoqueMode === "ajuste" ? "Ajuste" : "Entrada",
@@ -221,9 +221,9 @@ function Produtos() {
       });
 
       // Update local state
-      setProducts(products.map(p => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
+      setProducts(prev => prev.map(p => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
       clearDraft(produto.id);
-      toast.success(`Estoque atualizado com sucesso!`);
+      toast.success(`Estoque atualizado! (${diff > 0 ? '+' : ''}${diff})`);
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao atualizar estoque.");
@@ -483,14 +483,14 @@ function Produtos() {
                     <Button 
                       variant="ghost"
                       className={cn("h-8 px-4 text-xs font-medium rounded-sm", estoqueMode === "ajuste" ? "bg-[#4b2781] text-white hover:bg-[#4b2781]/90 hover:text-white" : "text-slate-600 hover:text-slate-800")}
-                      onClick={() => setEstoqueMode("ajuste")}
+                      onClick={() => { setEstoqueMode("ajuste"); setDraftEstoque({}); }}
                     >
                       Ajuste de estoque
                     </Button>
                     <Button 
                       variant="ghost"
                       className={cn("h-8 px-4 text-xs font-medium rounded-sm", estoqueMode === "entrada" ? "bg-[#4b2781] text-white hover:bg-[#4b2781]/90 hover:text-white" : "text-slate-600 hover:text-slate-800")}
-                      onClick={() => setEstoqueMode("entrada")}
+                      onClick={() => { setEstoqueMode("entrada"); setDraftEstoque({}); }}
                     >
                       Entrada de estoque
                     </Button>

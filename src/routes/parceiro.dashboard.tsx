@@ -49,7 +49,7 @@ function ParceiroDashboard() {
     try {
       const { data, error } = await supabase
         .from("vendas_itens")
-        .select("*, produto:produtos(nome, emoji)")
+        .select("*, produto:produtos(nome, imagem)")
         .eq("venda_id", venda.id);
 
       if (!error && data) {
@@ -488,7 +488,10 @@ function ParceiroDashboard() {
                 onClick={() => openSaleDetails(v)}
               >
                 <div>
-                  <p className="font-bold text-slate-800">
+                  <p className="font-semibold text-sm text-slate-700 mb-0.5">
+                    {v.cliente?.nome || "Venda Balcão"}
+                  </p>
+                  <p className="font-bold text-slate-900">
                     R$ {Number(v.valor_total).toFixed(2).replace(".", ",")}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -510,8 +513,8 @@ function ParceiroDashboard() {
                     </span>
                   )}
                   {v.status_aprovacao === "Aprovada" && v.valor_comissao > 0 && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      + R$ {Number(v.valor_comissao).toFixed(2)} comissão
+                    <p className="text-xs font-semibold text-emerald-600 mt-1.5 flex items-center justify-end gap-1">
+                      <span className="text-emerald-500/70">+</span> R$ {Number(v.valor_comissao).toFixed(2).replace(".", ",")} <span className="font-normal opacity-70 text-[10px]">comissão</span>
                     </p>
                   )}
                 </div>
@@ -522,7 +525,7 @@ function ParceiroDashboard() {
       </div>
 
       <Dialog open={isSaleDetailsOpen} onOpenChange={setIsSaleDetailsOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] w-[95vw] max-h-[90dvh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
           <DialogHeader>
             <DialogTitle>Ficha do Pedido</DialogTitle>
             <DialogDescription asChild>
@@ -562,7 +565,13 @@ function ParceiroDashboard() {
                         className="flex items-center justify-between p-3 bg-slate-50/50"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="text-2xl">{item.produto?.emoji || "📦"}</div>
+                          <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-slate-200 text-xl">
+                            {item.produto?.imagem ? (
+                              <img src={item.produto.imagem} alt={item.produto?.nome} className="h-full w-full object-cover" />
+                            ) : (
+                              "📦"
+                            )}
+                          </div>
                           <div>
                             <p className="font-semibold text-sm text-slate-800">
                               {item.produto?.nome || "Produto Excluído"}
@@ -579,16 +588,34 @@ function ParceiroDashboard() {
                     ))
                   )}
                 </div>
-                <div className="flex justify-between items-center p-4 bg-slate-100 rounded-lg">
-                  <span className="font-semibold text-slate-700">Total do Pedido:</span>
-                  <span className="text-xl font-bold font-display text-slate-900">
-                    R$ {Number(selectedSaleForDetails?.valor_total || 0).toFixed(2)}
-                  </span>
+                <div className="flex flex-col gap-1 p-4 bg-slate-100 rounded-lg">
+                  {Number(selectedSaleForDetails?.desconto_valor) > 0 && (
+                    <div className="flex justify-between items-center text-red-600 text-sm">
+                      <span className="font-medium">
+                        Desconto {Number(selectedSaleForDetails?.desconto_percentual) > 0 ? `(${selectedSaleForDetails.desconto_percentual}%)` : ''}:
+                      </span>
+                      <span className="font-bold">
+                        - R$ {Number(selectedSaleForDetails?.desconto_valor).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-200/60">
+                    <span className="font-semibold text-slate-700">Total do Pedido:</span>
+                    <span className="text-xl font-bold font-display text-slate-900">
+                      R$ {Number(selectedSaleForDetails?.valor_total || 0).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
           </div>
           <div className="pt-2 flex flex-col gap-2 w-full">
+            <Button
+              className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-md"
+              onClick={() => window.open(`/orcamento/${selectedSaleForDetails.id}`, "_blank")}
+            >
+              📄 Gerar Comprovante / PDF
+            </Button>
             {selectedSaleForDetails?.status_aprovacao === "Pendente" && (
               <>
                 <Button

@@ -20,6 +20,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -132,8 +135,12 @@ function DonutCard({
 function Dashboard() {
   const now = new Date();
   const [tab, setTab] = useState<"paineis" | "relatorios">("paineis");
-  const [mes, setMes] = useState(String(now.getMonth() + 1));
-  const [ano, setAno] = useState(String(now.getFullYear()));
+  
+  const [dateFilter, setDateFilter] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: new Date(now.getFullYear(), now.getMonth(), 1),
+    to: new Date()
+  });
+
   const [vendedores, setVendedores] = useState<any[]>([]);
   const [vendedor, setVendedor] = useState("todos");
 
@@ -154,10 +161,13 @@ function Dashboard() {
   const [positivados, setPositivados] = useState({ novos: 0, ativos: 0, inativosRecentes: 0, inativosAntigos: 0 });
   const [curvaABC, setCurvaABC] = useState({ a: 0, b: 0, c: 0 });
 
-  const diasUteisNoMes = 22;
-  const diasRestantes = Math.max(1, diasUteisNoMes - (now.getDate() - 1));
-  const necessarioPorDia = objetivoMes > vendidoMes
-    ? (objetivoMes - vendidoMes) / diasRestantes
+  const fromD = dateFilter?.from ? new Date(dateFilter.from) : new Date(now.getFullYear(), now.getMonth(), 1);
+  const toD = dateFilter?.to ? new Date(dateFilter.to) : new Date();
+  const diffDays = Math.max(1, Math.ceil(Math.abs(toD.getTime() - fromD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  
+  const metaProporcional = (objetivoMes / 30) * diffDays;
+  const necessarioPorDia = metaProporcional > vendidoMes
+    ? (metaProporcional - vendidoMes) / diffDays
     : 0;
 
   const fmt = (v: number) =>
@@ -171,43 +181,63 @@ function Dashboard() {
 
   useEffect(() => {
     async function load() {
-      const mesNum = parseInt(mes);
-      const anoNum = parseInt(ano);
-      const inicio = new Date(anoNum, mesNum - 1, 1).toISOString();
-      const fim = new Date(anoNum, mesNum, 1).toISOString();
+      const fD = dateFilter?.from ? new Date(dateFilter.from) : new Date(now.getFullYear(), now.getMonth(), 1);
+      const tD = dateFilter?.to ? new Date(dateFilter.to) : new Date();
+      fD.setHours(0, 0, 0, 0);
+      tD.setHours(23, 59, 59, 999);
 
-      // Vendas do mês filtradas
+      const inicio = fD.toISOString();
+      const fim = tD.toISOString();
+
       let query = supabase
         .from("vendas")
-        .select("valor_total, total, created_at, vendedor_id, cliente_id")
+        .select("valor_total, created_at, vendedor_id, cliente_id")
         .gte("created_at", inicio)
-        .lt("created_at", fim)
+        .lte("created_at", fim)
         .neq("status", "Cancelada");
 
       if (vendedor !== "todos") query = query.eq("vendedor_id", vendedor);
 
-      const { data: vendasMes } = await query;
+      const { data: vendasMes, error: errVendas } = await query;
+      if (errVendas) console.error("Erro ao buscar vendas:", errVendas);
+
       const totalMes = (vendasMes || []).reduce(
-        (acc, v) => acc + Number(v.valor_total || v.total || 0), 0
+        (acc, v) => acc + Number(v.valor_total || 0), 0
       );
       setVendidoMes(totalMes);
 
-      // Recuperar meta do localStorage
-      const metaSalva = Number(localStorage.getItem(`meta_${ano}_${mes}`)) || 0;
+      // Usar a meta do mês da data inicial do filtro
+      const anoNum = fD.getFullYear();
+      const mesNum = fD.getMonth() + 1;
+      const metaSalva = Number(localStorage.getItem(`meta_${anoNum}_${mesNum}`)) || 0;
       setObjetivoMes(metaSalva);
 
-      // Evolução diária do mês
-      const diasNoMes = new Date(anoNum, mesNum, 0).getDate();
-      const porDia: Record<number, number> = {};
+      // Evolução diária do intervalo
+      const diffD = Math.max(1, Math.ceil(Math.abs(tD.getTime() - fD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      const metaProgressoFinal = (metaSalva / 30) * diffD; // Proporcional ao intervalo
+
+      const porDia: Record<string, number> = {};
       (vendasMes || []).forEach((v) => {
-        const dia = new Date(v.created_at).getDate();
-        porDia[dia] = (porDia[dia] || 0) + Number(v.valor_total || v.total || 0);
+        const d = new Date(v.created_at);
+        const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        porDia[k] = (porDia[k] || 0) + Number(v.valor_total || v.total || 0);
       });
-      const evolData = Array.from({ length: diasNoMes }, (_, i) => ({
-        dia: i + 1,
-        vendas: porDia[i + 1] || 0,
-        objetivo: metaSalva > 0 ? (metaSalva / diasNoMes) * (i + 1) : 0,
-      }));
+      
+      const evolData = [];
+      let somaAcumulada = 0;
+      for (let i = 0; i < diffD; i++) {
+        const curr = new Date(fD);
+        curr.setDate(curr.getDate() + i);
+        const k = `${curr.getFullYear()}-${curr.getMonth()}-${curr.getDate()}`;
+        const val = porDia[k] || 0;
+        somaAcumulada += val;
+        
+        evolData.push({
+          diaStr: `${curr.getDate().toString().padStart(2, '0')}/${(curr.getMonth()+1).toString().padStart(2, '0')}`,
+          vendas: somaAcumulada,
+          objetivo: metaProgressoFinal > 0 ? (metaProgressoFinal / diffD) * (i + 1) : 0,
+        });
+      }
       setEvolucao(evolData);
 
       // Clientes
@@ -252,7 +282,54 @@ function Dashboard() {
       setCurvaABC({ a: curA, b: curB, c: Math.max(0, total - curA - curB) });
     }
     load();
-  }, [mes, ano, vendedor]);
+  }, [dateFilter, vendedor]);
+
+  const setPresetToday = () => setDateFilter({ from: new Date(), to: new Date() });
+  const setPresetWeek = () => {
+    const start = new Date();
+    start.setDate(start.getDate() - start.getDay());
+    setDateFilter({ from: start, to: new Date() });
+  };
+  const setPresetMonth = () => {
+    setDateFilter({ from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date() });
+  };
+
+  const renderDatePicker = () => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className={`justify-start text-left font-normal border-brand/30 hover:bg-brand/5 ${!dateFilter?.from ? "text-muted-foreground" : ""}`}>
+          <CalendarIcon className="mr-2 h-4 w-4 text-brand" />
+          {dateFilter?.from ? (
+            dateFilter.to ? (
+              `${dateFilter.from.toLocaleDateString("pt-BR")} - ${dateFilter.to.toLocaleDateString("pt-BR")}`
+            ) : (
+              dateFilter.from.toLocaleDateString("pt-BR")
+            )
+          ) : (
+            <span>Período...</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <div className="flex flex-col gap-1 p-2 bg-slate-50 border-b">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase px-2 py-1">Atalhos</p>
+          <div className="grid grid-cols-3 gap-1">
+            <Button size="sm" variant="outline" onClick={setPresetToday}>Hoje</Button>
+            <Button size="sm" variant="outline" onClick={setPresetWeek}>Semana</Button>
+            <Button size="sm" variant="outline" onClick={setPresetMonth}>Mês</Button>
+          </div>
+        </div>
+        <Calendar
+          initialFocus
+          mode="range"
+          defaultMonth={dateFilter?.from}
+          selected={{ from: dateFilter?.from, to: dateFilter?.to }}
+          onSelect={(range: any) => setDateFilter(range || { from: undefined, to: undefined })}
+          numberOfMonths={2}
+        />
+      </PopoverContent>
+    </Popover>
+  );
 
   const totalCarteira = carteira.ativos + carteira.inativosRecentes + carteira.inativosAntigos + carteira.prospectos;
   const totalPositivados = positivados.novos + positivados.ativos + positivados.inativosRecentes + positivados.inativosAntigos;
@@ -294,27 +371,9 @@ function Dashboard() {
 
           {/* Filtros */}
           <div className="flex flex-wrap items-center gap-3 mb-6 p-3 bg-muted/40 rounded-xl border border-border">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filtrar por:</span>
-            <Select value={mes} onValueChange={setMes}>
-              <SelectTrigger className="h-9 w-40 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MESES.map((m, i) => (
-                  <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={ano} onValueChange={setAno}>
-              <SelectTrigger className="h-9 w-24 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ANOS.map((a) => (
-                  <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filtro:</span>
+            {renderDatePicker()}
+            
             <Select value={vendedor} onValueChange={setVendedor}>
               <SelectTrigger className="h-9 w-52 text-sm">
                 <SelectValue placeholder="Todos os vendedores" />
@@ -337,7 +396,7 @@ function Dashboard() {
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-[10px]">
-                  {MESES[parseInt(mes) - 1].toUpperCase()} DE {ano}
+                  {dateFilter.from ? dateFilter.from.toLocaleDateString("pt-BR") : ""} a {dateFilter.to ? dateFilter.to.toLocaleDateString("pt-BR") : ""}
                 </Badge>
                 <button className="text-muted-foreground hover:text-foreground">
                   <MoreVertical className="h-4 w-4" />
@@ -352,7 +411,7 @@ function Dashboard() {
                     <LineChart data={evolucao} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                       <XAxis
-                        dataKey="dia"
+                        dataKey="diaStr"
                         stroke="#94a3b8"
                         fontSize={11}
                         tickLine={false}
@@ -400,7 +459,7 @@ function Dashboard() {
                 {/* KPIs lateral */}
                 <div className="lg:w-56 border-t lg:border-t-0 lg:border-l border-border flex flex-col divide-y divide-border">
                   <div className="p-4 flex flex-col gap-1">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Vendido no mês</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Vendido (Período)</span>
                     <span className="text-xl font-bold text-foreground">{fmt(vendidoMes)}</span>
                     <Button size="sm" variant="outline" className="mt-1 h-7 text-xs self-start border-brand/30 text-brand hover:bg-brand/5">
                       <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Comparar
@@ -427,11 +486,11 @@ function Dashboard() {
                       />
                     </div>
                     <span className="text-[10px] text-muted-foreground">
-                      {objetivoMes > 0 ? `${((vendidoMes / objetivoMes) * 100).toFixed(0)}%` : "%"}
+                      {metaProporcional > 0 ? `${((vendidoMes / metaProporcional) * 100).toFixed(0)}% da meta prorrateada` : "%"}
                     </span>
                   </div>
                   <div className="p-4 flex flex-col gap-0.5">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Necessário vender</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Ritmo Necessário</span>
                     <span className="text-base font-bold text-foreground">
                       {necessarioPorDia > 0 ? fmt(necessarioPorDia) : "—"}
                     </span>
@@ -587,7 +646,7 @@ function Dashboard() {
                   onChange={(e) => setMetaInput(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  A meta definida será válida para o mês de {MESES[parseInt(mes)-1]} de {ano}.
+                  A meta definida será válida para o mês de {MESES[fromD.getMonth()]} de {fromD.getFullYear()}.
                 </p>
               </div>
             </div>
@@ -595,11 +654,11 @@ function Dashboard() {
               <Button variant="outline" onClick={() => setMetaModalOpen(false)}>Cancelar</Button>
               <Button onClick={() => {
                 const valor = Number(metaInput);
-                localStorage.setItem(`meta_${ano}_${mes}`, String(valor));
+                const aNum = fromD.getFullYear();
+                const mNum = fromD.getMonth() + 1;
+                localStorage.setItem(`meta_${aNum}_${mNum}`, String(valor));
                 setObjetivoMes(valor);
                 setMetaModalOpen(false);
-                const diasNoMes = new Date(parseInt(ano), parseInt(mes), 0).getDate();
-                setEvolucao(evolucao.map(d => ({ ...d, objetivo: valor > 0 ? (valor / diasNoMes) * d.dia : 0 })));
               }}>Salvar</Button>
             </DialogFooter>
           </DialogContent>

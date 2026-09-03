@@ -39,7 +39,7 @@ function ImprimirDAV() {
         // Tenta buscar na tabela de vendas (Vendas ou DAVs antigos)
         const { data: v } = await supabase
           .from("vendas")
-          .select("*, cliente:clientes(*)")
+          .select("*, cliente:clientes(*), vendedor:vendedores(nome)")
           .eq("id", id)
           .single();
         
@@ -64,9 +64,10 @@ function ImprimirDAV() {
              condicao_pagamento: v.metodo_pagamento,
              subtotal: v.valor_total,
              total: v.valor_total,
-             vendedor: "",
-             emissor_nome: "Premium Garden VASOS",
-             isVenda: v.tipo !== "DAV"
+             vendedor: v.vendedor?.nome || "",
+             emissor_nome: "GARDEN PREMIUM PRODUTOS PARA JARDINAGEM LTDA",
+             isVenda: v.tipo !== "DAV",
+             status: v.status_aprovacao || v.status
           };
           setDav(d);
           
@@ -123,11 +124,11 @@ function ImprimirDAV() {
       `}</style>
 
       {/* Cabeçalho */}
-      <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-6">
+      <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-4">
         <div>
-          <img src={premiumGardenLogo} alt="Premium Garden" className="h-12 w-auto object-contain" />
+          <img src={premiumGardenLogo} alt="Premium Garden" className="h-10 w-auto object-contain" />
           <div className="mt-4 text-sm text-slate-600">
-            <p className="font-bold text-slate-900">{dav.emissor_nome || "Premium Garden VASOS"}</p>
+            <p className="font-bold text-slate-900">{dav.emissor_nome || "GARDEN PREMIUM PRODUTOS PARA JARDINAGEM LTDA"}</p>
             {dav.emissor_cnpj && <p>CNPJ: {dav.emissor_cnpj}</p>}
             {dav.emissor_endereco && <p>{dav.emissor_endereco}</p>}
             {dav.emissor_telefone && <p>Tel: {dav.emissor_telefone.replace(/99733-?1112/g, '99714-1112').replace('997331112', '997141112')}</p>}
@@ -153,12 +154,17 @@ function ImprimirDAV() {
               Validade: {validadeStr}
             </p>
           )}
+          {dav.status && (
+            <p className="text-sm font-medium mt-1 text-slate-600">
+              Status: <span className="uppercase">{dav.status}</span>
+            </p>
+          )}
         </div>
       </div>
 
       {/* Dados do Cliente e Condições */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">
             Dados do Cliente
           </h2>
@@ -170,7 +176,7 @@ function ImprimirDAV() {
           </div>
         </div>
 
-        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">
             Condições Comerciais
           </h2>
@@ -184,8 +190,8 @@ function ImprimirDAV() {
       </div>
 
       {/* Itens */}
-      <div className="mb-6">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">Produtos</h2>
+      <div className="mb-4">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2">Produtos</h2>
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-slate-900 text-white">
@@ -257,7 +263,7 @@ function ImprimirDAV() {
       )}
 
       {/* Assinatura */}
-      <div className="mt-16 grid grid-cols-2 gap-12 text-center text-sm">
+      <div className="mt-8 grid grid-cols-2 gap-12 text-center text-sm break-inside-avoid">
         <div>
           <div className="border-t border-slate-400 pt-2">Assinatura do Vendedor</div>
         </div>
@@ -266,7 +272,7 @@ function ImprimirDAV() {
         </div>
       </div>
 
-      <div className="mt-8 text-center text-xs text-slate-400">
+      <div className="mt-4 text-center text-[10px] text-slate-400">
         {dav.isVenda
           ? "Este comprovante não possui valor fiscal."
           : "Este documento não possui valor fiscal. É apenas um Documento Auxiliar de Venda."}

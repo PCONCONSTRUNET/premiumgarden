@@ -25,7 +25,7 @@ function Clientes() {
       const { data, error } = await supabase
         .from("clientes")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("nome", { ascending: true });
       if (error) throw error;
       setClientes(data || []);
     } catch (err: any) {

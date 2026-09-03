@@ -51,6 +51,7 @@ import { Route as AppConfiguracoesRouteImport } from './routes/app.configuracoes
 import { Route as AppComprasRouteImport } from './routes/app.compras'
 import { Route as AppCompraNovaRouteImport } from './routes/app.compra-nova'
 import { Route as AppComissoesRouteImport } from './routes/app.comissoes'
+import { Route as AppClientesImportarRouteImport } from './routes/app.clientes-importar'
 import { Route as AppClientesRouteImport } from './routes/app.clientes'
 import { Route as AppClienteNovoRouteImport } from './routes/app.cliente-novo'
 import { Route as AppClienteDetalhesRouteImport } from './routes/app.cliente-detalhes'
@@ -266,6 +267,11 @@ const AppComissoesRoute = AppComissoesRouteImport.update({
   path: '/comissoes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppClientesImportarRoute = AppClientesImportarRouteImport.update({
+  id: '/clientes-importar',
+  path: '/clientes-importar',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppClientesRoute = AppClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
@@ -296,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/app/cliente-detalhes': typeof AppClienteDetalhesRoute
   '/app/cliente-novo': typeof AppClienteNovoRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/clientes-importar': typeof AppClientesImportarRoute
   '/app/comissoes': typeof AppComissoesRoute
   '/app/compra-nova': typeof AppCompraNovaRoute
   '/app/compras': typeof AppComprasRoute
@@ -342,6 +349,7 @@ export interface FileRoutesByTo {
   '/app/cliente-detalhes': typeof AppClienteDetalhesRoute
   '/app/cliente-novo': typeof AppClienteNovoRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/clientes-importar': typeof AppClientesImportarRoute
   '/app/comissoes': typeof AppComissoesRoute
   '/app/compra-nova': typeof AppCompraNovaRoute
   '/app/compras': typeof AppComprasRoute
@@ -391,6 +399,7 @@ export interface FileRoutesById {
   '/app/cliente-detalhes': typeof AppClienteDetalhesRoute
   '/app/cliente-novo': typeof AppClienteNovoRoute
   '/app/clientes': typeof AppClientesRoute
+  '/app/clientes-importar': typeof AppClientesImportarRoute
   '/app/comissoes': typeof AppComissoesRoute
   '/app/compra-nova': typeof AppCompraNovaRoute
   '/app/compras': typeof AppComprasRoute
@@ -441,6 +450,7 @@ export interface FileRouteTypes {
     | '/app/cliente-detalhes'
     | '/app/cliente-novo'
     | '/app/clientes'
+    | '/app/clientes-importar'
     | '/app/comissoes'
     | '/app/compra-nova'
     | '/app/compras'
@@ -487,6 +497,7 @@ export interface FileRouteTypes {
     | '/app/cliente-detalhes'
     | '/app/cliente-novo'
     | '/app/clientes'
+    | '/app/clientes-importar'
     | '/app/comissoes'
     | '/app/compra-nova'
     | '/app/compras'
@@ -535,6 +546,7 @@ export interface FileRouteTypes {
     | '/app/cliente-detalhes'
     | '/app/cliente-novo'
     | '/app/clientes'
+    | '/app/clientes-importar'
     | '/app/comissoes'
     | '/app/compra-nova'
     | '/app/compras'
@@ -880,6 +892,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppComissoesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/clientes-importar': {
+      id: '/app/clientes-importar'
+      path: '/clientes-importar'
+      fullPath: '/app/clientes-importar'
+      preLoaderRoute: typeof AppClientesImportarRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/clientes': {
       id: '/app/clientes'
       path: '/clientes'
@@ -916,6 +935,7 @@ interface AppRouteChildren {
   AppClienteDetalhesRoute: typeof AppClienteDetalhesRoute
   AppClienteNovoRoute: typeof AppClienteNovoRoute
   AppClientesRoute: typeof AppClientesRoute
+  AppClientesImportarRoute: typeof AppClientesImportarRoute
   AppComissoesRoute: typeof AppComissoesRoute
   AppCompraNovaRoute: typeof AppCompraNovaRoute
   AppComprasRoute: typeof AppComprasRoute
@@ -952,6 +972,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppClienteDetalhesRoute: AppClienteDetalhesRoute,
   AppClienteNovoRoute: AppClienteNovoRoute,
   AppClientesRoute: AppClientesRoute,
+  AppClientesImportarRoute: AppClientesImportarRoute,
   AppComissoesRoute: AppComissoesRoute,
   AppCompraNovaRoute: AppCompraNovaRoute,
   AppComprasRoute: AppComprasRoute,

@@ -111,7 +111,11 @@ function Clientes() {
                       Cadastrar cliente
                     </Link>
                   </Button>
-                  <Button variant="outline" className="border-slate-300 text-slate-600 rounded-sm h-9">
+                  <Button 
+                    variant="outline" 
+                    className="border-slate-300 text-slate-600 rounded-sm h-9"
+                    onClick={() => navigate({ to: "/app/clientes-importar" })}
+                  >
                     <Download className="mr-2 h-4 w-4" />
                     Importar
                   </Button>

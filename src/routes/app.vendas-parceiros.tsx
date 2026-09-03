@@ -146,6 +146,7 @@ function VendasParceiros() {
           await supabase.from("contas_receber").insert([
             {
               venda_id: venda.id,
+              cliente_id: venda.cliente_id,
               descricao: `Venda Parceiro #${venda.numero_venda || venda.id.substring(0, 8).toUpperCase()} - ${vendedor?.nome || ""}`,
               valor: valorVenda,
               vencimento: dataAtual,
@@ -154,17 +155,8 @@ function VendasParceiros() {
             },
           ]);
 
-          if (valorComissao > 0) {
-            await supabase.from("contas_pagar").insert([
-              {
-                descricao: `Comissão Parceiro #${venda.numero_venda || venda.id.substring(0, 8).toUpperCase()} - ${vendedor?.nome || ""}`,
-                valor: valorComissao,
-                vencimento: dataAtual,
-                status: "Pendente",
-                data_pagamento: null,
-              }
-            ]);
-          }
+          // Comissão não é mais lançada como pendente no financeiro ao aprovar a venda.
+          // O lançamento só ocorre quando o admin clica em Pagar Comissão.
 
           const { data: itens } = await supabase
             .from("vendas_itens")
@@ -236,14 +228,18 @@ function VendasParceiros() {
             .eq("id", id);
           if (error) throw error;
 
-          const searchDesc = `Comissão Parceiro #${venda?.numero_venda || id.substring(0, 8).toUpperCase()}%`;
-          await supabase
-            .from("contas_pagar")
-            .update({ 
-              status: "Pago", 
-              data_pagamento: new Date().toISOString().split("T")[0] 
-            })
-            .ilike("descricao", searchDesc);
+          const searchDesc = `Comissão Parceiro #${venda?.numero_venda || id.substring(0, 8).toUpperCase()} - ${vendedor?.nome || ""}`;
+          
+          await supabase.from("contas_pagar").insert([
+            {
+              venda_id: id,
+              descricao: searchDesc,
+              valor: valorComissao,
+              vencimento: new Date().toISOString().split("T")[0],
+              status: "Pago",
+              data_pagamento: new Date().toISOString().split("T")[0]
+            }
+          ]);
 
           const { data: vendedor } = await supabase
             .from("vendedores")
@@ -277,6 +273,36 @@ function VendasParceiros() {
       desc: "Tem certeza que deseja excluir esta venda permanentemente? Esta ação não pode ser desfeita.",
       onConfirm: async () => {
         try {
+          // Busca a venda para saber se o estoque já tinha sido descontado
+          const { data: vendaParaExcluir } = await supabase
+            .from("vendas")
+            .select("status_aprovacao")
+            .eq("id", id)
+            .single();
+
+          if (vendaParaExcluir?.status_aprovacao === "Aprovada") {
+            const { data: itens } = await supabase
+              .from("vendas_itens")
+              .select("produto_id, quantidade")
+              .eq("venda_id", id);
+              
+            for (const item of itens || []) {
+              const { data: product } = await supabase
+                .from("produtos")
+                .select("estoque")
+                .eq("id", item.produto_id)
+                .single();
+              if (product) {
+                await supabase
+                  .from("produtos")
+                  .update({ estoque: Number(product.estoque || 0) + Number(item.quantidade || 0) })
+                  .eq("id", item.produto_id);
+              }
+            }
+          }
+
+          await supabase.from("contas_receber").delete().eq("venda_id", id);
+          await supabase.from("contas_pagar").delete().eq("venda_id", id);
           await supabase.from("vendas_itens").delete().eq("venda_id", id);
           const { error } = await supabase.from("vendas").delete().eq("id", id);
           if (error) throw error;

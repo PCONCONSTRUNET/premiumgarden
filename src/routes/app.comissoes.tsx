@@ -96,6 +96,7 @@ function Comissoes() {
       const { error: errorConta, data: contaInserida } = await supabase
         .from("contas_pagar")
         .insert([{
+          venda_id: c.id,
           descricao: `Comissão - ${c.vendedores?.nome || "Vendedor"} - Pedido #${getOrderNumber(c)}`,
           valor: c.valor_comissao,
           vencimento: today,
@@ -121,6 +122,7 @@ function Comissoes() {
       const { error } = await supabase
         .from("contas_pagar")
         .insert([{
+          venda_id: c.id,
           descricao: `Comissão - ${c.vendedores?.nome || "Vendedor"} - Pedido #${getOrderNumber(c)}`,
           valor: c.valor_comissao,
           vencimento: today,
@@ -280,7 +282,7 @@ function Comissoes() {
           <TrendingUp className="w-5 h-5 text-slate-700" />
           <h2 className="text-lg font-semibold text-slate-800">Últimas Vendas</h2>
         </div>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 max-h-[650px] overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-slate-300">
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Carregando comissões...</div>
           ) : filteredComissoes.length === 0 ? (
@@ -289,7 +291,7 @@ function Comissoes() {
             </div>
           ) : (
             filteredComissoes.map((c) => (
-              <div key={c.id} className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between shadow-sm hover:shadow-md transition-shadow gap-4">
+              <div key={c.id} className="bg-white rounded-2xl border border-slate-300 p-5 flex flex-col sm:flex-row sm:items-center justify-between shadow-sm hover:shadow-md transition-shadow gap-4">
                 <div>
                   <h3 className="font-semibold text-slate-700 uppercase text-sm mb-1">
                     {c.clientes?.nome || "CLIENTE NÃO INFORMADO"}

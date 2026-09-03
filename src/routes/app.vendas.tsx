@@ -497,6 +497,7 @@ function Pedidos() {
 
       // Excluir registros filhos primeiro para não dar erro de foreign key constraint
       await supabase.from("contas_receber").delete().eq("venda_id", venda.id);
+      await supabase.from("contas_pagar").delete().eq("venda_id", venda.id);
       await supabase.from("historico_faturamento").delete().eq("venda_id", venda.id);
       await supabase.from("vendas_itens").delete().eq("venda_id", venda.id);
 

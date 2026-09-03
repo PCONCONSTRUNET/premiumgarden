@@ -83,7 +83,11 @@ function Financeiro() {
         .order("created_at", { ascending: false });
 
       if (rec) setReceitas(rec);
-      if (des) setDespesas(des);
+      if (des) {
+        // Filtrar comissões antigas que ficaram como "Pendente" para limpar a tela do usuário
+        const despesasLimpas = des.filter(d => !(d.status === "Pendente" && d.descricao?.toLowerCase().includes("comissão parceiro")));
+        setDespesas(despesasLimpas);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -405,7 +409,7 @@ function Financeiro() {
           </div>
           {renderDatePicker()}
         </div>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 max-h-[650px] overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-slate-300">
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Carregando...</div>
           ) : lancamentos.length === 0 ? (
@@ -433,7 +437,7 @@ function Financeiro() {
               }
 
               return (
-              <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between shadow-sm hover:shadow-md transition-shadow gap-4">
+              <div key={i} className="bg-white rounded-2xl border border-slate-300 p-5 flex flex-col sm:flex-row sm:items-center justify-between shadow-sm hover:shadow-md transition-shadow gap-4">
                 <div className="flex-1">
                   <div className="font-semibold text-slate-800 text-sm mb-1">
                     <span className="text-slate-500 font-normal">{r.neg && displayDescricao.toLowerCase().startsWith("comissão") ? "Vendedor:" : "Cliente:"}</span>{" "}

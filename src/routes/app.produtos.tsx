@@ -13,6 +13,7 @@ import {
 import { Search, Plus, Upload, ChevronDown, Eye, EyeOff, PenLine, RotateCcw, ArrowDownUp } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import { useProdutos } from "@/contexts/ProdutosContext";
 import {
   Select,
   SelectContent,
@@ -37,8 +38,7 @@ export const Route = createFileRoute("/app/produtos")({
 
 function Produtos() {
   const navigate = useNavigate();
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { produtos: products, loading, fetchProdutos, updateProdutoLocal, removeProdutoLocal } = useProdutos();
   
   // Navigation State
   const [activeSubTab, setActiveSubTab] = useState<"tabelas" | "estoque" | "fotos">("tabelas");
@@ -55,11 +55,15 @@ function Produtos() {
   const [buscaEstoque, setBuscaEstoque] = useState("");
   
   // Temporary Draft State for Estoque adjustments
-  // Using product id as key
   const [draftEstoque, setDraftEstoque] = useState<Record<string, string>>({});
   const [savingEstoque, setSavingEstoque] = useState<Record<string, boolean>>({});
 
   const confirm = useConfirm();
+
+  // Carrega produtos usando cache (não rebusca se já estiver carregado)
+  useEffect(() => {
+    fetchProdutos();
+  }, [fetchProdutos]);
 
   const handleExcluirProduto = async (produto: any) => {
     confirm({
@@ -69,13 +73,11 @@ function Produtos() {
         try {
           const { data, error } = await supabase.from("produtos").delete().eq("id", produto.id).select();
           if (error) throw error;
-          
           if (!data || data.length === 0) {
             toast.error("Não foi possível excluir o produto. Verifique as permissões ou atualize a página.");
             return;
           }
-          
-          setProducts(products.filter(p => p.id !== produto.id));
+          removeProdutoLocal(produto.id);
           toast.success("Produto excluído com sucesso.");
         } catch (err: any) {
           console.error(err);
@@ -90,7 +92,7 @@ function Produtos() {
     try {
       const { error } = await supabase.from("produtos").update({ status: newStatus }).eq("id", produto.id);
       if (error) throw error;
-      setProducts(products.map(p => p.id === produto.id ? { ...p, status: newStatus } : p));
+      updateProdutoLocal(produto.id, { status: newStatus });
       toast.success(`Produto marcado como ${newStatus.toLowerCase()}`);
     } catch (err: any) {
       console.error(err);
@@ -98,25 +100,6 @@ function Produtos() {
     }
   };
 
-  const fetchProducts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("produtos")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setProducts(data || []);
-    } catch (err: any) {
-      console.error(err);
-      toast.error("Erro ao buscar produtos.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
 
   const filteredProducts = useMemo(() => {
     let result = products.filter((p) => {
@@ -220,8 +203,8 @@ function Produtos() {
         motivo: estoqueMode === "ajuste" ? "Ajuste manual pela tela de produtos" : "Entrada manual pela tela de produtos",
       });
 
-      // Update local state
-      setProducts(prev => prev.map(p => p.id === produto.id ? { ...p, estoque: novoEstoque } : p));
+      // Update local state via cache context
+      updateProdutoLocal(produto.id, { estoque: novoEstoque });
       clearDraft(produto.id);
       toast.success(`Estoque atualizado! (${diff > 0 ? '+' : ''}${diff})`);
     } catch (err: any) {

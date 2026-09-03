@@ -290,7 +290,7 @@ function Pedidos() {
 <body>
   <div class="header">
     <div>
-      <img src="/logo.png" alt="Logo" style="height:48px;margin-bottom:8px;object-fit:contain" />
+      <img src="${window.location.origin}/logo.png" alt="Logo" style="height:48px;margin-bottom:8px;object-fit:contain" />
       <h1>${empresaDados?.razao_social || "PREMIUM GARDEN"}</h1>
       <div style="font-size:12px;color:#555;margin-top:4px">${empresaDados?.endereco || ""}</div>
       <div style="font-size:12px;color:#555">CNPJ: ${empresaDados?.cnpj || ""}</div>
@@ -334,12 +334,29 @@ function Pedidos() {
   </div>
 </body>
 </html>`;
-    const pw = window.open("", "_blank", "width=900,height=750");
-    if (!pw) { alert("Permita pop-ups para imprimir."); return; }
-    pw.document.write(html);
-    pw.document.close();
-    pw.focus();
-    setTimeout(() => pw.print(), 600);
+
+    // Utiliza um iframe invisível para imprimir sem abrir nova aba
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0px";
+    iframe.style.height = "0px";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(html);
+      doc.close();
+      
+      iframe.contentWindow?.focus();
+      
+      // Espera 500ms para a logo carregar antes de abrir o popup de impressão
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+      }, 500);
+    }
   };
 
   const getTone = (status: string) => {

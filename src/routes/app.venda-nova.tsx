@@ -919,10 +919,16 @@ function NovoPedido() {
               <span className="text-muted-foreground">Subtotal</span>
               <strong>{currency.format(subtotal)}</strong>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Desconto (R$)</Label>
+            <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-primary/5 border border-primary/20 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+              <div className="space-y-1.5 col-span-2 mb-1">
+                <span className="text-xs font-semibold text-primary uppercase tracking-wider">Negociação</span>
+                <p className="text-xs text-muted-foreground">Preencha abaixo para aplicar desconto no pedido.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-primary-700 font-medium">Desconto (R$)</Label>
                 <Input
+                  className="bg-background border-primary/30 focus-visible:ring-primary"
                   inputMode="numeric"
                   placeholder="0,00"
                   value={typeof descontoValor === "number" && descontoValor > 0
@@ -934,12 +940,14 @@ function NovoPedido() {
                   }}
                 />
               </div>
-              <div className="space-y-1">
-                <Label>Desconto (%)</Label>
+              <div className="space-y-1.5">
+                <Label className="text-primary-700 font-medium">Desconto (%)</Label>
                 <Input
+                  className="bg-background border-primary/30 focus-visible:ring-primary"
                   type="number"
                   min="0"
                   max="100"
+                  placeholder="0"
                   value={descontoPercentual}
                   onChange={(event) => setDescontoPercentual(event.target.value)}
                 />

@@ -105,6 +105,7 @@ function NovoPedido() {
   const [dataEmissao, setDataEmissao] = useState(new Date().toISOString().split("T")[0]);
   const [contato, setContato] = useState("");
   const [condicaoPagamento, setCondicaoPagamento] = useState("");
+  const [observacoesPagamento, setObservacoesPagamento] = useState("");
   const [freteValor, setFreteValor] = useState<string | number>("");
   const [transportadora, setTransportadora] = useState("");
   const [transportadoras, setTransportadoras] = useState<string[]>(["FOB", "CIF"]);
@@ -194,6 +195,7 @@ function NovoPedido() {
             setDataEmissao(vendaData.created_at.split("T")[0]);
           }
           setCondicaoPagamento(vendaData.condicao_pagamento || "");
+          setObservacoesPagamento(vendaData.observacoes_pagamento || "");
           setDescontoValor(Number(vendaData.desconto_valor) || 0);
           setDescontoPercentual(Number(vendaData.desconto_percentual) || 0);
           setSavedNumero(vendaData.numero);
@@ -340,6 +342,7 @@ function NovoPedido() {
         valor_total: totalPedido,
         numero: nextNumero,
         condicao_pagamento: condicaoPagamento,
+        observacoes_pagamento: observacoesPagamento,
         desconto_percentual: descontoPercentual,
         desconto_valor: descontoValor,
       };
@@ -859,6 +862,8 @@ function NovoPedido() {
             <dl className="grid grid-cols-[150px_1fr] gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Condição de pagamento</dt>
               <dd>{condicaoPagamento || "---"}</dd>
+              <dt className="text-muted-foreground">Obs. de pagamento</dt>
+              <dd>{observacoesPagamento || "---"}</dd>
               <dt className="text-muted-foreground">Status inicial</dt>
               <dd>{tipo === "DAV" ? "Em orçamento" : status}</dd>
               <dt className="text-muted-foreground">Informações adicionais</dt>
@@ -1057,13 +1062,40 @@ function NovoPedido() {
                 <CircleDollarSign className="h-5 w-5 text-muted-foreground" />
                 <h3 className="text-lg font-medium uppercase text-muted-foreground">Pagamento</h3>
               </div>
-              <div className="max-w-xl space-y-2">
-                <Label>Condição de pagamento *</Label>
-                <Input
-                  value={condicaoPagamento}
-                  onChange={(event) => setCondicaoPagamento(event.target.value)}
-                  placeholder="Ex.: À vista, 30 dias, 30/60/90"
-                />
+              <div className="max-w-xl space-y-4">
+                <div className="space-y-2">
+                  <Label>Condição de pagamento *</Label>
+                  <select
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    value={condicaoPagamento}
+                    onChange={(event) => setCondicaoPagamento(event.target.value)}
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="À vista - Pix">À vista - Pix</option>
+                    <option value="À vista - Dinheiro">À vista - Dinheiro</option>
+                    <option value="À vista - Boleto">À vista - Boleto</option>
+                    <option value="À vista - Cheque">À vista - Cheque</option>
+                    <option value="30 dias - Boleto">30 dias - Boleto</option>
+                    <option value="30 dias - Cheque">30 dias - Cheque</option>
+                    <option value="30/60 dias - Boleto">30/60 dias - Boleto</option>
+                    <option value="30/60 dias - Cheque">30/60 dias - Cheque</option>
+                    <option value="30/60/90 dias - Boleto">30/60/90 dias - Boleto</option>
+                    <option value="30/60/90 dias - Cheque">30/60/90 dias - Cheque</option>
+                    <option value="45 dias - Boleto">45 dias - Boleto</option>
+                    <option value="45/90 dias - Boleto">45/90 dias - Boleto</option>
+                    <option value="60 dias - Boleto">60 dias - Boleto</option>
+                    <option value="Cartão de crédito">Cartão de crédito</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Observação do pagamento</Label>
+                  <textarea
+                    className="min-h-16 w-full rounded-md border border-input bg-background p-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+                    value={observacoesPagamento}
+                    onChange={(event) => setObservacoesPagamento(event.target.value)}
+                    placeholder="Ex.: Cheque para 15/10, aguardando aprovação de crédito..."
+                  />
+                </div>
               </div>
             </div>
 

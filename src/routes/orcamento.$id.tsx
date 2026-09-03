@@ -61,7 +61,8 @@ function ImprimirDAV() {
              cliente_cnpj: cli?.cpf_cnpj,
              cliente_telefone: cli?.telefone,
              cliente_endereco: enderecoPartes || null,
-             condicao_pagamento: v.metodo_pagamento,
+             condicao_pagamento: v.condicao_pagamento || v.metodo_pagamento,
+             observacoes_pagamento: v.observacoes_pagamento || "",
              subtotal: v.valor_total,
              total: v.valor_total,
              vendedor: v.vendedor?.nome || "",
@@ -264,40 +265,42 @@ function ImprimirDAV() {
         )}
         
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
-          <h2 className="font-bold uppercase tracking-wider text-slate-500 mb-3 text-xs">Forma de Pagamento (Assinale)</h2>
+          <h2 className="font-bold uppercase tracking-wider text-slate-500 mb-3 text-xs">Forma de Pagamento</h2>
+          {dav.condicao_pagamento && (
+            <p className="font-semibold text-slate-800 mb-3">{dav.condicao_pagamento}</p>
+          )}
           <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
-              <span>Cheque</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
-              <span>Boleto</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
-              <span>Pix</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
-              <span>À vista</span>
-            </div>
+            {["Cheque", "Boleto", "Pix", "À vista"].map((op) => {
+              const checked = dav.condicao_pagamento?.toLowerCase().includes(op.toLowerCase());
+              return (
+                <div key={op} className="flex items-center gap-2">
+                  <div className={`w-4 h-4 border border-slate-400 rounded-sm flex items-center justify-center ${checked ? "bg-slate-800" : "bg-white"}`}>
+                    {checked && <span className="text-white text-[10px] font-bold">✓</span>}
+                  </div>
+                  <span>{op}</span>
+                </div>
+              );
+            })}
             <div className="ml-2 flex items-center gap-4">
               <span className="font-semibold text-slate-600">Parcelas:</span>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
-                <span>30</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
-                <span>45</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border border-slate-400 rounded-sm bg-white flex items-center justify-center"></div> 
-                <span>60</span>
-              </div>
+              {["30", "45", "60"].map((p) => {
+                const checked = dav.condicao_pagamento?.includes(p);
+                return (
+                  <div key={p} className="flex items-center gap-2">
+                    <div className={`w-4 h-4 border border-slate-400 rounded-sm flex items-center justify-center ${checked ? "bg-slate-800" : "bg-white"}`}>
+                      {checked && <span className="text-white text-[10px] font-bold">✓</span>}
+                    </div>
+                    <span>{p}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
+          {dav.observacoes_pagamento && (
+            <p className="mt-3 text-slate-600 italic border-t border-slate-200 pt-2">
+              <span className="font-semibold not-italic">Obs.:</span> {dav.observacoes_pagamento}
+            </p>
+          )}
         </div>
       </div>
 

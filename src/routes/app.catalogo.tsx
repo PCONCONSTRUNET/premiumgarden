@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -5,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import {
   Command,
   CommandEmpty,
@@ -13,7 +15,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown, Search, Heart, ShoppingCart, FileText } from "lucide-react";
+import { Check, ChevronsUpDown, Search, Heart, ShoppingCart, FileText, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -69,6 +71,11 @@ function Catalogo() {
     window.open(`https://wa.me/?text=${text}`, "_blank");
   };
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/catalogo`);
+    toast.success("Link do catálogo copiado com sucesso!");
+  };
+
   const filtrados = produtos.filter((p) => {
     const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(busca.toLowerCase()));
     const matchCategoria = categoria === "Todos" || p.categoria === categoria;
@@ -118,12 +125,31 @@ function Catalogo() {
       doc.text(label.toUpperCase(), margin, y);
     };
 
-    // Cabeçalho
     let yPos = 15;
+
+    // --- Cabeçalho da Empresa ---
+    const logoBase64 = await toBase64(premiumGardenLogo);
+    if (logoBase64) {
+      doc.addImage(logoBase64, "PNG", margin, yPos, 45, 12);
+    }
+
+    doc.setFontSize(13);
+    doc.setTextColor(22, 163, 74);
+    doc.text("GARDEN PREMIUM PRODUTOS JARDINAGEM LTDA", margin + 50, yPos + 3);
+    
+    doc.setFontSize(7.5);
+    doc.setTextColor(80, 80, 80);
+    doc.text("CNPJ: 46.595.008/0001-49  |  WhatsApp: (19) 99714-1112", margin + 50, yPos + 8);
+    doc.text("Endereço: Rua Antonieta da Silva Gomes, 316 - Jardim Eucalíptos", margin + 50, yPos + 12);
+    doc.text("Sorocaba-SP | CEP 18079-658", margin + 50, yPos + 16);
+    
+    yPos += 28;
+
+    // Título do Documento
     doc.setFontSize(18);
     doc.setTextColor(22, 163, 74);
-    doc.text("Catálogo de Produtos — PREMIUM GARDEN", margin, yPos);
-    yPos += 12;
+    doc.text("Catálogo de Produtos", margin, yPos);
+    yPos += 10;
 
     const categorias = Array.from(new Set(filtrados.map((p) => p.categoria || "Outros")));
 
@@ -251,6 +277,14 @@ function Catalogo() {
         subtitle="Compartilhe seus produtos pelo WhatsApp, link público ou QR Code"
         actions={
           <div className="flex gap-2">
+            <Button
+              onClick={handleCopyLink}
+              variant="outline"
+              className="border-slate-200"
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copiar Link
+            </Button>
             <Button
               onClick={gerarPDF}
               variant="outline"
@@ -403,16 +437,10 @@ function Catalogo() {
                             </p>
                           )}
                           {p.cores && p.cores.length > 0 && (
-                            <div className="pt-2">
-                              <p className="font-semibold text-foreground mb-1">Variações:</p>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {p.cores.map((v: string, i: number) => (
-                                  <Badge key={i} variant="secondary" className="text-[10px] font-normal rounded-sm">
-                                    {v}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
+                            <p>
+                              <span className="font-semibold text-foreground">Variedade:</span>{" "}
+                              {p.cores.join(", ")}
+                            </p>
                           )}
                         </div>
 

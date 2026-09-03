@@ -10,7 +10,6 @@ import { ShoppingCart, Trash2, Search, Check, ChevronsUpDown } from "lucide-reac
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
-import { ColorDock } from "@/components/color-dock";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -22,6 +21,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { CnpjLoader } from "@/components/cnpj-loader";
 
 export const Route = createFileRoute("/catalogo")({
   head: () => ({ meta: [{ title: "Catálogo — Premium Garden" }] }),
@@ -49,6 +49,8 @@ function PublicCatalogo() {
   const [partner, setPartner] = useState<any>(null);
   
   const [modalOpen, setModalOpen] = useState(false);
+  const [loadingCnpj, setLoadingCnpj] = useState(false);
+  const [isSendingOrder, setIsSendingOrder] = useState(false);
   const [empresaData, setEmpresaData] = useState({
     nome: "",
     cnpj: "",
@@ -61,6 +63,47 @@ function PublicCatalogo() {
     telefone: "",
   });
 
+  const buscarCnpj = async (doc: string) => {
+    const cnpjLimpo = doc.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) return;
+    
+    const start = Date.now();
+    setLoadingCnpj(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      if (!res.ok) {
+        toast.error("CNPJ não encontrado na Receita Federal.");
+        return;
+      }
+      const data = await res.json();
+      
+      const tel = data.ddd_telefone_1 ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3") : "";
+      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
+      const tipoLogradouro = data.descricao_tipo_de_logradouro ? data.descricao_tipo_de_logradouro + " " : "";
+      const cidade = data.municipio ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase() : "";
+      
+      setEmpresaData((prev) => ({
+        ...prev,
+        nome: data.razao_social || prev.nome,
+        telefone: tel || prev.telefone,
+        cep: cepFmt || prev.cep,
+        endereco: tipoLogradouro + (data.logradouro || ""),
+        numero: data.numero || prev.numero,
+        bairro: data.bairro || prev.bairro,
+        cidade: cidade || prev.cidade,
+        uf: data.uf || prev.uf,
+      }));
+      toast.success("Dados preenchidos via Receita Federal!");
+    } catch (error) {
+      console.error("Erro na busca do CNPJ:", error);
+    } finally {
+      const elapsed = Date.now() - start;
+      const remaining = Math.max(0, 2000 - elapsed);
+      await new Promise((r) => setTimeout(r, remaining));
+      setLoadingCnpj(false);
+    }
+  };
+
   const addToCart = (produto: any) => {
     setCart((prev) => {
       const exists = prev.find((i) => i.produto.id === produto.id);
@@ -72,16 +115,15 @@ function PublicCatalogo() {
   };
 
   const updateQuantity = (produtoId: string, delta: number) => {
-    setCart((prev) =>
-      prev.map((i) => {
+    setCart((prev) => {
+      const updated = prev.map((i) => {
         if (i.produto.id === produtoId) {
-          const newQtd = i.qtd + delta;
-          if (newQtd <= 0) return i;
-          return { ...i, qtd: newQtd };
+          return { ...i, qtd: i.qtd + delta };
         }
         return i;
-      }),
-    );
+      });
+      return updated.filter((i) => i.qtd > 0);
+    });
   };
 
   const setQuantity = (produtoId: string, newQ: number) => {
@@ -182,7 +224,7 @@ function PublicCatalogo() {
     setModalOpen(true);
   };
 
-  const finalizeOrder = (e: React.FormEvent) => {
+  const finalizeOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
     if (!empresaData.nome || !empresaData.cnpj) {
@@ -190,53 +232,75 @@ function PublicCatalogo() {
       return;
     }
 
-    let mensagem = `Olá! Gostaria de fazer o pedido dos seguintes itens do catálogo:\n\n`;
+    setIsSendingOrder(true);
+    try {
+      let mensagem = `Olá! Gostaria de fazer o pedido dos seguintes itens do catálogo:\n\n`;
 
-    mensagem += `*DADOS DA EMPRESA:*\n`;
-    mensagem += `Nome: ${empresaData.nome}\n`;
-    mensagem += `CNPJ: ${empresaData.cnpj}\n`;
-    if (empresaData.cep) mensagem += `CEP: ${empresaData.cep}\n`;
-    if (empresaData.endereco) mensagem += `Endereço: ${empresaData.endereco}, ${empresaData.numero}\n`;
-    if (empresaData.bairro) mensagem += `Bairro: ${empresaData.bairro}\n`;
-    if (empresaData.cidade) mensagem += `Cidade/UF: ${empresaData.cidade}/${empresaData.uf}\n`;
-    if (empresaData.telefone) mensagem += `Telefone: ${empresaData.telefone}\n`;
-    mensagem += `\n`;
-
-    cart.forEach((item) => {
-      const p = item.produto;
-      const totalItem = item.qtd * Number(p.valor);
-      mensagem += `*${item.qtd}x ${p.nome}*\n`;
-      mensagem += `Valor Un: R$ ${Number(p.valor).toFixed(2).replace(".", ",")} | Total: R$ ${totalItem.toFixed(2).replace(".", ",")}\n`;
-      if (p.codigo) mensagem += `Ref: ${p.codigo}\n`;
-      if (p.cores && p.cores.length > 0) mensagem += `Cores sugeridas: ${p.cores.join(", ")}\n`;
+      mensagem += `*DADOS DA EMPRESA:*\n`;
+      mensagem += `Nome: ${empresaData.nome}\n`;
+      mensagem += `CNPJ: ${empresaData.cnpj}\n`;
+      if (empresaData.cep) mensagem += `CEP: ${empresaData.cep}\n`;
+      if (empresaData.endereco) mensagem += `Endereço: ${empresaData.endereco}, ${empresaData.numero}\n`;
+      if (empresaData.bairro) mensagem += `Bairro: ${empresaData.bairro}\n`;
+      if (empresaData.cidade) mensagem += `Cidade/UF: ${empresaData.cidade}/${empresaData.uf}\n`;
+      if (empresaData.telefone) mensagem += `Telefone: ${empresaData.telefone}\n`;
       mensagem += `\n`;
-    });
 
-    const total = cart.reduce((acc, item) => acc + item.qtd * Number(item.produto.valor), 0);
-    mensagem += `*VALOR TOTAL: R$ ${total.toFixed(2).replace(".", ",")}*\n\n`;
-    mensagem += `Qual o procedimento para finalização e pagamento?`;
+      cart.forEach((item) => {
+        const p = item.produto;
+        const totalItem = item.qtd * Number(p.valor);
+        mensagem += `*${item.qtd}x ${p.nome}*\n`;
+        mensagem += `Valor Un: R$ ${Number(p.valor).toFixed(2).replace(".", ",")} | Total: R$ ${totalItem.toFixed(2).replace(".", ",")}\n`;
+        if (p.codigo) mensagem += `Ref/Código: ${p.codigo}\n`;
+        if (p.cores && p.cores.length > 0) mensagem += `Variedade: ${p.cores.join(", ")}\n`;
+        mensagem += `\n`;
+      });
 
-    let telefoneDestino = "5519997141112"; // Telefone padrão do dono
-    const companyParams = `&e=${encodeURIComponent(empresaData.nome)}&cnpj=${encodeURIComponent(empresaData.cnpj)}&cep=${encodeURIComponent(empresaData.cep)}&end=${encodeURIComponent(empresaData.endereco)}&num=${encodeURIComponent(empresaData.numero)}&bairro=${encodeURIComponent(empresaData.bairro)}&cid=${encodeURIComponent(empresaData.cidade)}&uf=${encodeURIComponent(empresaData.uf)}&tel=${encodeURIComponent(empresaData.telefone)}`;
+      const total = cart.reduce((acc, item) => acc + item.qtd * Number(item.produto.valor), 0);
+      mensagem += `*VALOR TOTAL: R$ ${total.toFixed(2).replace(".", ",")}*\n\n`;
+      mensagem += `Qual o procedimento para finalização e pagamento?`;
 
-    if (partner && partner.telefone) {
-      const numLimpo = partner.telefone.replace(/\D/g, "");
-      if (numLimpo.length >= 10) telefoneDestino = `55${numLimpo}`;
+      let telefoneDestino = "5519997141112"; // Telefone padrão do dono
+      const companyParams = `&e=${encodeURIComponent(empresaData.nome)}&cnpj=${encodeURIComponent(empresaData.cnpj)}&cep=${encodeURIComponent(empresaData.cep)}&end=${encodeURIComponent(empresaData.endereco)}&num=${encodeURIComponent(empresaData.numero)}&bairro=${encodeURIComponent(empresaData.bairro)}&cid=${encodeURIComponent(empresaData.cidade)}&uf=${encodeURIComponent(empresaData.uf)}&tel=${encodeURIComponent(empresaData.telefone)}`;
 
-      const magicParams = cart.map((c) => `${c.produto.id}:${c.qtd}`).join(",");
-      mensagem += `\n\n_Link do Pedido (Apenas Vendedor):_\n${window.location.origin}/parceiro/pdv?c=${magicParams}${companyParams}`;
-    } else {
-      const magicParams = cart.map((c) => `${c.produto.id}:${c.qtd}`).join(",");
-      mensagem += `\n\n_Link do Pedido (Administrador):_\n${window.location.origin}/app/dav-novo?c=${magicParams}${companyParams}`;
+      const shortenUrl = async (longUrl: string) => {
+        try {
+          const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+          if (res.ok) {
+            return await res.text();
+          }
+        } catch (err) {
+          console.error("Erro ao encurtar URL:", err);
+        }
+        return longUrl; // fallback se o serviço falhar
+      };
+
+      if (partner && partner.telefone) {
+        const numLimpo = partner.telefone.replace(/\D/g, "");
+        if (numLimpo.length >= 10) telefoneDestino = `55${numLimpo}`;
+
+        const magicParams = cart.map((c) => `${c.produto.id}:${c.qtd}`).join(",");
+        const longUrl = `${window.location.origin}/parceiro/pdv?c=${magicParams}${companyParams}`;
+        const shortUrl = await shortenUrl(longUrl);
+        mensagem += `\n\n_Link do Pedido (Apenas Vendedor):_\n${shortUrl}`;
+      } else {
+        const magicParams = cart.map((c) => `${c.produto.id}:${c.qtd}`).join(",");
+        const longUrl = `${window.location.origin}/app/dav-novo?c=${magicParams}${companyParams}`;
+        const shortUrl = await shortenUrl(longUrl);
+        mensagem += `\n\n_Link do Pedido (Administrador):_\n${shortUrl}`;
+      }
+
+      const text = encodeURIComponent(mensagem);
+      window.open(`https://wa.me/${telefoneDestino}?text=${text}`, "_blank");
+      setModalOpen(false);
+    } finally {
+      setIsSendingOrder(false);
     }
-
-    const text = encodeURIComponent(mensagem);
-    window.open(`https://wa.me/${telefoneDestino}?text=${text}`, "_blank");
-    setModalOpen(false);
   };
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {loadingCnpj && <CnpjLoader />}
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white px-4 md:px-8 shadow-sm">
         <img src={premiumGardenLogo} alt="Premium Garden" className="h-10 w-auto object-contain" />
       </header>
@@ -374,6 +438,17 @@ function PublicCatalogo() {
                           </p>
 
                           <div className="py-3 text-xs text-slate-500 space-y-1.5 border-b mb-4 flex-1">
+                            {p.codigo && (
+                              <p>
+                                <span className="font-medium text-slate-700">Código:</span> {p.codigo}
+                              </p>
+                            )}
+                            {p.cores && p.cores.length > 0 && (
+                              <div className="mt-1">
+                                <span className="font-medium text-slate-700">Variedade:</span>{" "}
+                                {p.cores.join(", ")}
+                              </div>
+                            )}
                             {p.numero && (
                               <p>
                                 <span className="font-medium text-slate-700">Número:</span> {p.numero}
@@ -394,12 +469,6 @@ function PublicCatalogo() {
                                 <span className="font-medium text-slate-700">Comprimento:</span>{" "}
                                 {p.comprimento} cm
                               </p>
-                            )}
-                            {p.cores && p.cores.length > 0 && (
-                              <div className="mt-2">
-                                <p className="font-medium text-slate-700 mb-1">Cores disponíveis:</p>
-                                <ColorDock colors={p.cores} />
-                              </div>
                             )}
                           </div>
 
@@ -583,13 +652,30 @@ function PublicCatalogo() {
                 <label className="text-sm font-medium" htmlFor="cnpj">
                   CNPJ <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  id="cnpj"
-                  required
-                  value={empresaData.cnpj}
-                  onChange={(e) => setEmpresaData({ ...empresaData, cnpj: formatCpfCnpj(e.target.value) })}
-                  placeholder="00.000.000/0000-00"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="cnpj"
+                    required
+                    value={empresaData.cnpj}
+                    onChange={(e) => {
+                      const val = formatCpfCnpj(e.target.value);
+                      setEmpresaData({ ...empresaData, cnpj: val });
+                      if (val.replace(/\D/g, "").length === 14) {
+                        buscarCnpj(val);
+                      }
+                    }}
+                    placeholder="00.000.000/0000-00"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="px-3 shrink-0"
+                    onClick={() => buscarCnpj(empresaData.cnpj)}
+                    title="Buscar dados do CNPJ"
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -676,9 +762,9 @@ function PublicCatalogo() {
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" className="bg-success text-success-foreground hover:bg-success/90">
+              <Button type="submit" disabled={isSendingOrder} className="bg-success text-success-foreground hover:bg-success/90">
                 <WhatsAppIcon className="mr-2 h-4 w-4" />
-                Enviar Pedido
+                {isSendingOrder ? "Gerando Link..." : "Enviar Pedido"}
               </Button>
             </DialogFooter>
           </form>

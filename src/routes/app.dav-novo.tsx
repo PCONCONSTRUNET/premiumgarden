@@ -1,4 +1,4 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
@@ -34,6 +34,8 @@ import { cn } from "@/lib/utils";
 import { Save, Plus, Trash2, Check, ChevronsUpDown, Search } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { format } from "date-fns";
+import { useDebounce } from "@/hooks/use-debounce";
 import { CnpjLoader } from "@/components/cnpj-loader";
 
 export const Route = createFileRoute("/app/dav-novo")({
@@ -78,21 +80,24 @@ function NovoDAV() {
 
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
+  const debouncedClientSearch = useDebounce(clientSearch, 500);
   const [clientesBuscaLista, setClientesBuscaLista] = useState<any[]>([]);
 
-  const handleSearchClients = async (q: string) => {
-    setClientSearch(q);
-    if (!q) {
-      setClientesBuscaLista([]);
-      return;
-    }
-    const { data } = await supabase
-      .from("clientes")
-      .select("id, nome, cpf_cnpj, telefone, endereco, numero, bairro, cidade, uf, cep")
-      .ilike("nome", `%${q}%`)
-      .limit(10);
-    setClientesBuscaLista(data || []);
-  };
+  useEffect(() => {
+    const fetchClients = async () => {
+      if (!debouncedClientSearch) {
+        setClientesBuscaLista([]);
+        return;
+      }
+      const { data } = await supabase
+        .from("clientes")
+        .select("id, nome, cpf_cnpj, telefone, endereco, numero, bairro, cidade, uf, cep")
+        .ilike("nome", `%${debouncedClientSearch}%`)
+        .limit(10);
+      setClientesBuscaLista(data || []);
+    };
+    fetchClients();
+  }, [debouncedClientSearch]);
 
   const addItem = () =>
     setItens([...itens, { id: Date.now(), codigo: "", produto: "", qtd: 1, vlrUnit: 0, openSearch: false, imagem: "" }]);
@@ -888,7 +893,7 @@ function NovoDAV() {
             <Input 
               placeholder="Buscar por nome..." 
               value={clientSearch}
-              onChange={(e) => handleSearchClients(e.target.value)}
+              onChange={(e) => setClientSearch(e.target.value)}
               className="mb-4"
             />
             <div className="max-h-60 overflow-y-auto space-y-2">

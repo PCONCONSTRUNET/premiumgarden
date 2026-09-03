@@ -40,7 +40,7 @@ function ParceiroPDV() {
     bairro: "",
     cidade: "",
     uf: "",
-    pagamento: "Dinheiro / Pix",
+    pagamento: "À vista - Pix",
     frete: "Retirada",
     observacoes: "",
     descontoPercentual: 0,
@@ -202,16 +202,16 @@ function ParceiroPDV() {
   };
 
   const updateQuantity = (id: string, delta: number) => {
-    setCart((prev) =>
-      prev.map((i) => {
+    setCart((prev) => {
+      const updated = prev.map((i) => {
         if (i.id === id) {
           const newQ = i.q + delta;
-          if (newQ <= 0) return i;
           return { ...i, q: newQ, t: newQ * i.u };
         }
         return i;
-      }),
-    );
+      });
+      return updated.filter((i) => i.q > 0);
+    });
   };
 
   const setQuantity = (id: string, newQ: number) => {
@@ -220,6 +220,18 @@ function ParceiroPDV() {
         if (i.id === id) {
           if (newQ <= 0) return i;
           return { ...i, q: newQ, t: newQ * i.u };
+        }
+        return i;
+      }),
+    );
+  };
+
+  const setUnitPrice = (id: string, newU: number) => {
+    setCart((prev) =>
+      prev.map((i) => {
+        if (i.id === id) {
+          if (newU < 0) return i;
+          return { ...i, u: newU, t: i.q * newU };
         }
         return i;
       }),
@@ -363,7 +375,7 @@ function ParceiroPDV() {
             valor_total: totalComDesconto,
             desconto_percentual: clientForm.descontoPercentual,
             desconto_valor: valorDesconto,
-            condicao_pagamento: clientForm.pagamento === "Dinheiro / Pix" ? "À vista" : clientForm.condicaoPagamento,
+            condicao_pagamento: clientForm.pagamento,
             vendedor_id: vendedorInfo?.id,
             cliente_id: finalClienteId,
           },
@@ -396,7 +408,7 @@ function ParceiroPDV() {
             valor_total: totalComDesconto,
             desconto_percentual: clientForm.descontoPercentual,
             desconto_valor: valorDesconto,
-            condicao_pagamento: clientForm.pagamento === "Dinheiro / Pix" ? "À vista" : clientForm.condicaoPagamento,
+            condicao_pagamento: clientForm.pagamento,
             vendedor_id: vendedorInfo?.id,
             cliente_id: finalClienteId,
           },
@@ -546,7 +558,19 @@ function ParceiroPDV() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-800 truncate">{i.p}</p>
-                    <p className="text-xs text-brand font-bold">R$ {i.t.toFixed(2)}</p>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium mt-0.5">
+                      R$
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={i.u}
+                        onChange={(e) => setUnitPrice(i.id, parseFloat(e.target.value) || 0)}
+                        className="w-16 bg-transparent border-b border-dashed border-slate-300 outline-none focus:border-brand p-0 m-0 text-slate-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      un
+                    </div>
+                    <p className="text-xs text-brand font-bold mt-0.5">Total: R$ {i.t.toFixed(2)}</p>
                   </div>
                   <div className="flex items-center gap-1.5 bg-slate-100 rounded-lg p-1">
                     <button
@@ -766,46 +790,43 @@ function ParceiroPDV() {
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Forma de Pagamento</label>
                   <select
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     value={clientForm.pagamento}
                     onChange={(e) => {
-                      setClientForm({ 
-                        ...clientForm, 
+                      setClientForm({
+                        ...clientForm,
                         pagamento: e.target.value,
-                        descontoPercentual: 0 // Reseta o desconto se mudar a forma
                       })
                     }}
                   >
-                    <option>Dinheiro / Pix</option>
-                    <option>Cartão de Crédito</option>
-                    <option>Cartão de Débito</option>
-                    <option>Boleto a Prazo</option>
+                    <option value="À vista - Pix">À vista - Pix</option>
+                    <option value="À vista - Dinheiro">À vista - Dinheiro</option>
+                    <option value="À vista - Boleto">À vista - Boleto</option>
+                    <option value="À vista - Cheque">À vista - Cheque</option>
+                    <option value="30 dias - Boleto">30 dias - Boleto</option>
+                    <option value="30 dias - Cheque">30 dias - Cheque</option>
+                    <option value="30/60 dias - Boleto">30/60 dias - Boleto</option>
+                    <option value="30/60 dias - Cheque">30/60 dias - Cheque</option>
+                    <option value="30/60/90 dias - Boleto">30/60/90 dias - Boleto</option>
+                    <option value="30/60/90 dias - Cheque">30/60/90 dias - Cheque</option>
+                    <option value="45 dias - Boleto">45 dias - Boleto</option>
+                    <option value="45/90 dias - Boleto">45/90 dias - Boleto</option>
+                    <option value="60 dias - Boleto">60 dias - Boleto</option>
+                    <option value="Cartão de crédito">Cartão de crédito</option>
+                    <option value="Cartão de débito">Cartão de débito</option>
                   </select>
                 </div>
-                {clientForm.pagamento === "Dinheiro / Pix" && (
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium">Desconto (%)</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      placeholder="0"
-                      value={clientForm.descontoPercentual || ""}
-                      onChange={(e) => setClientForm({ ...clientForm, descontoPercentual: Number(e.target.value) })}
-                    />
-                  </div>
-                )}
-                {clientForm.pagamento !== "Dinheiro / Pix" && (
-                  <div className="grid gap-2">
-                    <label className="text-sm font-medium text-brand">Condição de Pagamento *</label>
-                    <Input
-                      required
-                      placeholder="Ex: 30/60/90, Para o dia 10..."
-                      value={clientForm.condicaoPagamento}
-                      onChange={(e) => setClientForm({ ...clientForm, condicaoPagamento: e.target.value })}
-                    />
-                  </div>
-                )}
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Desconto (%)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={clientForm.descontoPercentual}
+                    onChange={(e) => setClientForm({ ...clientForm, descontoPercentual: Number(e.target.value) || 0 })}
+                    placeholder="Ex: 5"
+                  />
+                </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Forma do Frete</label>
                   <select

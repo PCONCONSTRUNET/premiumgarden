@@ -1,4 +1,4 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,8 +23,9 @@ import {
   DownloadCloud,
   X,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export const Route = createFileRoute("/app/pdv")({
   head: () => ({ meta: [{ title: "PDV — PREMIUM GARDEN" }] }),
@@ -50,21 +51,24 @@ function PDV() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
+  const debouncedClientSearch = useDebounce(clientSearch, 500);
   const [clientesBuscaLista, setClientesBuscaLista] = useState<any[]>([]);
 
-  const handleSearchClients = async (q: string) => {
-    setClientSearch(q);
-    if (!q) {
-      setClientesBuscaLista([]);
-      return;
-    }
-    const { data } = await supabase
-      .from("clientes")
-      .select("id, nome, cpf_cnpj")
-      .ilike("nome", `%${q}%`)
-      .limit(10);
-    setClientesBuscaLista(data || []);
-  };
+  useEffect(() => {
+    const fetchClients = async () => {
+      if (!debouncedClientSearch) {
+        setClientesBuscaLista([]);
+        return;
+      }
+      const { data } = await supabase
+        .from("clientes")
+        .select("id, nome, cpf_cnpj")
+        .ilike("nome", `%${debouncedClientSearch}%`)
+        .limit(10);
+      setClientesBuscaLista(data || []);
+    };
+    fetchClients();
+  }, [debouncedClientSearch]);
 
   const fetchOrcamentos = async () => {
     // Busca DAVs antigos da tabela de vendas
@@ -264,11 +268,10 @@ function PDV() {
   };
 
   const updateQuantity = (id: string, delta: number) => {
-    setCart((prev) =>
-      prev.map((i) => {
+    setCart((prev) => {
+      const updated = prev.map((i) => {
         if (i.id === id) {
           const newQ = i.q + delta;
-          if (newQ <= 0) return i;
           if (newQ > i.max) {
             toast.info("Estoque insuficiente!");
             return i;
@@ -276,8 +279,9 @@ function PDV() {
           return { ...i, q: newQ, t: newQ * i.u };
         }
         return i;
-      }),
-    );
+      });
+      return updated.filter((i) => i.q > 0);
+    });
   };
 
   const setQuantity = (id: string, newQ: number) => {
@@ -321,97 +325,36 @@ function PDV() {
     setLoading(true);
 
     try {
-      // Pega o último número gerado para evitar pulos
-      let nextNumero = 1;
-      const { data: maxVenda } = await supabase
-        .from("vendas")
-        .select("numero")
-        .not("numero", "is", null)
-        .order("numero", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const payload = {
+        tipo: "PDV",
+        status: "Pago",
+        valor_total: totalPagamento,
+        desconto_valor: descontoValor,
+        condicao_pagamento: metodoPagamento === "Boleto" ? `Boleto - ${condicaoPagamento}` : metodoPagamento,
+        cliente_id: clienteSelecionado?.id === "avulso" ? null : clienteSelecionado?.id || null,
+        itens: cart.map(i => ({
+          produto_id: i.hasDbId ? i.id : null,
+          quantidade: i.q,
+          valor_unitario: i.u,
+          subtotal: i.t
+        })),
+        orcamento_id_selecionado: orcamentoIdSelecionado || null,
+        orcamento_origem: orcamentoOrigem || null
+      };
 
-      if (maxVenda && maxVenda.numero) {
-        nextNumero = Number(maxVenda.numero) + 1;
-      }
+      const { data, error } = await supabase.rpc("finalizar_venda_pdv", { payload });
 
-      // Cria a venda
-      const { data: vendaData, error: vendaError } = await supabase
-        .from("vendas")
-        .insert([
-          {
-            tipo: "PDV",
-            status: "Pago",
-            valor_total: totalPagamento,
-            desconto_valor: descontoValor,
-            condicao_pagamento: metodoPagamento === "Boleto" ? `Boleto - ${condicaoPagamento}` : metodoPagamento,
-            cliente_id: clienteSelecionado?.id === "avulso" ? null : clienteSelecionado?.id || null,
-            numero: nextNumero,
-          },
-        ])
-        .select()
-        .single();
+      if (error) throw error;
+      if (!data.success) throw new Error(data.message || "Erro desconhecido na finalização.");
 
-      if (vendaError) throw vendaError;
-      const vendaId = vendaData.id;
-
-      // Itens
-      const itensToInsert = cart.map((i) => ({
-        venda_id: vendaId,
-        produto_id: i.hasDbId ? i.id : null,
-        quantidade: i.q,
-        valor_unitario: i.u,
-        subtotal: i.t,
-      }));
-
-      const { error: itensError } = await supabase.from("vendas_itens").insert(itensToInsert);
-      if (itensError) throw itensError;
-
-      // Financeiro: Conta a Receber (Já paga)
-      const dataAtual = new Date().toISOString().split("T")[0];
-      await supabase.from("contas_receber").insert([
-        {
-          venda_id: vendaId,
-          descricao: `Venda PDV #${vendaData.numero ? String(vendaData.numero).padStart(3, "0") : vendaData.numero_venda || vendaId.substring(0, 8).toUpperCase()}`,
-          valor: totalPagamento,
-          vencimento: dataAtual,
-          status: "Recebido",
-          data_pagamento: dataAtual,
-        },
-      ]);
-
-      // Baixa no estoque
+      // Atualiza o estoque localmente no array do state para não precisar recarregar os produtos inteiros
       for (const item of cart) {
-        if (item.hasDbId === false) continue; // Pula se não tiver ID real do banco (DAVs muito antigos sem produto_id)
+        if (item.hasDbId === false) continue;
         const prod = produtos.find((p) => p.id === item.id);
-        if (prod) {
-          const novoEstoque = prod.estoque - item.q;
-          await supabase.from("produtos").update({ estoque: novoEstoque }).eq("id", item.id);
-          
-          await supabase.from("movimentacoes_estoque").insert({
-            produto_id: item.id,
-            tipo: "Saída",
-            quantidade: -item.q,
-            motivo: `Venda PDV #${vendaData.numero ? String(vendaData.numero).padStart(3, "0") : vendaData.numero_venda || vendaId.substring(0, 8).toUpperCase()}`
-          });
-          
-          prod.estoque = novoEstoque; // Atualiza local
-        }
+        if (prod) prod.estoque -= item.q;
       }
 
-      // Atualiza o orçamento anterior se foi puxado
       if (orcamentoIdSelecionado) {
-        if (orcamentoOrigem === "davs") {
-          await supabase
-            .from("davs")
-            .update({ status: "Aprovado" })
-            .eq("id", orcamentoIdSelecionado);
-        } else {
-          await supabase
-            .from("vendas")
-            .update({ status: "Faturado" })
-            .eq("id", orcamentoIdSelecionado);
-        }
         fetchOrcamentos();
       }
 
@@ -800,7 +743,7 @@ function PDV() {
             <Input 
               placeholder="Buscar por nome..." 
               value={clientSearch}
-              onChange={(e) => handleSearchClients(e.target.value)}
+              onChange={(e) => setClientSearch(e.target.value)}
               className="mb-4"
             />
             <div className="max-h-60 overflow-y-auto space-y-2">

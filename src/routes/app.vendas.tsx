@@ -290,6 +290,7 @@ function Pedidos() {
 <body>
   <div class="header">
     <div>
+      <img src="/logo.png" alt="Logo" style="height:48px;margin-bottom:8px;object-fit:contain" />
       <h1>${empresaDados?.razao_social || "PREMIUM GARDEN"}</h1>
       <div style="font-size:12px;color:#555;margin-top:4px">${empresaDados?.endereco || ""}</div>
       <div style="font-size:12px;color:#555">CNPJ: ${empresaDados?.cnpj || ""}</div>

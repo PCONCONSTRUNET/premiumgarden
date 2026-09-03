@@ -265,7 +265,7 @@ function NovoPedido() {
   const _percentual = Number(descontoPercentual) || 0;
   const _frete = typeof freteValor === "string" ? parseCurrencyInput(freteValor) : (Number(freteValor) || 0);
   const percentualValue = (subtotal * _percentual) / 100;
-  const totalPedido = Math.max(0, subtotal - _desconto - percentualValue) + _frete;
+  const totalPedido = Math.max(0, subtotal + _frete - _desconto - percentualValue);
 
   const handleAddItem = () => {
     if (!selectedProduct || parseInt(quantidade) <= 0 || quantidade === "") {

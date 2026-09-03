@@ -87,6 +87,17 @@ function OrderSection({
   );
 }
 
+// Formata valor para BRL enquanto digita: "1234" -> "12,34"
+function formatCurrencyInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  const num = parseInt(digits, 10) / 100;
+  return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function parseCurrencyInput(formatted: string): number {
+  return Number(formatted.replace(/\./g, "").replace(",", ".")) || 0;
+}
+
 function NovoPedido() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -250,9 +261,9 @@ function NovoPedido() {
   );
 
   const subtotal = itens.reduce((total, item) => total + item.subtotal, 0);
-  const _desconto = Number(descontoValor) || 0;
+  const _desconto = typeof descontoValor === "string" ? parseCurrencyInput(descontoValor) : (Number(descontoValor) || 0);
   const _percentual = Number(descontoPercentual) || 0;
-  const _frete = Number(freteValor) || 0;
+  const _frete = typeof freteValor === "string" ? parseCurrencyInput(freteValor) : (Number(freteValor) || 0);
   const percentualValue = (subtotal * _percentual) / 100;
   const totalPedido = Math.max(0, subtotal - _desconto - percentualValue) + _frete;
 
@@ -356,8 +367,8 @@ function NovoPedido() {
         numero: nextNumero,
         condicao_pagamento: condicaoPagamento,
         observacoes_pagamento: observacoesPagamento,
-        desconto_percentual: descontoPercentual,
-        desconto_valor: descontoValor,
+        desconto_percentual: Number(descontoPercentual) || 0,
+        desconto_valor: _desconto,
       };
 
       let vendaData;
@@ -912,11 +923,15 @@ function NovoPedido() {
               <div className="space-y-1">
                 <Label>Desconto (R$)</Label>
                 <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={descontoValor}
-                  onChange={(event) => setDescontoValor(event.target.value)}
+                  inputMode="numeric"
+                  placeholder="0,00"
+                  value={typeof descontoValor === "number" && descontoValor > 0
+                    ? descontoValor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+                    : descontoValor as string}
+                  onChange={(event) => {
+                    const formatted = formatCurrencyInput(event.target.value);
+                    setDescontoValor(formatted);
+                  }}
                 />
               </div>
               <div className="space-y-1">
@@ -1121,11 +1136,15 @@ function NovoPedido() {
                 <div className="space-y-2">
                   <Label>Valor do frete</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={freteValor}
-                    onChange={(event) => setFreteValor(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="0,00"
+                    value={typeof freteValor === "number" && freteValor > 0
+                      ? freteValor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+                      : freteValor as string}
+                    onChange={(event) => {
+                      const formatted = formatCurrencyInput(event.target.value);
+                      setFreteValor(formatted);
+                    }}
                   />
                 </div>
                 <div className="space-y-2">

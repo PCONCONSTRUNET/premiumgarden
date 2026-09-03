@@ -250,8 +250,11 @@ function NovoPedido() {
   );
 
   const subtotal = itens.reduce((total, item) => total + item.subtotal, 0);
-  const percentualValue = (subtotal * descontoPercentual) / 100;
-  const totalPedido = Math.max(0, subtotal - descontoValor - percentualValue) + freteValor;
+  const _desconto = Number(descontoValor) || 0;
+  const _percentual = Number(descontoPercentual) || 0;
+  const _frete = Number(freteValor) || 0;
+  const percentualValue = (subtotal * _percentual) / 100;
+  const totalPedido = Math.max(0, subtotal - _desconto - percentualValue) + _frete;
 
   const handleAddItem = () => {
     if (!selectedProduct || parseInt(quantidade) <= 0 || quantidade === "") {

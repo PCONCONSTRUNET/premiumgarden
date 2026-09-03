@@ -232,6 +232,16 @@ function NovoPedido() {
     fetchData();
   }, [editId]);
 
+  // Preenche o contato automaticamente com o nome do cliente ao selecionar
+  useEffect(() => {
+    if (clienteId && clientes.length > 0) {
+      const cliente = clientes.find((c) => c.id === clienteId);
+      if (cliente && !contato) {
+        setContato(cliente.nome || "");
+      }
+    }
+  }, [clienteId, clientes]);
+
   const selectedClient = clientes.find((client) => client.id === clienteId);
   const selectedProduct = produtos.find((product) => product.id === produtoSelecionado);
   const categories = useMemo(

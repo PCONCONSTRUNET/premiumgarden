@@ -953,6 +953,12 @@ function NovoPedido() {
                 />
               </div>
             </div>
+            {(_desconto > 0 || percentualValue > 0) && (
+              <div className="flex justify-between text-sm text-red-600 font-medium">
+                <span>Descontos (-)</span>
+                <span>{currency.format(_desconto + percentualValue)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Frete</span>
               <span>{currency.format(freteValor)}</span>

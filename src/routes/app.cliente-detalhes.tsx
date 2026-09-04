@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { MapPin, Pencil, ChevronDown, Plus, FileText, Loader2 } from "lucide-react";
+import { MapPin, Pencil, ChevronDown, ChevronUp, Plus, FileText, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 
 type ClienteSearch = {
   id: string;
@@ -36,6 +37,17 @@ function ClienteDetalhes() {
   const [loading, setLoading] = useState(true);
   const [vendas, setVendas] = useState<any[]>([]);
   const [tarefas, setTarefas] = useState<any[]>([]);
+  const [showFullCadastro, setShowFullCadastro] = useState(false);
+  const [pedidosVendaCount, setPedidosVendaCount] = useState(0);
+
+  // Títulos states
+  const [titulos, setTitulos] = useState<any[]>([]);
+  const [tabTitulos, setTabTitulos] = useState<"a-receber" | "recebidos">("a-receber");
+  const [openTituloModal, setOpenTituloModal] = useState(false);
+  const [salvandoTitulo, setSalvandoTitulo] = useState(false);
+  const [tituloDescricao, setTituloDescricao] = useState("");
+  const [tituloValor, setTituloValor] = useState("");
+  const [tituloVencimento, setTituloVencimento] = useState("");
 
   // Modal states
   const [openTarefa, setOpenTarefa] = useState(false);
@@ -85,19 +97,40 @@ function ClienteDetalhes() {
       if (data) setVendas(data);
     };
 
+    const fetchResumo = async () => {
+      const date6MonthsAgo = new Date();
+      date6MonthsAgo.setMonth(date6MonthsAgo.getMonth() - 6);
+      const { count } = await supabase
+        .from("vendas")
+        .select("*", { count: "exact", head: true })
+        .eq("cliente_id", id)
+        .in("tipo", ["VENDA", "PDV"])
+        .gte("created_at", date6MonthsAgo.toISOString());
+      
+      if (count !== null) setPedidosVendaCount(count);
+    };
+
+    const fetchTitulos = async () => {
+      const { data, error } = await supabase
+        .from("contas_receber")
+        .select("*")
+        .eq("cliente_id", id)
+        .order("created_at", { ascending: false });
+      if (error) console.error("Erro ao buscar títulos:", error);
+      if (data) setTitulos(data);
+    };
+
     if (id) {
       fetchCliente();
       fetchVendas();
       fetchTarefas();
+      fetchResumo();
+      fetchTitulos();
     }
   }, [id]);
 
   const handleCriarPedido = () => {
     navigate({ to: "/app/venda-nova", search: { cliente_id: id } as any });
-  };
-
-  const handleSugerirReposicao = () => {
-    toast.info("Analisando histórico de compras para sugestão...");
   };
 
   const handleSalvarTarefa = async () => {
@@ -194,11 +227,56 @@ function ClienteDetalhes() {
             </div>
           </div>
 
-          <div className="border-t border-slate-100 pt-4 flex justify-center">
-            <button className="text-[#4a148c] text-xs font-semibold flex items-center hover:underline">
-              <ChevronDown className="h-3.5 w-3.5 mr-1" />
-              Ver cadastro completo
+          <div className="border-t border-slate-100 pt-4 flex flex-col justify-center">
+            <button 
+              onClick={() => setShowFullCadastro(!showFullCadastro)}
+              className="text-[#4a148c] text-xs font-semibold flex items-center justify-center hover:underline mx-auto"
+            >
+              {showFullCadastro ? <ChevronUp className="h-3.5 w-3.5 mr-1" /> : <ChevronDown className="h-3.5 w-3.5 mr-1" />}
+              {showFullCadastro ? "Ocultar cadastro completo" : "Ver cadastro completo"}
             </button>
+
+            {showFullCadastro && (
+              <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-slate-700 animate-in fade-in slide-in-from-top-2">
+                <div>
+                  <p className="text-slate-400 text-xs font-medium mb-1">CPF / CNPJ</p>
+                  <p className="font-semibold">{cliente.cpf_cnpj || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs font-medium mb-1">E-mail</p>
+                  <p className="font-semibold">{cliente.email || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs font-medium mb-1">Telefone</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold">{cliente.telefone || "-"}</p>
+                    {cliente.telefone && (
+                      <a 
+                        href={`https://wa.me/55${cliente.telefone.replace(/\D/g, "")}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="text-emerald-500 hover:text-emerald-600 transition-colors"
+                        title="Enviar mensagem no WhatsApp"
+                      >
+                        <WhatsAppIcon className="h-4 w-4" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs font-medium mb-1">Nome Fantasia / Apelido</p>
+                  <p className="font-semibold">{cliente.nome_fantasia || cliente.apelido || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs font-medium mb-1">Segmento</p>
+                  <p className="font-semibold">{cliente.segmento || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs font-medium mb-1">Status</p>
+                  <p className="font-semibold">{cliente.status || "-"}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -336,10 +414,7 @@ function ClienteDetalhes() {
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-blue-400" />
                     <div>
-                      <span className="font-bold text-lg text-slate-800">{vendas.filter(v => {
-                        const diff = (Date.now() - new Date(v.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30);
-                        return diff <= 6;
-                      }).length}</span>
+                      <span className="font-bold text-lg text-slate-800">{pedidosVendaCount}</span>
                       <span className="text-sm text-slate-500 ml-1">Pedidos realizados</span>
                     </div>
                   </div>
@@ -354,27 +429,97 @@ function ClienteDetalhes() {
 
             {/* TÍTULOS */}
             <div className="bg-white border border-slate-200 rounded-sm">
-              <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">Títulos</h2>
-                <Button variant="ghost" className="h-7 text-[#4a148c] text-xs px-2 hover:bg-[#4a148c]/5 font-semibold">
+                <Button variant="ghost" className="h-7 text-[#4a148c] text-xs px-2 hover:bg-[#4a148c]/5 font-semibold" onClick={() => setOpenTituloModal(true)}>
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   Adicionar título
                 </Button>
               </div>
               <div className="p-4 border-b border-slate-100">
                 <div className="flex gap-2">
-                  <span className="bg-[#4a148c] text-white text-xs px-3 py-1 rounded-full font-medium">A receber</span>
-                  <span className="bg-white text-slate-500 border border-slate-200 text-xs px-3 py-1 rounded-full font-medium hover:bg-slate-50 cursor-pointer">Recebidos</span>
+                  <span 
+                    onClick={() => setTabTitulos("a-receber")}
+                    className={`text-xs px-3 py-1 rounded-full font-medium cursor-pointer transition-colors ${tabTitulos === "a-receber" ? "bg-[#4a148c] text-white" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"}`}>
+                    A receber
+                  </span>
+                  <span 
+                    onClick={() => setTabTitulos("recebidos")}
+                    className={`text-xs px-3 py-1 rounded-full font-medium cursor-pointer transition-colors ${tabTitulos === "recebidos" ? "bg-[#4a148c] text-white" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"}`}>
+                    Recebidos
+                  </span>
                 </div>
               </div>
-              <div className="p-12 text-center text-xs text-slate-400">
-                Este cliente não possui títulos a receber cadastrados no sistema.
-              </div>
+              
+              {titulosFiltrados.length === 0 ? (
+                <div className="p-12 text-center text-xs text-slate-400">
+                  Este cliente não possui títulos {tabTitulos === "a-receber" ? "a receber" : "recebidos"} cadastrados no sistema.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
+                  {titulosFiltrados.map(t => (
+                    <div key={t.id} className="p-4 flex flex-col gap-1 hover:bg-slate-50">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm text-slate-800">{t.descricao}</span>
+                        <span className="font-bold text-sm text-slate-800">{currency.format(t.valor)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>Vencimento: {t.vencimento ? new Date(t.vencimento).toLocaleDateString("pt-BR") : "S/N"}</span>
+                        <span>Status: {t.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>
         </div>
       </div>
+
+      {/* MODAL: Criar Título */}
+      <Dialog open={openTituloModal} onOpenChange={setOpenTituloModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Título a Receber</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Descrição / Referência</Label>
+              <Input
+                placeholder="Ex: Pagamento pendente pedido X"
+                value={tituloDescricao}
+                onChange={(e) => setTituloDescricao(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Valor (R$)</Label>
+                <Input
+                  type="number"
+                  placeholder="0,00"
+                  value={tituloValor}
+                  onChange={(e) => setTituloValor(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data de Vencimento</Label>
+                <Input
+                  type="date"
+                  value={tituloVencimento}
+                  onChange={(e) => setTituloVencimento(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenTituloModal(false)}>Cancelar</Button>
+            <Button onClick={handleSalvarTitulo} disabled={salvandoTitulo} className="bg-[#4b2781] hover:bg-[#4b2781]/90">
+              {salvandoTitulo ? "Salvando..." : "Salvar Título"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* MODAL: Criar Tarefa */}
       <Dialog open={openTarefa} onOpenChange={setOpenTarefa}>

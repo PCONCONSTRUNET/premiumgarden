@@ -720,7 +720,7 @@ function NovoPedido() {
                               />
                               <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
                                 <div className="min-w-0">
-                                  <p className="truncate font-medium">{product.nome}</p>
+                                  <p className="font-medium">{product.nome}</p>
                                   <p className="text-xs text-muted-foreground">
                                     {product.codigo || "Sem código"} - Estoque:{" "}
                                     {product.estoque || 0}
@@ -798,7 +798,7 @@ function NovoPedido() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{item.nome}</p>
+                        <p className="text-sm font-medium">{item.nome}</p>
                         <p className="text-xs text-muted-foreground">
                           {item.codigo || "Sem código"}
                         </p>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Outlet, redirect, Link, useRouterState, isRedirect, useNavigate } from "@tanstack/react-router";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
-import { Home, Calculator, LogOut, PackageSearch, Wallet, Menu, X } from "lucide-react";
+import { Home, Calculator, LogOut, PackageSearch, Wallet, Menu, X, ShoppingCart } from "lucide-react";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,7 @@ export const Route = createFileRoute("/parceiro")({
 
 const PARCEIRO_NAV = [
   { to: "/parceiro/dashboard", label: "Início", icon: Home },
+  { to: "/parceiro/vendas", label: "Vendas", icon: ShoppingCart },
   { to: "/parceiro/pdv", label: "Vender", icon: Calculator },
   { to: "/parceiro/catalogo", label: "Catálogo", icon: PackageSearch },
   { to: "/parceiro/pagamentos", label: "Financeiro", icon: Wallet },

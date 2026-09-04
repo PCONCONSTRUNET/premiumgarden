@@ -51,7 +51,11 @@ function Produtos() {
   
   // Estoque State
   const [estoqueMode, setEstoqueMode] = useState<"ajuste" | "entrada">("ajuste");
-  const [estoqueSort, setEstoqueSort] = useState<"codigo" | "nome">("codigo");
+  const [estoqueSort, setEstoqueSort] = useState<"nome" | "codigo">("nome");
+  
+  // Inline Stock Edit
+  const [editingEstoqueId, setEditingEstoqueId] = useState<string | null>(null);
+  const [editingEstoqueValue, setEditingEstoqueValue] = useState<string>("");
   const [buscaEstoque, setBuscaEstoque] = useState("");
   
   // Temporary Draft State for Estoque adjustments
@@ -85,6 +89,31 @@ function Produtos() {
         }
       }
     });
+  };
+
+  const handleSaveInlineEstoque = async (p: any) => {
+    const newVal = Number(editingEstoqueValue);
+    if (isNaN(newVal) || newVal < 0) {
+      toast.error("Valor inválido.");
+      setEditingEstoqueId(null);
+      return;
+    }
+    
+    if (String(newVal) === String(p.estoque || 0)) {
+      setEditingEstoqueId(null);
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.from("produtos").update({ estoque: newVal }).eq("id", p.id);
+      if (error) throw error;
+      updateProdutoLocal(p.id, { estoque: newVal });
+      toast.success("Estoque atualizado!");
+    } catch (err) {
+      toast.error("Erro ao atualizar estoque.");
+    } finally {
+      setEditingEstoqueId(null);
+    }
   };
 
   const toggleProductStatus = async (produto: any) => {
@@ -427,10 +456,36 @@ function Produtos() {
                           <TableCell className="text-sm text-muted-foreground">
                             {p.cores && p.cores.length > 0 ? p.cores.join(", ") : "---"}
                           </TableCell>
-                          <TableCell className="text-sm font-medium text-slate-700">
-                            {p.estoque || 0}
+                          <TableCell className="text-sm font-semibold text-slate-700">
+                            {editingEstoqueId === p.id ? (
+                              <Input
+                                autoFocus
+                                type="number"
+                                className="w-20 h-7 text-sm"
+                                value={editingEstoqueValue}
+                                onChange={(e) => setEditingEstoqueValue(e.target.value)}
+                                onBlur={() => handleSaveInlineEstoque(p)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    handleSaveInlineEstoque(p);
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2 group/estoque">
+                                <span>{p.estoque || 0}</span>
+                                <PenLine 
+                                  className="w-3.5 h-3.5 text-slate-400 cursor-pointer opacity-0 group-hover/estoque:opacity-100 transition-opacity hover:text-[#4b2781]" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingEstoqueId(p.id);
+                                    setEditingEstoqueValue(String(p.estoque || 0));
+                                  }}
+                                />
+                              </div>
+                            )}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">Unidade</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{p.unidade_medida || "Un"}</TableCell>
                           <TableCell className="text-sm font-medium">
                             R$ {(Number(p.valor) * 0.9).toFixed(2).replace(".", ",")}
                           </TableCell>

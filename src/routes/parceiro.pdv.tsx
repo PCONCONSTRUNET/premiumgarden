@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { Input } from "@/components/ui/input";
 import { Search, Trash2, ShoppingCart, CheckCircle2, MessageCircle } from "lucide-react";
 import { CnpjLoader } from "@/components/cnpj-loader";
@@ -522,7 +523,7 @@ function ParceiroPDV() {
                 )}
               </div>
               <div className="text-center">
-                <p className="text-xs font-semibold text-slate-800 line-clamp-2 leading-tight">
+                <p className="text-xs font-semibold text-slate-800 leading-tight">
                   {p.nome}
                 </p>
                 <p className="text-[10px] font-bold text-brand mt-1">
@@ -661,7 +662,7 @@ function ParceiroPDV() {
                   className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white h-12 text-base font-bold shadow-md rounded-xl transition-all hover:-translate-y-0.5"
                   onClick={handleShareWhatsApp}
                 >
-                  <MessageCircle className="w-5 h-5 mr-2" />
+                  <WhatsAppIcon className="w-5 h-5 mr-2" />
                   Enviar no WhatsApp
                 </Button>
               )}

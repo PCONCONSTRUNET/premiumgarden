@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarDays,
@@ -768,7 +769,7 @@ function Pedidos() {
                                 variant="outline"
                                 onClick={() => handleShareWhatsApp(venda)}
                               >
-                                <MessageCircle className="mr-2 h-4 w-4 text-emerald-600" /> WhatsApp
+                                <WhatsAppIcon className="mr-2 h-4 w-4 text-emerald-600" /> WhatsApp
                               </Button>
                               <Button
                                 size="sm"
@@ -932,7 +933,7 @@ function Pedidos() {
                 className="flex-1"
                 onClick={() => handleShareWhatsApp(selectedVenda)}
               >
-                <MessageCircle className="mr-2 h-4 w-4 text-emerald-600" /> WhatsApp
+                <WhatsAppIcon className="mr-2 h-4 w-4 text-emerald-600" /> WhatsApp
               </Button>
               <Button className="flex-1" asChild>
                 <Link to="/orcamento/$id" params={{ id: selectedVenda?.id }}>

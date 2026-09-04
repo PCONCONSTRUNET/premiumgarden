@@ -139,7 +139,7 @@ function Catalogo() {
     
     doc.setFontSize(7.5);
     doc.setTextColor(80, 80, 80);
-    doc.text("CNPJ: 46.595.008/0001-49  |  WhatsApp: (19) 99714-1112", margin + 50, yPos + 8);
+    doc.text("CNPJ: 46.595.008/0001-49  |  WhatsApp: (15) 98105-4330", margin + 50, yPos + 8);
     doc.text("Endereço: Rua Antonieta da Silva Gomes, 316 - Jardim Eucalíptos", margin + 50, yPos + 12);
     doc.text("Sorocaba-SP | CEP 18079-658", margin + 50, yPos + 16);
     

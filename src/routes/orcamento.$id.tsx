@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
+import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/orcamento/$id")({
   head: () => ({ meta: [{ title: "Orçamento (DAV) - Impressão" }] }),
@@ -118,6 +119,31 @@ function ImprimirDAV() {
     ? new Date(dav.validade).toLocaleDateString("pt-BR")
     : null;
 
+  const handleVoltar = () => {
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.close();
+        return;
+      }
+    } catch {}
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
+    }
+    try {
+      window.close();
+    } catch {}
+    setTimeout(() => {
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/orcamento")) {
+        const ref = document.referrer;
+        if (ref && (ref.includes("/parceiro") || ref.includes("/app"))) {
+          window.location.href = ref;
+        } else {
+          window.location.href = "/parceiro/vendas";
+        }
+      }
+    }, 200);
+  };
+
   return (
     <div
       className="bg-white min-h-screen text-black p-8 font-sans"
@@ -134,6 +160,13 @@ function ImprimirDAV() {
       {/* Barra de Ações (Oculta na Impressão) */}
       <div className="no-print mb-6 p-4 bg-slate-900 text-white rounded-xl shadow-md flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleVoltar}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 shadow transition-colors cursor-pointer active:scale-95 mr-2"
+          >
+            <ArrowLeft className="w-4 h-4" /> Voltar
+          </button>
           <span className="font-bold text-sm text-emerald-400">PREMIUM GARDEN</span>
           <span className="text-xs text-slate-500">|</span>
           <span className="text-xs text-slate-300 font-medium">

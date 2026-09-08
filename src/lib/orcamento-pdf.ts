@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
@@ -265,10 +266,24 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
     finalY += 4;
   }
 
+  // Calcula a soma real dos itens para garantir subtotal exato e evitar 0,00
+  const itemsSum = (data.itens || []).reduce((acc, it) => {
+    const itSub = Number(it.subtotal ?? it.total ?? 0);
+    if (itSub > 0) return acc + itSub;
+    const qtd = Number(it.quantidade ?? it.qtd ?? 1);
+    const unit = Number(it.valor_unitario ?? 0);
+    return acc + qtd * unit;
+  }, 0);
+
   const totalGeral = Number(data.total ?? data.valor_total ?? 0);
-  const subtotal = Number(data.subtotal ?? totalGeral);
+  const dataSub = Number(data.subtotal || 0);
   const descVal = Number(data.desconto_valor ?? 0);
   const freteVal = Number(data.frete_valor ?? 0);
+
+  let subtotal = dataSub > 0 ? dataSub : itemsSum > 0 ? itemsSum : 0;
+  if (subtotal === 0 && totalGeral > 0) {
+    subtotal = totalGeral + descVal - freteVal;
+  }
 
   // Bloco de Totais à Direita
   const totalBoxW = 75;
@@ -430,4 +445,97 @@ export async function downloadOrcamentoPDF(data: OrcamentoPdfData): Promise<void
     console.error("Erro ao baixar PDF:", error);
     toast.error("Erro ao baixar PDF: " + (error.message || "Tente novamente."));
   }
+}
+
+
+/**
+ * Converte um registro da tabela vendas e seus itens para o formato OrcamentoPdfData
+ */
+export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData {
+  const clienteNome =
+    venda.clientes?.nome || venda.cliente?.nome || venda.cliente_nome || "Consumidor";
+  const clienteCnpj =
+    venda.clientes?.cpf_cnpj || venda.cliente?.cpf_cnpj || venda.cliente_cnpj || null;
+  const clienteTel =
+    venda.clientes?.telefone || venda.cliente?.telefone || venda.cliente_telefone || null;
+
+  const rawItens = itens && itens.length > 0 ? itens : (venda.vendas_itens || venda.itens || []);
+  const mappedItens = rawItens.map((it: any) => {
+    const qtd = Number(it.quantidade ?? it.qtd ?? 1);
+    const unit = Number(it.valor_unitario ?? 0);
+    const itSub = Number(it.subtotal ?? it.total ?? 0);
+    return {
+      codigo: it.produtos?.codigo || it.produto?.codigo || it.codigo || "—",
+      nome: it.produtos?.nome || it.produto?.nome || it.nome || it.produto_nome || "Produto",
+      quantidade: qtd,
+      valor_unitario: unit > 0 ? unit : (qtd > 0 && itSub > 0 ? itSub / qtd : 0),
+      subtotal: itSub > 0 ? itSub : qtd * unit,
+      total: itSub > 0 ? itSub : qtd * unit,
+    };
+  });
+
+  const sumItens = mappedItens.reduce((acc: number, it: any) => acc + Number(it.subtotal || 0), 0);
+  const rawSub = Number(venda.subtotal || 0);
+  const orderTotal = Number(venda.valor_total ?? venda.total ?? 0);
+  const descVal = Number(venda.desconto_valor || 0);
+  const freteVal = Number(venda.frete_valor || 0);
+
+  let subtotal = rawSub > 0 ? rawSub : sumItens > 0 ? sumItens : 0;
+  if (subtotal === 0 && orderTotal > 0) {
+    subtotal = orderTotal + descVal - freteVal;
+  }
+
+  return {
+    id: venda.id,
+    numero: venda.numero ?? venda.numero_venda ?? null,
+    tipo: venda.tipo || "VENDA",
+    created_at: venda.created_at,
+    cliente_nome: clienteNome,
+    cliente_cnpj: clienteCnpj,
+    cliente_telefone: clienteTel,
+    cliente_endereco: venda.cliente_endereco || null,
+    condicao_pagamento: venda.condicao_pagamento || null,
+    observacoes_pagamento: venda.observacoes_pagamento || null,
+    observacoes: venda.observacoes || null,
+    vendedor: venda.vendedor?.nome || venda.vendedores?.nome || venda.vendedor_nome || null,
+    subtotal: subtotal,
+    desconto_percentual: Number(venda.desconto_percentual || 0),
+    desconto_valor: descVal,
+    frete_valor: freteVal,
+    valor_total: orderTotal > 0 ? orderTotal : Math.max(0, subtotal - descVal + freteVal),
+    total: orderTotal > 0 ? orderTotal : Math.max(0, subtotal - descVal + freteVal),
+    itens: mappedItens,
+  };
+}
+
+/**
+ * Baixa diretamente o PDF de uma venda/orçamento buscando os itens se necessário
+ */
+export async function downloadVendaPdf(venda: any, itens?: any[]): Promise<void> {
+  let finalItens = itens;
+  if (!finalItens || finalItens.length === 0) {
+    const { data } = await supabase
+      .from("vendas_itens")
+      .select("*, produtos(nome, codigo)")
+      .eq("venda_id", venda.id);
+    finalItens = data || [];
+  }
+  const pdfData = vendaToPdfData(venda, finalItens);
+  return downloadOrcamentoPDF(pdfData);
+}
+
+/**
+ * Compartilha o PDF de uma venda/orçamento direto no WhatsApp buscando os itens se necessário
+ */
+export async function shareVendaWhatsApp(venda: any, itens?: any[]): Promise<void> {
+  let finalItens = itens;
+  if (!finalItens || finalItens.length === 0) {
+    const { data } = await supabase
+      .from("vendas_itens")
+      .select("*, produtos(nome, codigo)")
+      .eq("venda_id", venda.id);
+    finalItens = data || [];
+  }
+  const pdfData = vendaToPdfData(venda, finalItens);
+  return shareOrcamentoPDF(pdfData);
 }

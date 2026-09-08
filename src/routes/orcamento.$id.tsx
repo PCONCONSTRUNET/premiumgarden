@@ -88,6 +88,11 @@ function ImprimirDAV() {
                valor_unitario: item.valor_unitario,
                total: item.subtotal
              }));
+             const sumItens = itemsData.reduce((acc, it) => acc + Number(it.total || 0), 0);
+             if (sumItens > 0 && (!d.subtotal || Number(d.subtotal) === 0)) {
+               d.subtotal = sumItens;
+               setDav({ ...d });
+             }
           }
         }
       }

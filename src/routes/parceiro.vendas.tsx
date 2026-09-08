@@ -1,3 +1,5 @@
+import { downloadVendaPdf, shareVendaWhatsApp } from "@/lib/orcamento-pdf";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
@@ -10,6 +12,8 @@ import {
   Clock,
   Eye,
   X,
+  Trash2,
+  Ban,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,6 +44,8 @@ function VendasParceiro() {
   const [openSheet, setOpenSheet] = useState(false);
   const [vendaItens, setVendaItens] = useState<any[]>([]);
   const [loadingItens, setLoadingItens] = useState(false);
+  const [cancelingOrder, setCancelingOrder] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState(false);
 
   useEffect(() => {
     const fetchVendas = async () => {
@@ -193,12 +199,37 @@ function VendasParceiro() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-6 sm:w-auto w-full border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 sm:w-auto w-full border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
                   <div className="text-left sm:text-right">
                     <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Total da Venda</div>
                     <div className="font-bold text-lg text-slate-800">
                       {currency.format(v.valor_total || v.total || 0)}
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2.5 text-xs font-semibold gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-100 rounded-lg shadow-xs"
+                      onClick={() => downloadVendaPdf(v)}
+                      title="Baixar PDF"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-red-500" />
+                      PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2.5 text-xs font-semibold gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg shadow-xs"
+                      onClick={() => shareVendaWhatsApp(v)}
+                      title="Enviar PDF no WhatsApp"
+                    >
+                      <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
+                      WhatsApp
+                    </Button>
                   </div>
                   
                   <Button variant="ghost" size="icon" className="text-slate-400 group-hover:text-[#4a148c] group-hover:bg-[#4a148c]/10">
@@ -285,6 +316,93 @@ function VendasParceiro() {
                   <span>Total</span>
                   <span>{currency.format(selectedVenda.valor_total)}</span>
                 </div>
+              </div>
+
+              {/* Ações da Venda/Orçamento */}
+              <div className="space-y-2 pt-4 border-t border-slate-200">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+                    onClick={() => downloadVendaPdf(selectedVenda, vendaItens)}
+                  >
+                    <FileText className="w-4 h-4 text-red-400" />
+                    Baixar PDF
+                  </Button>
+                  <Button
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+                    onClick={() => shareVendaWhatsApp(selectedVenda, vendaItens)}
+                  >
+                    <WhatsAppIcon className="w-4 h-4 text-white" />
+                    WhatsApp (PDF)
+                  </Button>
+                </div>
+
+                {/* Cancelar Orçamento */}
+                {(selectedVenda.tipo === "DAV" || selectedVenda.status_aprovacao === "Pendente") && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-200 text-amber-700 hover:bg-amber-50 font-semibold flex items-center justify-center gap-2"
+                    disabled={cancelingOrder}
+                    onClick={async () => {
+                      if (!confirm("Deseja realmente cancelar este orçamento?")) return;
+                      setCancelingOrder(true);
+                      try {
+                        await supabase
+                          .from("vendas")
+                          .update({ status: "Cancelado", status_aprovacao: "Recusado" })
+                          .eq("id", selectedVenda.id);
+                        await supabase
+                          .from("davs")
+                          .update({ status: "Cancelado" })
+                          .eq("id", selectedVenda.id);
+                        toast.success("Orçamento cancelado com sucesso!");
+                        setVendas((prev) =>
+                          prev.map((v) =>
+                            v.id === selectedVenda.id
+                              ? { ...v, status: "Cancelado", status_aprovacao: "Recusado" }
+                              : v
+                          )
+                        );
+                        setOpenSheet(false);
+                      } catch (err: any) {
+                        toast.error("Erro ao cancelar: " + err.message);
+                      } finally {
+                        setCancelingOrder(false);
+                      }
+                    }}
+                  >
+                    <Ban className="w-4 h-4" />
+                    {cancelingOrder ? "Cancelando..." : "Cancelar Orçamento"}
+                  </Button>
+                )}
+
+                {/* Excluir Pedido */}
+                <Button
+                  variant="outline"
+                  className="w-full border-red-200 text-red-600 hover:bg-red-50 font-semibold flex items-center justify-center gap-2"
+                  disabled={deletingOrder}
+                  onClick={async () => {
+                    if (!confirm("Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.")) return;
+                    setDeletingOrder(true);
+                    try {
+                      await supabase.from("vendas_itens").delete().eq("venda_id", selectedVenda.id);
+                      await supabase.from("dav_items").delete().eq("dav_id", selectedVenda.id);
+                      await supabase.from("davs").delete().eq("id", selectedVenda.id);
+                      const { error } = await supabase.from("vendas").delete().eq("id", selectedVenda.id);
+                      if (error) throw error;
+                      toast.success("Pedido excluído com sucesso!");
+                      setVendas((prev) => prev.filter((v) => v.id !== selectedVenda.id));
+                      setOpenSheet(false);
+                    } catch (err: any) {
+                      toast.error("Erro ao excluir pedido: " + err.message);
+                    } finally {
+                      setDeletingOrder(false);
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {deletingOrder ? "Excluindo..." : "Excluir Pedido"}
+                </Button>
               </div>
             </div>
           )}

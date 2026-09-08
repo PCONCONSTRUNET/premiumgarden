@@ -1,3 +1,5 @@
+import { downloadVendaPdf, shareVendaWhatsApp } from "@/lib/orcamento-pdf";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { toast } from "sonner";
 import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
@@ -14,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Wallet, Clock, CheckCircle2, TrendingUp, XCircle } from "lucide-react";
+import { Wallet, Clock, CheckCircle2, TrendingUp, XCircle, FileText, Trash2, Ban } from "lucide-react";
 
 export const Route = createFileRoute("/parceiro/dashboard")({
   head: () => ({ meta: [{ title: "Meu Painel — Premium Garden" }] }),
@@ -39,6 +41,7 @@ function ParceiroDashboard() {
   const [editClientData, setEditClientData] = useState({ nome: "", cpf_cnpj: "", telefone: "" });
   const [savingClient, setSavingClient] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState(false);
+  const [cancelingOrder, setCancelingOrder] = useState(false);
 
   const openSaleDetails = async (venda: any) => {
     setSelectedSaleForDetails(venda);
@@ -497,6 +500,30 @@ function ParceiroDashboard() {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {new Date(v.created_at).toLocaleDateString()}
                   </p>
+                  <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs font-semibold gap-1 border-slate-200 text-slate-700 hover:bg-slate-100 rounded-md"
+                      onClick={() => downloadVendaPdf(v)}
+                      title="Baixar PDF"
+                    >
+                      <FileText className="h-3.5 w-3.5 text-red-500" />
+                      PDF
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs font-semibold gap-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-md"
+                      onClick={() => shareVendaWhatsApp(v)}
+                      title="Enviar no WhatsApp com PDF"
+                    >
+                      <WhatsAppIcon className="h-3.5 w-3.5 text-emerald-600" />
+                      WhatsApp
+                    </Button>
+                  </div>
                 </div>
                 <div className="text-right">
                   {v.status_aprovacao === "Aprovada" ? (
@@ -610,12 +637,23 @@ function ParceiroDashboard() {
             )}
           </div>
           <div className="pt-2 flex flex-col gap-2 w-full">
-            <Button
-              className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-md"
-              onClick={() => window.open(`/orcamento/${selectedSaleForDetails.id}`, "_blank")}
-            >
-              📄 Gerar Comprovante / PDF
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-md flex items-center justify-center gap-1.5"
+                onClick={() => downloadVendaPdf(selectedSaleForDetails, saleItems)}
+              >
+                <FileText className="h-4 w-4 text-red-400" />
+                Baixar PDF
+              </Button>
+              <Button
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md flex items-center justify-center gap-1.5"
+                onClick={() => shareVendaWhatsApp(selectedSaleForDetails, saleItems)}
+              >
+                <WhatsAppIcon className="h-4 w-4 text-white" />
+                WhatsApp (PDF)
+              </Button>
+            </div>
+
             {selectedSaleForDetails?.status_aprovacao === "Pendente" && (
               <>
                 <Button
@@ -633,32 +671,74 @@ function ParceiroDashboard() {
                 </Button>
               </>
             )}
-            {selectedSaleForDetails?.status_aprovacao === "Pendente" && (
+
+            {/* Cancelar Orçamento */}
+            {(selectedSaleForDetails?.tipo === "DAV" || selectedSaleForDetails?.status_aprovacao === "Pendente") && (
               <Button
                 variant="outline"
-                className="w-full border-red-200 text-red-600 hover:bg-red-50 font-semibold"
-                disabled={deletingOrder}
+                className="w-full border-amber-200 text-amber-700 hover:bg-amber-50 font-semibold flex items-center justify-center gap-2"
+                disabled={cancelingOrder}
                 onClick={async () => {
-                  if (!confirm("Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.")) return;
-                  setDeletingOrder(true);
+                  if (!confirm("Deseja realmente cancelar este orçamento?")) return;
+                  setCancelingOrder(true);
                   try {
-                    // Exclui os itens primeiro
-                    await supabase.from("vendas_itens").delete().eq("venda_id", selectedSaleForDetails.id);
-                    // Exclui a venda
-                    const { error } = await supabase.from("vendas").delete().eq("id", selectedSaleForDetails.id);
-                    if (error) throw error;
-                    setVendas((prev) => prev.filter(v => v.id !== selectedSaleForDetails.id));
+                    await supabase
+                      .from("vendas")
+                      .update({ status: "Cancelado", status_aprovacao: "Recusado" })
+                      .eq("id", selectedSaleForDetails.id);
+                    await supabase
+                      .from("davs")
+                      .update({ status: "Cancelado" })
+                      .eq("id", selectedSaleForDetails.id);
+                    toast.success("Orçamento cancelado com sucesso!");
+                    setVendas((prev) =>
+                      prev.map((v) =>
+                        v.id === selectedSaleForDetails.id
+                          ? { ...v, status: "Cancelado", status_aprovacao: "Recusado" }
+                          : v
+                      )
+                    );
                     setIsSaleDetailsOpen(false);
                   } catch (err: any) {
-                    toast.error("Erro ao excluir pedido: " + err.message);
+                    toast.error("Erro ao cancelar orçamento: " + err.message);
                   } finally {
-                    setDeletingOrder(false);
+                    setCancelingOrder(false);
                   }
                 }}
               >
-                {deletingOrder ? "Excluindo..." : "🗑️ Excluir Pedido"}
+                <Ban className="h-4 w-4" />
+                {cancelingOrder ? "Cancelando..." : "Cancelar Orçamento"}
               </Button>
             )}
+
+            {/* Excluir Pedido */}
+            <Button
+              variant="outline"
+              className="w-full border-red-200 text-red-600 hover:bg-red-50 font-semibold flex items-center justify-center gap-2"
+              disabled={deletingOrder}
+              onClick={async () => {
+                if (!confirm("Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.")) return;
+                setDeletingOrder(true);
+                try {
+                  await supabase.from("vendas_itens").delete().eq("venda_id", selectedSaleForDetails.id);
+                  await supabase.from("dav_items").delete().eq("dav_id", selectedSaleForDetails.id);
+                  await supabase.from("davs").delete().eq("id", selectedSaleForDetails.id);
+                  const { error } = await supabase.from("vendas").delete().eq("id", selectedSaleForDetails.id);
+                  if (error) throw error;
+                  toast.success("Pedido excluído com sucesso!");
+                  setVendas((prev) => prev.filter((v) => v.id !== selectedSaleForDetails.id));
+                  setIsSaleDetailsOpen(false);
+                } catch (err: any) {
+                  toast.error("Erro ao excluir pedido: " + err.message);
+                } finally {
+                  setDeletingOrder(false);
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              {deletingOrder ? "Excluindo..." : "Excluir Pedido"}
+            </Button>
+
             <Button
               variant="outline"
               className="w-full border-slate-200 text-slate-600"

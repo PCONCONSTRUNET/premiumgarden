@@ -366,23 +366,46 @@ function ParceiroPDV() {
         }
       }
 
-      // 2. Cria a venda pendente
+      // 2. Busca próximo número sequencial da venda
+      let nextNumero: number | null = null;
+      try {
+        const { data: maxVenda } = await supabase
+          .from("vendas")
+          .select("numero")
+          .not("numero", "is", null)
+          .order("numero", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (maxVenda?.numero) {
+          nextNumero = Number(maxVenda.numero) + 1;
+        } else {
+          nextNumero = 1;
+        }
+      } catch (e) {
+        console.warn("Não foi possível obter próximo número sequencial:", e);
+      }
+
+      // Cria a venda pendente
+      const vendaPayload: Record<string, any> = {
+        tipo: "PDV",
+        status_aprovacao: "Pendente",
+        status: "Pendente",
+        valor_total: totalComDesconto,
+        desconto_percentual: clientForm.descontoPercentual,
+        desconto_valor: valorDesconto,
+        condicao_pagamento: clientForm.pagamento,
+        observacoes: clientForm.observacoes || null,
+        vendedor_id: vendedorInfo?.id,
+        cliente_id: finalClienteId,
+      };
+
+      if (nextNumero) {
+        vendaPayload.numero = nextNumero;
+      }
+
       const { data: vendaData, error: vendaError } = await supabase
         .from("vendas")
-        .insert([
-          {
-            tipo: "PDV",
-            status_aprovacao: "Pendente",
-            status: "Pendente",
-            subtotal: subtotal,
-            valor_total: totalComDesconto,
-            desconto_percentual: clientForm.descontoPercentual,
-            desconto_valor: valorDesconto,
-            condicao_pagamento: clientForm.pagamento,
-            vendedor_id: vendedorInfo?.id,
-            cliente_id: finalClienteId,
-          },
-        ])
+        .insert([vendaPayload])
         .select()
         .single();
 
@@ -400,46 +423,10 @@ function ParceiroPDV() {
       const { error: itensError } = await supabase.from("vendas_itens").insert(itensToInsert);
       if (itensError) throw itensError;
 
-      // 3. Gera o DAV Oficial (Orçamento) na tabela VENDAS
-      const { data: dav, error: davError } = await supabase
-        .from("vendas")
-        .insert([
-          {
-            tipo: "DAV",
-            status: "Pendente",
-            status_aprovacao: "Pendente",
-            subtotal: subtotal,
-            valor_total: totalComDesconto,
-            desconto_percentual: clientForm.descontoPercentual,
-            desconto_valor: valorDesconto,
-            condicao_pagamento: clientForm.pagamento,
-            vendedor_id: vendedorInfo?.id,
-            cliente_id: finalClienteId,
-          },
-        ])
-        .select()
-        .single();
-
-      if (!davError && dav) {
-        setDavGeradoId(dav.id);
-        setDavGeradoNumero(dav.numero_venda);
-
-        // Salvar itens do DAV
-        const davItensToInsert = cart.map((i) => ({
-          venda_id: dav.id,
-          produto_id: i.id,
-          quantidade: i.q,
-          valor_unitario: i.u,
-          subtotal: i.t,
-        }));
-        await supabase.from("vendas_itens").insert(davItensToInsert);
-      } else if (davError) {
-        console.error("Erro ao gerar DAV:", davError);
-        toast.success(
-          "Aviso: O pedido foi enviado, mas o Orçamento (DAV) não pôde ser gerado: " +
-            davError.message,
-        );
-      }
+      // Guarda os identificadores oficiais do pedido para compartilhar no WhatsApp e baixar PDF
+      const finalNumero = vendaData.numero || nextNumero || vendaData.id.substring(0, 8).toUpperCase();
+      setDavGeradoId(vendaData.id);
+      setDavGeradoNumero(finalNumero);
 
       // 4. Dispara a notificação para o dono
       await supabase.from("notificacoes").insert([
@@ -460,6 +447,7 @@ function ParceiroPDV() {
 
   const closeSuccessModal = () => {
     setIsSuccessModalOpen(false);
+    setCart([]);
     navigate({ to: "/parceiro/dashboard" });
   };
 

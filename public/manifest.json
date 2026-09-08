@@ -1,15 +1,37 @@
 {
-  "name": "SENALANDIA 2 ERP",
-  "short_name": "SENALANDIA 2",
+  "name": "Premium Garden",
+  "short_name": "Premium Garden",
+  "description": "Sistema de Gestão Premium Garden",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
-  "theme_color": "#D4AF37",
+  "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "/logo-senalandia.png",
-      "sizes": "192x192 512x512",
+      "src": "/pwa-icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

@@ -6,8 +6,9 @@ import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
 import { Input } from "@/components/ui/input";
-import { Search, Trash2, ShoppingCart, CheckCircle2, MessageCircle } from "lucide-react";
+import { Search, Trash2, ShoppingCart, CheckCircle2, MessageCircle, Download } from "lucide-react";
 import { CnpjLoader } from "@/components/cnpj-loader";
 import {
   Dialog,
@@ -460,29 +461,29 @@ function ParceiroPDV() {
     navigate({ to: "/parceiro/dashboard" });
   };
 
-  const handleShareWhatsApp = () => {
+  const handleShareWhatsApp = async () => {
     if (!davGeradoId) return;
 
-    let msg = `*ORÇAMENTO - Premium Garden VASOS*\n`;
-    msg += `Nº do Orçamento: ${davGeradoNumero || davGeradoId.substring(0, 8).toUpperCase()}\n\n`;
-    msg += `Olá ${clientForm.nome}, aqui está o seu orçamento detalhado!\n\n`;
-
-    msg += `*ITENS DO ORÇAMENTO:*\n`;
-    cart.forEach((item) => {
-      msg += `• ${item.q}x ${item.p} - R$ ${Number(item.t).toFixed(2).replace(".", ",")}\n`;
+    await shareOrcamentoPDF({
+      id: davGeradoId,
+      numero: davGeradoNumero,
+      tipo: "DAV",
+      cliente_nome: clientForm.nome,
+      cliente_cnpj: clientForm.cpf_cnpj,
+      cliente_telefone: clientForm.telefone,
+      cliente_endereco: [clientForm.endereco, clientForm.cidade, clientForm.uf].filter(Boolean).join(", "),
+      condicao_pagamento: formaPagamento,
+      valor_total: totalComDesconto,
+      subtotal: subtotal,
+      desconto_valor: valorDesconto,
+      itens: cart.map((item) => ({
+        codigo: item.cod,
+        nome: item.p,
+        quantidade: item.q,
+        valor_unitario: item.v,
+        subtotal: item.t,
+      })),
     });
-
-    msg += `\n*SUBTOTAL: R$ ${subtotal.toFixed(2).replace(".", ",")}*\n`;
-    if (valorDesconto > 0) {
-      msg += `*DESCONTO: R$ ${valorDesconto.toFixed(2).replace(".", ",")}*\n`;
-    }
-    msg += `*TOTAL GERAL: R$ ${totalComDesconto.toFixed(2).replace(".", ",")}*\n\n`;
-
-    const linkPdf = `${window.location.origin}/orcamento/${davGeradoId}`;
-    msg += `📄 *Acesse o orçamento completo em PDF aqui:*\n${linkPdf}`;
-
-    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank");
   };
 
   if (!vendedorInfo)
@@ -658,13 +659,44 @@ function ParceiroPDV() {
             </DialogDescription>
             <div className="flex flex-col gap-3 w-full">
               {davGeradoId && (
-                <Button
-                  className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white h-12 text-base font-bold shadow-md rounded-xl transition-all hover:-translate-y-0.5"
-                  onClick={handleShareWhatsApp}
-                >
-                  <WhatsAppIcon className="w-5 h-5 mr-2" />
-                  Enviar no WhatsApp
-                </Button>
+                <>
+                  <Button
+                    className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white h-12 text-base font-bold shadow-md rounded-xl transition-all hover:-translate-y-0.5"
+                    onClick={handleShareWhatsApp}
+                  >
+                    <WhatsAppIcon className="w-5 h-5 mr-2" />
+                    Enviar PDF no WhatsApp (modo arquivo)
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full border-emerald-200 text-emerald-800 hover:bg-emerald-50 h-11 text-sm font-semibold rounded-xl"
+                    onClick={async () => {
+                      await downloadOrcamentoPDF({
+                        id: davGeradoId,
+                        numero: davGeradoNumero,
+                        tipo: "DAV",
+                        cliente_nome: clientForm.nome,
+                        cliente_cnpj: clientForm.cpf_cnpj,
+                        cliente_telefone: clientForm.telefone,
+                        cliente_endereco: [clientForm.endereco, clientForm.cidade, clientForm.uf].filter(Boolean).join(", "),
+                        condicao_pagamento: formaPagamento,
+                        valor_total: totalComDesconto,
+                        subtotal: subtotal,
+                        desconto_valor: valorDesconto,
+                        itens: cart.map((item) => ({
+                          codigo: item.cod,
+                          nome: item.p,
+                          quantidade: item.q,
+                          valor_unitario: item.v,
+                          subtotal: item.t,
+                        })),
+                      });
+                    }}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Baixar arquivo PDF
+                  </Button>
+                </>
               )}
               <Button
                 variant="outline"

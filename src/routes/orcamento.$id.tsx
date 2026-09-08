@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
 
 export const Route = createFileRoute("/orcamento/$id")({
   head: () => ({ meta: [{ title: "Orçamento (DAV) - Impressão" }] }),
@@ -120,9 +122,40 @@ function ImprimirDAV() {
         @media print {
           @page { margin: 10mm; size: A4; }
           body { background: white; -webkit-print-color-adjust: exact; }
-          header, footer, nav, aside { display: none; }
+          header, footer, nav, aside, .no-print { display: none !important; }
         }
       `}</style>
+
+      {/* Barra de Ações (Oculta na Impressão) */}
+      <div className="no-print mb-6 p-4 bg-slate-900 text-white rounded-xl shadow-md flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-sm text-emerald-400">PREMIUM GARDEN</span>
+          <span className="text-xs text-slate-500">|</span>
+          <span className="text-xs text-slate-300 font-medium">
+            {dav.isVenda ? "Venda" : "Orçamento"} #{dav.numero || dav.id?.slice(0, 8).toUpperCase()}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => shareOrcamentoPDF({ ...dav, itens })}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow transition-colors"
+          >
+            <WhatsAppIcon className="w-4 h-4" /> Enviar PDF no WhatsApp
+          </button>
+          <button
+            onClick={() => downloadOrcamentoPDF({ ...dav, itens })}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 shadow transition-colors"
+          >
+            Baixar PDF
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-slate-900 hover:bg-slate-100 text-xs font-semibold shadow transition-colors"
+          >
+            Imprimir
+          </button>
+        </div>
+      </div>
 
       {/* Cabeçalho */}
       <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-4">

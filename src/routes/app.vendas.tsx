@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarDays,
@@ -445,25 +446,44 @@ function Pedidos() {
     try {
       const { data: itens } = await supabase
         .from("vendas_itens")
-        .select("*, produtos(nome)")
+        .select("*, produtos(nome, codigo)")
         .eq("venda_id", venda.id);
 
-      let message = `*${venda.tipo === "DAV" ? "ORÇAMENTO" : "PEDIDO"} - PREMIUM GARDEN*\n`;
-      message += `Nº: ${getOrderNumber(venda)}\n`;
-      message += `Cliente: ${venda.clientes?.nome || "Não informado"}\n`;
-      message += `Data: ${new Date(venda.created_at).toLocaleDateString("pt-BR")}\n\n`;
-      message += "*ITENS:*\n";
+      const cli = venda.clientes;
+      const endPartes = [
+        cli?.endereco,
+        cli?.numero ? `Nº ${cli.numero}` : null,
+        cli?.bairro,
+        cli?.cidade && cli?.uf ? `${cli.cidade}/${cli.uf}` : cli?.cidade || cli?.uf || null,
+        cli?.cep ? `CEP: ${cli.cep}` : null,
+      ].filter(Boolean).join(", ");
 
-      itens?.forEach((item) => {
-        message += `• ${item.quantidade}x ${item.produtos?.nome || "Produto"} - ${currency.format(Number(item.subtotal))}\n`;
+      await shareOrcamentoPDF({
+        id: venda.id,
+        numero: venda.numero_venda || venda.numero,
+        tipo: venda.tipo,
+        created_at: venda.created_at,
+        cliente_nome: cli?.nome,
+        cliente_cnpj: cli?.cpf_cnpj,
+        cliente_telefone: cli?.telefone,
+        cliente_endereco: endPartes || null,
+        condicao_pagamento: venda.condicao_pagamento || venda.forma_pagamento,
+        observacoes_pagamento: venda.observacoes_pagamento,
+        observacoes: venda.observacoes,
+        valor_total: venda.valor_total,
+        desconto_valor: venda.desconto_valor,
+        desconto_percentual: venda.desconto_percentual,
+        itens: (itens || []).map((it: any) => ({
+          codigo: it.produtos?.codigo,
+          nome: it.produtos?.nome || "Produto",
+          quantidade: it.quantidade,
+          valor_unitario: it.valor_unitario,
+          subtotal: it.subtotal,
+        })),
       });
-
-      message += `\n*TOTAL: ${currency.format(Number(venda.valor_total || 0))}*\n\n`;
-      message += `${window.location.origin}/orcamento/${venda.id}`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao preparar a mensagem do WhatsApp.");
+      toast.error("Erro ao gerar PDF para WhatsApp: " + err.message);
     }
   };
 
@@ -927,19 +947,66 @@ function Pedidos() {
               )}
             </div>
 
-            <div className="flex gap-2 border-t pt-4">
+            <div className="flex flex-col gap-2 border-t pt-4">
               <Button
                 variant="outline"
-                className="flex-1"
+                className="w-full text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-300"
                 onClick={() => handleShareWhatsApp(selectedVenda)}
               >
-                <WhatsAppIcon className="mr-2 h-4 w-4 text-emerald-600" /> WhatsApp
+                <WhatsAppIcon className="mr-2 h-4 w-4 text-emerald-600" /> Enviar PDF no WhatsApp
               </Button>
-              <Button className="flex-1" asChild>
-                <Link to="/orcamento/$id" params={{ id: selectedVenda?.id }}>
-                  <Printer className="mr-2 h-4 w-4" /> Abrir PDF
-                </Link>
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  className="flex-1"
+                  onClick={async () => {
+                    const { data: itens } = await supabase
+                      .from("vendas_itens")
+                      .select("*, produtos(nome, codigo)")
+                      .eq("venda_id", selectedVenda.id);
+
+                    const cli = selectedVenda.clientes;
+                    const endPartes = [
+                      cli?.endereco,
+                      cli?.numero ? `Nº ${cli.numero}` : null,
+                      cli?.bairro,
+                      cli?.cidade && cli?.uf ? `${cli.cidade}/${cli.uf}` : cli?.cidade || cli?.uf || null,
+                      cli?.cep ? `CEP: ${cli.cep}` : null,
+                    ].filter(Boolean).join(", ");
+
+                    await downloadOrcamentoPDF({
+                      id: selectedVenda.id,
+                      numero: selectedVenda.numero_venda || selectedVenda.numero,
+                      tipo: selectedVenda.tipo,
+                      created_at: selectedVenda.created_at,
+                      cliente_nome: cli?.nome,
+                      cliente_cnpj: cli?.cpf_cnpj,
+                      cliente_telefone: cli?.telefone,
+                      cliente_endereco: endPartes || null,
+                      condicao_pagamento: selectedVenda.condicao_pagamento || selectedVenda.forma_pagamento,
+                      observacoes_pagamento: selectedVenda.observacoes_pagamento,
+                      observacoes: selectedVenda.observacoes,
+                      valor_total: selectedVenda.valor_total,
+                      desconto_valor: selectedVenda.desconto_valor,
+                      desconto_percentual: selectedVenda.desconto_percentual,
+                      itens: (itens || []).map((it: any) => ({
+                        codigo: it.produtos?.codigo,
+                        nome: it.produtos?.nome || "Produto",
+                        quantidade: it.quantidade,
+                        valor_unitario: it.valor_unitario,
+                        subtotal: it.subtotal,
+                      })),
+                    });
+                  }}
+                >
+                  <FileDown className="mr-2 h-4 w-4 text-primary" /> Baixar PDF
+                </Button>
+                <Button className="flex-1" asChild>
+                  <Link to="/orcamento/$id" params={{ id: selectedVenda?.id }}>
+                    <Printer className="mr-2 h-4 w-4" /> Imprimir
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
           </SheetContent>

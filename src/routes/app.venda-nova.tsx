@@ -207,6 +207,7 @@ function NovoPedido() {
           }
           setCondicaoPagamento(vendaData.condicao_pagamento || "");
           setObservacoesPagamento(vendaData.observacoes_pagamento || "");
+          setObservacoes(vendaData.observacoes || "");
           setDescontoValor(Number(vendaData.desconto_valor) || 0);
           setDescontoPercentual(Number(vendaData.desconto_percentual) || 0);
           setSavedNumero(vendaData.numero);
@@ -359,44 +360,69 @@ function NovoPedido() {
         if (maxVenda?.numero) nextNumero = Number(maxVenda.numero) + 1;
       }
 
-      const vendaPayload = {
+      const vendaPayload: Record<string, any> = {
         cliente_id: clientId,
         tipo,
         status: comoOrcamento ? "Em orçamento" : (tipo === "DAV" ? "Em orçamento" : status),
         valor_total: totalPedido,
         numero: nextNumero,
         condicao_pagamento: condicaoPagamento,
-        observacoes_pagamento: observacoesPagamento,
         desconto_percentual: Number(descontoPercentual) || 0,
         desconto_valor: _desconto,
       };
 
-      let vendaData;
-      
+      if (observacoesPagamento) {
+        vendaPayload.observacoes_pagamento = observacoesPagamento;
+      }
+      if (observacoes) {
+        vendaPayload.observacoes = observacoes;
+      }
+
+      let vendaData: any;
+
+      const tentarSalvarVenda = async (payload: Record<string, any>) => {
+        if (isEditing && editId) {
+          return await supabase
+            .from("vendas")
+            .update(payload)
+            .eq("id", editId)
+            .select()
+            .single();
+        } else {
+          return await supabase
+            .from("vendas")
+            .insert([payload])
+            .select()
+            .single();
+        }
+      };
+
+      let { data, error: vendaError } = await tentarSalvarVenda(vendaPayload);
+
+      // Se der erro por coluna inexistente no schema cache do PostgREST (ex: observacoes ou observacoes_pagamento)
+      if (
+        vendaError &&
+        (vendaError.message?.includes("observacoes_pagamento") ||
+          vendaError.message?.includes("observacoes") ||
+          vendaError.message?.includes("schema cache"))
+      ) {
+        const fallbackPayload = { ...vendaPayload };
+        delete fallbackPayload.observacoes_pagamento;
+        delete fallbackPayload.observacoes;
+        const retry = await tentarSalvarVenda(fallbackPayload);
+        data = retry.data;
+        vendaError = retry.error;
+      }
+
+      if (vendaError) throw vendaError;
+      vendaData = data;
+
       if (isEditing && editId) {
-        const { data, error: vendaError } = await supabase
-          .from("vendas")
-          .update(vendaPayload)
-          .eq("id", editId)
-          .select()
-          .single();
-        if (vendaError) throw vendaError;
-        vendaData = data;
-        
-        // Remove old items
         const { error: deleteError } = await supabase
           .from("vendas_itens")
           .delete()
           .eq("venda_id", editId);
         if (deleteError) throw deleteError;
-      } else {
-        const { data, error: vendaError } = await supabase
-          .from("vendas")
-          .insert([vendaPayload])
-          .select()
-          .single();
-        if (vendaError) throw vendaError;
-        vendaData = data;
       }
 
       const { error: itemsError } = await supabase.from("vendas_itens").insert(

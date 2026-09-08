@@ -48,7 +48,7 @@ function ParceiroPDV() {
     descontoPercentual: 0,
     condicaoPagamento: "",
   });
-  const [vendedorInfo, setVendedorInfo] = useState<{ id: string; nome: string } | null>(null);
+  const [vendedorInfo, setVendedorInfo] = useState<{ id: string; nome: string; tipo_comissao?: string; valor_comissao?: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [davGeradoId, setDavGeradoId] = useState<string | null>(null);
   const [davGeradoNumero, setDavGeradoNumero] = useState<string | number | null>(null);
@@ -64,12 +64,17 @@ function ParceiroPDV() {
       if (session) {
         const { data: vData } = await supabase
           .from("vendedores")
-          .select("id, status, nome")
+          .select("id, status, nome, tipo_comissao, valor_comissao")
           .eq("user_id", session.user.id)
           .single();
         if (vData) {
           currentVendedorId = vData.id;
-          setVendedorInfo({ id: vData.id, nome: vData.nome });
+          setVendedorInfo({ 
+            id: vData.id, 
+            nome: vData.nome,
+            tipo_comissao: vData.tipo_comissao,
+            valor_comissao: Number(vData.valor_comissao) || 0
+          });
           if (vData.status === "Aguardando Aprovação") {
             navigate({ to: "/parceiro/dashboard" });
             return;
@@ -385,6 +390,16 @@ function ParceiroPDV() {
         console.warn("Não foi possível obter próximo número sequencial:", e);
       }
 
+      // Calcula a comissão estimada para exibir como pendente
+      let valorComissaoVenda = 0;
+      if (vendedorInfo) {
+        if (vendedorInfo.tipo_comissao === "Fixo" || vendedorInfo.tipo_comissao === "fixo") {
+          valorComissaoVenda = vendedorInfo.valor_comissao || 0;
+        } else {
+          valorComissaoVenda = (totalComDesconto * (vendedorInfo.valor_comissao || 0)) / 100;
+        }
+      }
+
       // Cria a venda pendente
       const vendaPayload: Record<string, any> = {
         tipo: "PDV",
@@ -397,6 +412,7 @@ function ParceiroPDV() {
         observacoes: clientForm.observacoes || null,
         vendedor_id: vendedorInfo?.id,
         cliente_id: finalClienteId,
+        valor_comissao: valorComissaoVenda,
       };
 
       if (nextNumero) {

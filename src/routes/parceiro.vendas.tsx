@@ -3,6 +3,7 @@ import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
+import { formatNumero } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   FileText,
@@ -163,7 +164,7 @@ function VendasParceiro() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-bold text-slate-800">Pedido #{v.numero || "S/N"}</h4>
+                      <h4 className="font-bold text-slate-800">Pedido #{formatNumero(v.numero, v.id)}</h4>
                       {v.tipo === "DAV" && (
                         <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider">
                           Orçamento
@@ -247,7 +248,7 @@ function VendasParceiro() {
         <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-white border-l-0 sm:border-l">
           <SheetHeader className="mb-6">
             <SheetTitle className="text-xl text-slate-800 flex items-center gap-2">
-              Detalhes do Pedido #{selectedVenda?.numero || "S/N"}
+              Detalhes do Pedido #{formatNumero(selectedVenda?.numero, selectedVenda?.id)}
             </SheetTitle>
           </SheetHeader>
 

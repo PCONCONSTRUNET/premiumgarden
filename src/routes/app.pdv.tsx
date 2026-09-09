@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { formatNumero } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -693,7 +694,7 @@ function PDV() {
                 >
                   <div>
                     <p className="font-semibold text-slate-800">
-                      #{orc.numero ? String(orc.numero).padStart(3, "0") : orc.numero_venda || orc.id.substring(0, 8).toUpperCase()}
+                      #{formatNumero(orc.numero ?? orc.numero_venda, orc.id)}
                     </p>
                     <p className="text-sm text-slate-600 font-medium">
                       👤 {orc.cliente?.nome || "Cliente Desconhecido"}

@@ -1,4 +1,5 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
+import { formatNumero } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -591,7 +592,7 @@ function Fiscal() {
                 pendentes.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-mono text-xs">
-                      {p.numero ? String(p.numero).padStart(3, "0") : p.id.substring(0, 8).toUpperCase()}
+                      {formatNumero(p.numero, p.id)}
                     </TableCell>
                     <TableCell className="font-semibold">
                       {p.clientes?.nome || "Consumidor Final"}
@@ -774,9 +775,7 @@ function Fiscal() {
             <DialogTitle className="flex items-center gap-2">
               <Send className="h-5 w-5 text-primary" />
               Emitir NF-e — Venda{" "}
-              {vendaSelecionada?.numero
-                ? String(vendaSelecionada.numero).padStart(3, "0")
-                : vendaSelecionada?.id?.substring(0, 8).toUpperCase()}
+              {formatNumero(vendaSelecionada?.numero, vendaSelecionada?.id)}
             </DialogTitle>
             <DialogDescription>
               Preencha os dados fiscais e transmita para a SEFAZ via Brasil NFe.

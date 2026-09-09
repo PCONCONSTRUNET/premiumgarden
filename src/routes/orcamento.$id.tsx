@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { formatNumero } from "@/lib/utils";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
@@ -170,7 +171,7 @@ function ImprimirDAV() {
           <span className="font-bold text-sm text-emerald-400">PREMIUM GARDEN</span>
           <span className="text-xs text-slate-500">|</span>
           <span className="text-xs text-slate-300 font-medium">
-            {dav.isVenda ? "Venda" : "Orçamento"} #{dav.numero || dav.id?.slice(0, 8).toUpperCase()}
+            {dav.isVenda ? "Venda" : "Orçamento"} #{formatNumero(dav.numero, dav.id)}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -211,7 +212,7 @@ function ImprimirDAV() {
             {dav.isVenda ? "Comprovante de Venda" : "Orçamento"}
           </h1>
           <p className="text-sm font-medium mt-1">
-            {dav.isVenda ? "Venda Nº: " : "DAV Nº: "} {dav.numero ? String(dav.numero).padStart(3, "0") : dav.id.substring(0, 8).toUpperCase()}
+            {dav.isVenda ? "Venda Nº: " : "DAV Nº: "} {formatNumero(dav.numero, dav.id)}
           </p>
           <p className="text-sm">
             Emissão: {dataDAV} às {horaDAV}

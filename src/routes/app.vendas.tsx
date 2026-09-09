@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
+import { formatNumero } from "@/lib/utils";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   CalendarDays,
@@ -123,9 +124,7 @@ function Pedidos() {
   }, []);
 
   const getOrderNumber = (venda: any) =>
-    venda.numero
-      ? String(venda.numero)
-      : venda.numero_venda || venda.id?.substring(0, 8).toUpperCase();
+    formatNumero(venda.numero ?? venda.numero_venda, venda.id);
 
   const getStatusLabel = (venda: any) => {
     if (venda.tipo === "DAV" && (!venda.status || venda.status === "Pendente")) {

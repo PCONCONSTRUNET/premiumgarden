@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { formatNumero } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -480,7 +481,7 @@ function VendasParceiros() {
                 >
                   <TableCell>
                     <p className="font-mono text-xs font-medium">
-                      #{v.numero_venda || v.id.substring(0, 8).toUpperCase()}
+                      #{formatNumero(v.numero_venda ?? v.numero, v.id)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(v.created_at).toLocaleDateString()}

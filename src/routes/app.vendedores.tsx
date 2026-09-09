@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { formatNumero } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -788,7 +789,7 @@ function VendedoresAdmin() {
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-xs font-medium text-muted-foreground">
-                              Pedido #{v.numero_venda || v.id.substring(0, 8).toUpperCase()}
+                              Pedido #{formatNumero(v.numero_venda ?? v.numero, v.id)}
                             </p>
                             <p className="font-bold text-sm">
                               Venda: R$ {Number(v.valor_total).toFixed(2)}

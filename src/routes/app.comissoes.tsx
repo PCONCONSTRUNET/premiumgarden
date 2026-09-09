@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { formatNumero } from "@/lib/utils";
 import { PageHeader } from "@/components/app-shell";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
@@ -80,7 +81,7 @@ function Comissoes() {
     fetchComissoes();
   }, []);
 
-  const getOrderNumber = (c: any) => c.numero || c.id.substring(0, 8).toUpperCase();
+  const getOrderNumber = (c: any) => formatNumero(c.numero, c.id);
 
   const handlePagarComissao = async (c: any) => {
     if (!window.confirm("Confirmar pagamento da comissão? Isso irá gerar uma despesa paga no financeiro.")) return;

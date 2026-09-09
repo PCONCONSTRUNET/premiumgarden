@@ -34,3 +34,16 @@ export function formatPhone(value: string) {
     .replace(/(\d{5})(\d)/, "$1-$2")
     .substring(0, 15);
 }
+
+/**
+ * Formata o número do pedido com 4 dígitos (zero à esquerda).
+ * Ex: 1 → "0001" | 42 → "0042" | 3282 → "3282" | 10000 → "10000"
+ * Se não houver número, usa os primeiros 8 chars do ID em maiúsculo.
+ */
+export function formatNumero(numero?: number | string | null, id?: string | null): string {
+  if (numero !== null && numero !== undefined && numero !== "") {
+    return String(numero).padStart(4, "0");
+  }
+  if (id) return id.substring(0, 8).toUpperCase();
+  return "S/N";
+}

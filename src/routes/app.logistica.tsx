@@ -1,4 +1,5 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
+import { formatNumero } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -599,7 +600,7 @@ function Logistica() {
               vendas.map((v) => (
                 <TableRow key={v.id}>
                   <TableCell className="font-mono text-xs">
-                    {v.numero_venda || v.id.substring(0, 8).toUpperCase()}
+                    {formatNumero(v.numero_venda ?? v.numero, v.id)}
                   </TableCell>
                   <TableCell className="font-semibold">
                     {v.clientes?.nome || "Cliente não informado"}

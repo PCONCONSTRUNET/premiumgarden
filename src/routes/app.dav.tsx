@@ -2,6 +2,7 @@ import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { formatNumero } from "@/lib/utils";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -238,7 +239,7 @@ function DAVList() {
                   onClick={() => handleOpenDetails(v)}
                 >
                   <TableCell className="font-mono text-xs">
-                    {v.numero ? String(v.numero).padStart(3, "0") : v.id.substring(0, 8).toUpperCase()}
+                    {formatNumero(v.numero, v.id)}
                   </TableCell>
                   <TableCell className="font-semibold">
                     {v.cliente_nome || "—"}
@@ -292,7 +293,7 @@ function DAVList() {
           <SheetHeader>
             <SheetTitle>Detalhes do Orçamento</SheetTitle>
             <SheetDescription>
-              DAV Nº {selectedDav?.numero ? String(selectedDav.numero).padStart(3, "0") : selectedDav?.numero_venda || selectedDav?.id?.substring(0, 8).toUpperCase()}
+              DAV Nº {formatNumero(selectedDav?.numero, selectedDav?.id)}
             </SheetDescription>
           </SheetHeader>
 

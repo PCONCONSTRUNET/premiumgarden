@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { formatNumero } from "@/lib/utils";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -449,7 +450,7 @@ function RelatoriosDashboard() {
                     <TableRow key={v.id}>
                       <TableCell>{new Date(v.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="font-medium">
-                        {v.tipo} #{v.numero_venda || v.id.substring(0, 8).toUpperCase()}
+                        {v.tipo} #{formatNumero(v.numero_venda ?? v.numero, v.id)}
                       </TableCell>
                       <TableCell>{v.clientes?.nome || "Consumidor Final"}</TableCell>
                       <TableCell className="text-right font-medium">

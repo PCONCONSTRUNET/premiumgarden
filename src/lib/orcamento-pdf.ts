@@ -197,7 +197,7 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
   // 2. BARRA DE TÍTULO DO PEDIDO
   // ══════════════════════════════════════════════════════════════════════════════
 
-  const numDisplay = data.numero ? String(data.numero) : "0001";
+  const numDisplay = data.numero ? String(data.numero).padStart(4, "0") : "0001";
   const pedidoTitle = `Pedido ${numDisplay}-${anoEmissao}`;
 
   doc.setFillColor(15, 15, 15);

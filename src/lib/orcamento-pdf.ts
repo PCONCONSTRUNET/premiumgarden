@@ -416,8 +416,11 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
   // 6. SEÇÃO PAGAMENTO
   // ══════════════════════════════════════════════════════════════════════════════
 
+  const PIX_PADRAO = "15981054330   ///   15997970059";
   const payMethod = data.condicao_pagamento || "PIX";
-  const payDetail = data.observacoes_pagamento || "";
+  const isPix = payMethod.toLowerCase().includes("pix");
+  // Se for PIX e não tiver detalhe preenchido, usa a chave padrão da empresa
+  const payDetail = data.observacoes_pagamento || (isPix ? PIX_PADRAO : "");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);

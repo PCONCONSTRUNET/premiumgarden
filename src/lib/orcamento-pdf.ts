@@ -289,9 +289,7 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
       fontSize: 8,
       cellPadding: { top: 3, bottom: 3, left: 2, right: 2 },
       halign: "left",
-    },
-    bodyStyles: {
-      minCellHeight: 26,
+      minCellHeight: 10,
     },
     styles: {
       fontSize: 8,
@@ -300,6 +298,7 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
       lineColor: [210, 215, 225],
       textColor: [35, 40, 50],
       valign: "middle",
+      minCellHeight: 26,
     },
     columnStyles: {
       0: { cellWidth: IMG_COL_W, halign: "center" },

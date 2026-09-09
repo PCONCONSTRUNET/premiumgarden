@@ -203,7 +203,7 @@ function ImprimirDAV() {
             <p className="font-bold text-slate-900">{dav.emissor_nome || "GARDEN PREMIUM PRODUTOS PARA JARDINAGEM LTDA"}</p>
             {dav.emissor_cnpj && <p>CNPJ: {dav.emissor_cnpj}</p>}
             {dav.emissor_endereco && <p>{dav.emissor_endereco}</p>}
-            {dav.emissor_telefone && <p>Tel: {dav.emissor_telefone.replace(/99733-?1112/g, '99714-1112').replace('997331112', '997141112')}</p>}
+            {dav.emissor_telefone && <p>Tel: {dav.emissor_telefone.replace(/99714-?1112|99733-?1112|997141112|997331112/g, '(15) 98105-4330 / (15) 99797-0059')}</p>}
           </div>
         </div>
         <div className="text-right">

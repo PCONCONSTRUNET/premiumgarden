@@ -21,6 +21,7 @@ function Configuracoes() {
     razao_social: "",
     cnpj: "",
     endereco: "",
+    telefone: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -32,6 +33,7 @@ function Configuracoes() {
           razao_social: data.razao_social || "",
           cnpj: data.cnpj || "",
           endereco: data.endereco || "",
+          telefone: data.telefone || "",
         });
       }
     }
@@ -46,6 +48,7 @@ function Configuracoes() {
         razao_social: empresa.razao_social,
         cnpj: empresa.cnpj,
         endereco: empresa.endereco,
+        telefone: empresa.telefone,
       });
       if (error) throw error;
       toast.success("Dados da empresa salvos com sucesso!");
@@ -148,6 +151,15 @@ function Configuracoes() {
                     placeholder="Rua Antonieta da Silva Gomes, 316..."
                   />
                   <p className="text-xs text-muted-foreground mt-1">Este endereço será exibido nos comprovantes e faturamentos gerados pelo sistema.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone (s)</Label>
+                  <Input 
+                    value={empresa.telefone}
+                    onChange={(e) => setEmpresa({...empresa, telefone: e.target.value})}
+                    placeholder="Ex: (15) 98105-4330 / (15) 99797-0059"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Esses números serão exibidos nos comprovantes e orçamentos.</p>
                 </div>
                 <div className="pt-4">
                   <Button onClick={handleSaveEmpresa} disabled={loading} className="bg-brand text-white w-full sm:w-auto">

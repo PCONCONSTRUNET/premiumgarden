@@ -103,8 +103,13 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
+  const fallbackPhone = "(15) 98105-4330 / (15) 99797-0059";
+  const displayPhone = data.emissor_telefone 
+    ? data.emissor_telefone.replace(/99714-?1112|99733-?1112|997141112|997331112/g, fallbackPhone)
+    : fallbackPhone;
+
   doc.text(
-    `CNPJ: ${data.emissor_cnpj || "46.595.008/0001-49"}   Tel: ${data.emissor_telefone || "(15) 99714-1112"}`,
+    `CNPJ: ${data.emissor_cnpj || "46.595.008/0001-49"}   Tel: ${displayPhone}`,
     margin,
     y + 24,
   );

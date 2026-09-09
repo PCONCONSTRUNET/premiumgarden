@@ -605,6 +605,23 @@ export async function downloadOrcamentoPDF(data: OrcamentoPdfData): Promise<void
   }
 }
 
+/** Imprime o PDF de Orçamento (abre em nova aba ou iframe) */
+export async function printOrcamentoPDF(data: OrcamentoPdfData): Promise<void> {
+  try {
+    const doc = await createOrcamentoPdfDoc(data);
+    doc.autoPrint();
+    const pdfBlobUrl = doc.output("bloburl");
+    
+    const printWindow = window.open(pdfBlobUrl, "_blank");
+    if (!printWindow) {
+      toast.error("O navegador bloqueou a abertura da janela de impressão. Permita pop-ups para este site.");
+    }
+  } catch (err) {
+    console.error("Erro ao imprimir PDF:", err);
+    toast.error("Erro ao iniciar a impressão do PDF.");
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // Conversores de dados da tabela vendas → OrcamentoPdfData
 // ══════════════════════════════════════════════════════════════════════════════
@@ -687,6 +704,19 @@ export async function downloadVendaPdf(venda: any, itens?: any[]): Promise<void>
   }
   const pdfData = vendaToPdfData(venda, finalItens);
   return downloadOrcamentoPDF(pdfData);
+}
+
+export async function printVendaPdf(venda: any, itens?: any[]): Promise<void> {
+  let finalItens = itens;
+  if (!finalItens || finalItens.length === 0) {
+    const { data } = await supabase
+      .from("vendas_itens")
+      .select("*, produtos(nome, codigo, imagem, marca, unidade)")
+      .eq("venda_id", venda.id);
+    finalItens = data || [];
+  }
+  const pdfData = vendaToPdfData(venda, finalItens);
+  return printOrcamentoPDF(pdfData);
 }
 
 /**

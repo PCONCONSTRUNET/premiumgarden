@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
-import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
+import { shareOrcamentoPDF, downloadOrcamentoPDF, printVendaPdf } from "@/lib/orcamento-pdf";
 import { formatNumero } from "@/lib/utils";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -247,119 +247,9 @@ function Pedidos() {
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!selectedVenda) return;
-    const cur = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-    const venda = selectedVenda;
-    const itensHTML = vendaItens.map((item: any) => `
-      <tr>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${item.produtos?.codigo || "-"}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center">
-          ${item.produtos?.imagem ? `<img src="${item.produtos.imagem}" style="height:36px;width:36px;object-fit:cover;border-radius:4px" />` : ""}
-        </td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-weight:500">${item.produtos?.nome || ""}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${item.quantidade} ${item.produtos?.unidade_medida || "un"}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right">${cur.format(Number(item.valor_unitario))}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:500">${cur.format(Number(item.subtotal))}</td>
-      </tr>
-    `).join("");
-    const subtotalVal = (Number(venda.valor_total) || 0) + (Number(venda.desconto_valor) || 0);
-    const desconto = Number(venda.desconto_valor) || 0;
-    const total = Number(venda.valor_total) || 0;
-    const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8"/>
-  <title>Pedido #${getOrderNumber(venda)}</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;padding:32px}
-    h1{font-size:20px;font-weight:700}h2{font-size:15px;font-weight:600}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:16px;margin-bottom:20px}
-    .section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:8px}
-    .client-box{background:#f9fafb;border:1px solid #e5e7eb;padding:12px;border-radius:4px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    table{width:100%;border-collapse:collapse;margin-bottom:20px}
-    thead{background:#f3f4f6}
-    th{padding:7px 8px;text-align:left;font-size:11px;font-weight:700;border-bottom:2px solid #e5e7eb}
-    .totals{display:flex;justify-content:flex-end}
-    .totals-box{width:240px}
-    .totals-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #e5e7eb;font-size:12px}
-    .totals-total{display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:15px}
-    .footer{margin-top:32px;display:flex;justify-content:space-between;border-top:1px solid #e5e7eb;padding-top:16px;font-size:11px;color:#555}
-    @media print{body{padding:16px}}
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <img src="${window.location.origin}${premiumGardenLogo}" alt="Logo" style="height:48px;margin-bottom:8px;object-fit:contain" />
-      <h1>${empresaDados?.razao_social || "PREMIUM GARDEN"}</h1>
-      <div style="font-size:12px;color:#555;margin-top:4px">${empresaDados?.endereco || ""}</div>
-      <div style="font-size:12px;color:#555">CNPJ: ${empresaDados?.cnpj || ""}</div>
-      <div style="font-size:12px;color:#555">Tel: ${empresaDados?.telefone || "(15) 98105-4330 / (15) 99797-0059"}</div>
-    </div>
-    <div style="text-align:right">
-      <h2>Pedido #${getOrderNumber(venda)}</h2>
-      <div style="font-size:12px;color:#555;margin-top:4px">Emitido em: ${new Date(venda.created_at).toLocaleDateString("pt-BR")}</div>
-      <div style="font-size:12px;color:#555">Vendedor: ${venda.vendedores?.nome || "Admin"}</div>
-    </div>
-  </div>
-
-  <div class="section-title">Dados do Cliente</div>
-  <div class="client-box">
-    <div><span style="color:#888">Nome:</span> <strong>${venda.clientes?.nome || ""}</strong></div>
-    <div><span style="color:#888">Telefone:</span> ${venda.clientes?.telefone || "Não informado"}</div>
-    <div style="grid-column:span 2"><span style="color:#888">Endereço:</span> ${venda.clientes?.endereco ? `${venda.clientes.endereco}, ${venda.clientes.numero || "S/N"} - ${venda.clientes.cidade || ""}/${venda.clientes.uf || ""}` : "Não informado"}</div>
-  </div>
-
-  <div class="section-title">Itens do Pedido</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Cód.</th><th>Foto</th><th>Descrição</th><th style="text-align:right">Qtd</th><th style="text-align:right">Preço Un.</th><th style="text-align:right">Subtotal</th>
-      </tr>
-    </thead>
-    <tbody>${itensHTML}</tbody>
-  </table>
-
-  <div class="totals">
-    <div class="totals-box">
-      <div class="totals-row"><span style="color:#555">Subtotal:</span><span>${cur.format(subtotalVal)}</span></div>
-      ${desconto > 0 ? `<div class="totals-row" style="color:#dc2626"><span>Desconto:</span><span>-${cur.format(desconto)}</span></div>` : ""}
-      <div class="totals-total"><span>Total:</span><span style="color:#2563eb">${cur.format(total)}</span></div>
-      ${valorJaFaturado > 0 ? `<div class="totals-row" style="color:#16a34a;font-weight:600"><span>Valor Pago:</span><span>${cur.format(valorJaFaturado)}</span></div>${total - valorJaFaturado > 0.01 ? `<div class="totals-row" style="color:#d97706;font-weight:600"><span>Restante:</span><span>${cur.format(total - valorJaFaturado)}</span></div>` : ""}` : ""}
-    </div>
-  </div>
-
-  <div class="footer">
-    <div><strong>Condição de Pagamento</strong><br/>${venda.condicao_pagamento || "À vista"}</div>
-    <div><strong>Observações</strong><br/>${venda.informacoes || "Pedido gerado via sistema Premium Garden."}</div>
-  </div>
-</body>
-</html>`;
-
-    // Utiliza um iframe invisível para imprimir sem abrir nova aba
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0px";
-    iframe.style.height = "0px";
-    iframe.style.border = "none";
-    document.body.appendChild(iframe);
-    
-    const doc = iframe.contentWindow?.document;
-    if (doc) {
-      doc.open();
-      doc.write(html);
-      doc.close();
-      
-      iframe.contentWindow?.focus();
-      
-      // Espera 500ms para a logo carregar antes de abrir o popup de impressão
-      setTimeout(() => {
-        iframe.contentWindow?.print();
-        setTimeout(() => document.body.removeChild(iframe), 1000);
-      }, 500);
-    }
+    await printVendaPdf(selectedVenda, vendaItens);
   };
 
   const getTone = (status: string) => {

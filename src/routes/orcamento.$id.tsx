@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { formatNumero } from "@/lib/utils";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
-import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
+import { shareOrcamentoPDF, downloadOrcamentoPDF, printOrcamentoPDF } from "@/lib/orcamento-pdf";
 import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/orcamento/$id")({
@@ -102,7 +102,8 @@ function ImprimirDAV() {
       setItens(itemsData);
 
       if (d) {
-        setTimeout(() => window.print(), 800);
+        // Removemos o print automático pois o printOrcamentoPDF abre nova janela
+        // e poderia causar bloqueio de pop-up se não for engatilhado por clique
       }
     }
     loadData();
@@ -188,7 +189,7 @@ function ImprimirDAV() {
             Baixar PDF
           </button>
           <button
-            onClick={() => window.print()}
+            onClick={() => printOrcamentoPDF({ ...dav, itens })}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-slate-900 hover:bg-slate-100 text-xs font-semibold shadow transition-colors"
           >
             Imprimir

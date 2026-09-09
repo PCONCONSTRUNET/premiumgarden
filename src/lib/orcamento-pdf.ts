@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
+import assinaturaOscar from "@/assets/assinatura-oscar.png";
 
 export interface OrcamentoPdfData {
   id?: string;
@@ -90,7 +91,14 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
   const CW = PW - M * 2;                         // 190
 
   // ── Pré-carregamento de imagens (logo + produtos) ──────────────────────────
-  const logoBase64 = await toBase64(premiumGardenLogo).catch(() => null);
+  let logoBase64 = null;
+  let assinaturaBase64 = null;
+  try {
+    logoBase64 = await toBase64(premiumGardenLogo);
+    assinaturaBase64 = await toBase64(assinaturaOscar);
+  } catch (err) {
+    console.warn("Aviso: imagem não pôde ser carregada para PDF", err);
+  }
   const productImages: (string | null)[] = await Promise.all(
     (data.itens || []).map((item) =>
       item.imagem ? toBase64(item.imagem).catch(() => null) : Promise.resolve(null)
@@ -498,6 +506,15 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
   doc.setLineWidth(0.4);
   doc.line(leftSigX, ty, leftSigX + signW, ty);
   doc.line(rightSigX, ty, rightSigX + signW, ty);
+
+  // Assinatura do emissor (Oscar)
+  if (assinaturaBase64) {
+    const sigImgW = 35;
+    const sigImgH = 10;
+    const sX = leftSigX + signW / 2 - sigImgW / 2;
+    const sY = ty - sigImgH - 1; // 1mm acima da linha
+    doc.addImage(assinaturaBase64, "PNG", sX, sY, sigImgW, sigImgH);
+  }
   ty += 4;
 
   // Texto assinatura esquerda (emissor)

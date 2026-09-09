@@ -317,6 +317,7 @@ function VendedoresAdmin() {
       await supabase.from("contas_receber").insert([
         {
           venda_id: venda.id,
+          cliente_id: venda.cliente_id,
           descricao: `Venda Parceiro #${formatNumero(venda.numero_venda ?? venda.numero, venda.id)} - ${vendedor?.nome || ""}`,
           valor: valorVenda,
           vencimento: dataAtual,

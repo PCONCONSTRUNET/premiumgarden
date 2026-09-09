@@ -97,6 +97,43 @@ function Financeiro() {
 
   useEffect(() => {
     fetchFinanceiro();
+
+    // Temporary migration to fix missing cliente_id in contas_receber
+    const fixMissingClientIds = async () => {
+      try {
+        const { data: records } = await supabase
+          .from("contas_receber")
+          .select("id, venda_id")
+          .is("cliente_id", null)
+          .not("venda_id", "is", null);
+
+        if (records && records.length > 0) {
+          console.log("Corrigindo cliente_id nulos em contas_receber...");
+          let fixed = 0;
+          for (const record of records) {
+            const { data: venda } = await supabase
+              .from("vendas")
+              .select("cliente_id")
+              .eq("id", record.venda_id)
+              .single();
+
+            if (venda && venda.cliente_id) {
+              await supabase
+                .from("contas_receber")
+                .update({ cliente_id: venda.cliente_id })
+                .eq("id", record.id);
+              fixed++;
+            }
+          }
+          if (fixed > 0) {
+            toast.success("Nomes de clientes antigos no financeiro corrigidos com sucesso! Atualize a página.");
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao corrigir cliente_id:", err);
+      }
+    };
+    fixMissingClientIds();
   }, []);
 
   const [baixaModal, setBaixaModal] = useState<{

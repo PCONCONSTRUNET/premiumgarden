@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
-import premiumGardenLogo from "@/assets/premium-garden-logo.png";
+import premiumGardenLogo from "@/assets/bezerra-representacoes-logo.png";
 import assinaturaOscar from "@/assets/assinatura-oscar.png";
 
 export interface OrcamentoPdfData {

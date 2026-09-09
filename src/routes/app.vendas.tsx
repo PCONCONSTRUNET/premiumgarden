@@ -102,7 +102,7 @@ function Pedidos() {
     try {
       const { data, error } = await supabase
         .from("vendas")
-        .select("*, clientes(nome, telefone, endereco, numero, cidade, uf), vendedores(nome), contas_receber(valor)")
+        .select("*, clientes(nome, cpf_cnpj, telefone, endereco, numero, bairro, cidade, uf, cep), vendedores(nome), contas_receber(valor)")
         .or("status_aprovacao.neq.Pendente,status_aprovacao.is.null")
         .order("created_at", { ascending: false });
 

@@ -64,7 +64,7 @@ function VendasParceiro() {
         if (vData) {
           const { data, error } = await supabase
             .from("vendas")
-            .select("*, clientes(nome)")
+            .select("*, clientes(nome, cpf_cnpj, telefone, endereco, numero, bairro, cidade, uf, cep)")
             .eq("vendedor_id", vData.id)
             .in("tipo", ["VENDA", "PDV", "DAV"])
             .order("created_at", { ascending: false });

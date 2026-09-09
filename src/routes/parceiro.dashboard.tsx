@@ -90,7 +90,7 @@ function ParceiroDashboard() {
           // Busca as vendas dele ignorando os Orçamentos (DAV)
           const { data: vendasData } = await supabase
             .from("vendas")
-            .select("*, cliente:clientes(nome, cpf_cnpj, telefone)")
+            .select("*, cliente:clientes(nome, cpf_cnpj, telefone, endereco, numero, bairro, cidade, uf, cep)")
             .eq("vendedor_id", vData.id)
             .neq("tipo", "DAV")
             .order("created_at", { ascending: false });

@@ -685,15 +685,35 @@ export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData 
     subtotal = orderTotal + descVal - freteVal;
   }
 
-  return {
-    id: venda.id,
-    numero: venda.numero ?? venda.numero_venda ?? null,
-    tipo: venda.tipo || "VENDA",
-    created_at: venda.created_at,
-    cliente_nome: clienteNome,
-    cliente_cnpj: clienteCnpj,
-    cliente_telefone: clienteTel,
-    cliente_endereco: venda.cliente_endereco || null,
+    let clienteEndereco = venda.cliente_endereco || null;
+    if (!clienteEndereco && (venda.clientes || venda.cliente)) {
+      const c = venda.clientes || venda.cliente;
+      if (c.endereco) {
+        const partes = [];
+        let logradouro = c.endereco;
+        if (c.numero) logradouro += `, ${c.numero}`;
+        partes.push(logradouro);
+        
+        const bairroCidadeUf = [];
+        if (c.bairro) bairroCidadeUf.push(c.bairro);
+        if (c.cidade) bairroCidadeUf.push(c.cidade + (c.uf ? `-${c.uf}` : ""));
+        if (bairroCidadeUf.length > 0) partes.push(bairroCidadeUf.join(", "));
+        
+        if (c.cep) partes.push(`CEP ${c.cep}`);
+        
+        clienteEndereco = partes.join("\n");
+      }
+    }
+    
+    return {
+      id: venda.id,
+      numero: venda.numero ?? venda.numero_venda ?? null,
+      tipo: venda.tipo || "VENDA",
+      created_at: venda.created_at,
+      cliente_nome: clienteNome,
+      cliente_cnpj: clienteCnpj,
+      cliente_telefone: clienteTel,
+      cliente_endereco: clienteEndereco,
     condicao_pagamento: venda.condicao_pagamento || null,
     observacoes_pagamento: venda.observacoes_pagamento || null,
     observacoes: venda.observacoes || null,

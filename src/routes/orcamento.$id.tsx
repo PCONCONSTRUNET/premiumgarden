@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { formatNumero } from "@/lib/utils";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
-import { shareOrcamentoPDF, downloadOrcamentoPDF, printOrcamentoPDF } from "@/lib/orcamento-pdf";
+import { shareOrcamentoPDF, downloadOrcamentoPDF, printOrcamentoPDF, vendaToPdfData } from "@/lib/orcamento-pdf";
 import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/orcamento/$id")({
@@ -177,19 +177,19 @@ function ImprimirDAV() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => shareOrcamentoPDF({ ...dav, itens })}
+            onClick={() => shareOrcamentoPDF(vendaToPdfData(dav, itens))}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow transition-colors"
           >
             <WhatsAppIcon className="w-4 h-4" /> Enviar PDF no WhatsApp
           </button>
           <button
-            onClick={() => downloadOrcamentoPDF({ ...dav, itens })}
+            onClick={() => downloadOrcamentoPDF(vendaToPdfData(dav, itens))}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 shadow transition-colors"
           >
             Baixar PDF
           </button>
           <button
-            onClick={() => printOrcamentoPDF({ ...dav, itens })}
+            onClick={() => printOrcamentoPDF(vendaToPdfData(dav, itens))}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-slate-900 hover:bg-slate-100 text-xs font-semibold shadow transition-colors"
           >
             Imprimir

@@ -162,9 +162,9 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
   const contactX = 142;
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(`\u2709  ${emissorEmail}`, contactX, y + 12);
-  doc.text(`\u{1F4F1} ${emissorWhatsapp}`, contactX, y + 17);
-  doc.text(`\u260E  ${emissorTelefone}`, contactX, y + 22);
+  doc.text(`Email: ${emissorEmail}`, contactX, y + 12);
+  doc.text(`Cel: ${emissorWhatsapp}`, contactX, y + 17);
+  doc.text(`Tel: ${emissorTelefone}`, contactX, y + 22);
 
   // Caixa da data (topo direita)
   const dateBoxW = 28;
@@ -176,7 +176,7 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(50, 60, 80);
-  doc.text(`\uD83D\uDCC5 ${dataEmissao}`, dateBoxX + 2, y + 5.3);
+  doc.text(`Data: ${dataEmissao}`, dateBoxX + 2, y + 5.3);
 
   y += 33;
 

@@ -107,7 +107,7 @@ function DAVList() {
     try {
       const { data: itens } = await supabase
         .from("dav_items")
-        .select("*")
+        .select("*, produtos(imagem, marca, unidade)")
         .eq("dav_id", dav.id);
 
       await shareOrcamentoPDF({
@@ -118,6 +118,9 @@ function DAVList() {
           quantidade: item.qtd || item.quantidade,
           valor_unitario: item.valor_unitario,
           subtotal: item.total || item.subtotal,
+          imagem: item.produtos?.imagem || null,
+          marca: item.produtos?.marca || null,
+          unidade: item.produtos?.unidade || null,
         })),
       });
     } catch (err: any) {
@@ -390,7 +393,7 @@ function DAVList() {
                   onClick={async () => {
                     const { data: itens } = await supabase
                       .from("dav_items")
-                      .select("*")
+                      .select("*, produtos(imagem, marca, unidade)")
                       .eq("dav_id", selectedDav.id);
 
                     await downloadOrcamentoPDF({
@@ -401,6 +404,9 @@ function DAVList() {
                         quantidade: item.qtd || item.quantidade,
                         valor_unitario: item.valor_unitario,
                         subtotal: item.total || item.subtotal,
+                        imagem: item.produtos?.imagem || null,
+                        marca: item.produtos?.marca || null,
+                        unidade: item.produtos?.unidade || null,
                       })),
                     });
                   }}

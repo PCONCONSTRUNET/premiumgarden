@@ -486,8 +486,9 @@ function ParceiroPDV() {
         codigo: item.cod,
         nome: item.p,
         quantidade: item.q,
-        valor_unitario: item.v,
+        valor_unitario: item.u,
         subtotal: item.t,
+        imagem: item.imagem || null,
       })),
     });
   };
@@ -693,8 +694,9 @@ function ParceiroPDV() {
                           codigo: item.cod,
                           nome: item.p,
                           quantidade: item.q,
-                          valor_unitario: item.v,
+                          valor_unitario: item.u,
                           subtotal: item.t,
+                          imagem: item.imagem || null,
                         })),
                       });
                     }}

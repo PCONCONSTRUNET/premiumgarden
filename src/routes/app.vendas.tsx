@@ -447,7 +447,7 @@ function Pedidos() {
     try {
       const { data: itens } = await supabase
         .from("vendas_itens")
-        .select("*, produtos(nome, codigo)")
+        .select("*, produtos(nome, codigo, imagem, marca, unidade)")
         .eq("venda_id", venda.id);
 
       const cli = venda.clientes;
@@ -480,6 +480,9 @@ function Pedidos() {
           quantidade: it.quantidade,
           valor_unitario: it.valor_unitario,
           subtotal: it.subtotal,
+          imagem: it.produtos?.imagem || null,
+          marca: it.produtos?.marca || null,
+          unidade: it.produtos?.unidade || null,
         })),
       });
     } catch (err: any) {
@@ -963,7 +966,7 @@ function Pedidos() {
                   onClick={async () => {
                     const { data: itens } = await supabase
                       .from("vendas_itens")
-                      .select("*, produtos(nome, codigo)")
+                      .select("*, produtos(nome, codigo, imagem, marca, unidade)")
                       .eq("venda_id", selectedVenda.id);
 
                     const cli = selectedVenda.clientes;
@@ -996,6 +999,9 @@ function Pedidos() {
                         quantidade: it.quantidade,
                         valor_unitario: it.valor_unitario,
                         subtotal: it.subtotal,
+                        imagem: it.produtos?.imagem || null,
+                        marca: it.produtos?.marca || null,
+                        unidade: it.produtos?.unidade || null,
                       })),
                     });
                   }}

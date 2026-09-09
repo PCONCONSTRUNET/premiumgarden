@@ -7,26 +7,34 @@ import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 export interface OrcamentoPdfData {
   id?: string;
   numero?: number | string | null;
-  tipo?: string; // "DAV" | "VENDA"
+  tipo?: string; // "DAV" | "VENDA" | "PDV"
   created_at?: string;
+  // Cliente
   cliente_nome?: string | null;
   cliente_cnpj?: string | null;
   cliente_telefone?: string | null;
   cliente_endereco?: string | null;
+  // Pagamento
   condicao_pagamento?: string | null;
   observacoes_pagamento?: string | null;
   observacoes?: string | null;
+  // Vendedor / Emissor
   vendedor?: string | null;
   emissor_nome?: string | null;
   emissor_cnpj?: string | null;
   emissor_endereco?: string | null;
   emissor_telefone?: string | null;
+  emissor_email?: string | null;
+  emissor_whatsapp?: string | null;
+  cidade_emissao?: string | null;
+  // Financeiro
   subtotal?: number | null;
   desconto_percentual?: number | null;
   desconto_valor?: number | null;
   frete_valor?: number | null;
   valor_total?: number | null;
   total?: number | null;
+  // Itens
   itens: Array<{
     codigo?: string | null;
     nome?: string | null;
@@ -36,8 +44,13 @@ export interface OrcamentoPdfData {
     valor_unitario?: number | string | null;
     subtotal?: number | string | null;
     total?: number | string | null;
+    imagem?: string | null;
+    marca?: string | null;
+    unidade?: string | null;
   }>;
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const formatCurrency = (val: number | string | null | undefined): string => {
   const num = Number(val) || 0;
@@ -58,220 +71,266 @@ const toBase64 = (url: string): Promise<string | null> =>
     )
     .catch(() => null);
 
+/** Tenta extrair a cidade do endereço do emissor. Ex: "Sorocaba-SP" → "Sorocaba" */
+function extractCity(endereco?: string | null): string {
+  if (!endereco) return "Sorocaba";
+  const match = endereco.match(/([A-Za-zÀ-ú\s]+)-[A-Z]{2}/);
+  if (match) return match[1].trim();
+  return "Sorocaba";
+}
+
+// ─── PDF Principal ─────────────────────────────────────────────────────────────
+
 export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsPDF> {
-  const doc = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: "a4",
-  });
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 12;
-  const contentWidth = pageWidth - margin * 2;
+  const PW = doc.internal.pageSize.getWidth();   // 210
+  const PH = doc.internal.pageSize.getHeight();  // 297
+  const M = 10;                                  // margem
+  const CW = PW - M * 2;                         // 190
 
-  let y = 14;
-
-  // 1. Logo & Cabeçalho da Empresa
-  try {
-    const logoData = await toBase64(premiumGardenLogo);
-    if (logoData) {
-      doc.addImage(logoData, "PNG", margin, y, 42, 14);
-    } else {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(22, 163, 74);
-      doc.text("PREMIUM GARDEN", margin, y + 8);
-    }
-  } catch {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(22, 163, 74);
-    doc.text("PREMIUM GARDEN", margin, y + 8);
-  }
-
-  // Dados da Empresa Emissora
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(
-    data.emissor_nome || "GARDEN PREMIUM PRODUTOS PARA JARDINAGEM LTDA",
-    margin,
-    y + 20,
+  // ── Pré-carregamento de imagens (logo + produtos) ──────────────────────────
+  const logoBase64 = await toBase64(premiumGardenLogo).catch(() => null);
+  const productImages: (string | null)[] = await Promise.all(
+    (data.itens || []).map((item) =>
+      item.imagem ? toBase64(item.imagem).catch(() => null) : Promise.resolve(null)
+    )
   );
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(71, 85, 105);
-  const fallbackPhone = "(15) 98105-4330 / (15) 99797-0059";
-  const displayPhone = data.emissor_telefone 
-    ? data.emissor_telefone.replace(/99714-?1112|99733-?1112|997141112|997331112/g, fallbackPhone)
-    : fallbackPhone;
-
-  doc.text(
-    `CNPJ: ${data.emissor_cnpj || "46.595.008/0001-49"}   Tel: ${displayPhone}`,
-    margin,
-    y + 24,
-  );
-  if (data.emissor_endereco) {
-    doc.text(data.emissor_endereco, margin, y + 28);
-  }
-
-  // Bloco Direito: Título do Documento e Número
-  const isVenda = data.tipo === "VENDA";
-  const docTitle = isVenda ? "COMPROVANTE DE VENDA" : "ORÇAMENTO";
-  const numDisplay = data.numero
-    ? String(data.numero).padStart(4, "0")
-    : data.id?.slice(0, 8).toUpperCase() || "0001";
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(15, 23, 42);
-  doc.text(docTitle, pageWidth - margin, y + 6, { align: "right" });
-
-  doc.setFontSize(10);
-  doc.setTextColor(22, 163, 74);
-  doc.text(`Nº ${numDisplay}`, pageWidth - margin, y + 12, { align: "right" });
-
+  // ── Dados gerais ────────────────────────────────────────────────────────────
   const dataEmissao = data.created_at
     ? new Date(data.created_at).toLocaleDateString("pt-BR")
     : new Date().toLocaleDateString("pt-BR");
-  const horaEmissao = data.created_at
-    ? new Date(data.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-    : new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const anoEmissao = data.created_at
+    ? new Date(data.created_at).getFullYear()
+    : new Date().getFullYear();
+
+  const emissorNome = data.emissor_nome || "GARDEN PREMIUM LTDA";
+  const emissorCnpj = data.emissor_cnpj || "46.595.008/0001-49";
+  const emissorEmail = data.emissor_email || "oscarinobezerra71@gmail.com";
+  const emissorWhatsapp = data.emissor_whatsapp || "+55 (15) 98105-4330";
+
+  // Telefone: remove números internos antigos, usa fallback correto
+  const fallbackPhone = "+55 (15) 99797-0059";
+  const emissorTelefone = data.emissor_telefone
+    ? data.emissor_telefone.replace(/99714-?1112|99733-?1112|997141112|997331112/g, fallbackPhone)
+    : fallbackPhone;
+
+  // Endereço do emissor (até 3 linhas)
+  const emissorEndRaw = data.emissor_endereco || "Rua Octávio Borghi, 215\nJardim Bonsucesso, Sorocaba-SP\nCEP 18078-736";
+  const emissorEndLines = emissorEndRaw.split(/\n|,\s*(?=[A-Z])/).slice(0, 4);
+
+  const cidade = data.cidade_emissao || extractCity(data.emissor_endereco);
+
+  let y = 8;
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // 1. CABEÇALHO
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  // Logo (esquerda)
+  if (logoBase64) {
+    doc.addImage(logoBase64, "PNG", M, y, 40, 27);
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(22, 163, 74);
+    doc.text("PREMIUM GARDEN", M, y + 14);
+  }
+
+  // Nome e dados da empresa (centro-esquerda)
+  const infoX = M + 44;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(emissorNome, infoX, y + 5);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  // Subtítulo / razão social completa (se o nome for curto, mostrar razão completa)
+  doc.text("GARDEN PREMIUM PRODUTOS PARA JARDINAGEM LTDA", infoX, y + 10);
+  doc.text(`CNPJ: ${emissorCnpj}`, infoX, y + 14.5);
+
+  // Endereço (máx 3 linhas)
+  emissorEndLines.slice(0, 3).forEach((line, i) => {
+    doc.text(line.trim(), infoX, y + 19 + i * 4);
+  });
+
+  // Informações de contato (coluna direita)
+  const contactX = 142;
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`\u2709  ${emissorEmail}`, contactX, y + 12);
+  doc.text(`\u{1F4F1} ${emissorWhatsapp}`, contactX, y + 17);
+  doc.text(`\u260E  ${emissorTelefone}`, contactX, y + 22);
+
+  // Caixa da data (topo direita)
+  const dateBoxW = 28;
+  const dateBoxX = PW - M - dateBoxW;
+  doc.setDrawColor(180, 190, 200);
+  doc.setLineWidth(0.3);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(dateBoxX, y, dateBoxW, 8, 1, 1, "FD");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(50, 60, 80);
+  doc.text(`\uD83D\uDCC5 ${dataEmissao}`, dateBoxX + 2, y + 5.3);
+
+  y += 33;
+
+  // Linha divisória
+  doc.setDrawColor(210, 218, 228);
+  doc.setLineWidth(0.4);
+  doc.line(M, y, PW - M, y);
+  y += 5;
+
+  // ── Slogan ──────────────────────────────────────────────────────────────────
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9);
+  doc.setTextColor(80, 90, 100);
+  doc.text("Tudo que se Planta colher ..", M, y);
+  y += 7;
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // 2. BARRA DE TÍTULO DO PEDIDO
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  const numDisplay = data.numero ? String(data.numero) : "0001";
+  const pedidoTitle = `Pedido ${numDisplay}-${anoEmissao}`;
+
+  doc.setFillColor(15, 15, 15);
+  doc.rect(M, y, CW, 11, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(255, 255, 255);
+  doc.text(pedidoTitle, M + 5, y + 7.5);
+
+  y += 16;
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // 3. DADOS DO CLIENTE
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Cliente: ${data.cliente_nome || "Consumidor Final"}`, M, y);
+  y += 5;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`Emissão: ${dataEmissao} às ${horaEmissao}`, pageWidth - margin, y + 17, { align: "right" });
+  doc.setTextColor(50, 60, 70);
 
-  if (data.vendedor) {
-    doc.text(`Vendedor: ${data.vendedor}`, pageWidth - margin, y + 21, { align: "right" });
+  if (data.cliente_cnpj) {
+    doc.text(`CNPJ: ${data.cliente_cnpj}`, M, y);
+    y += 4;
   }
 
-  // Linha divisória do cabeçalho
-  y += 33;
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.4);
-  doc.line(margin, y, pageWidth - margin, y);
+  if (data.cliente_endereco) {
+    const endLines = data.cliente_endereco.split(/\n/).slice(0, 4);
+    endLines.forEach((line) => {
+      doc.text(line.trim(), M, y);
+      y += 4;
+    });
+  }
+
+  y += 6;
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // 4. SEÇÃO PRODUTOS
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Produtos", M, y);
+  y += 2;
+  doc.setDrawColor(200, 205, 215);
+  doc.setLineWidth(0.5);
+  doc.line(M, y, PW - M, y);
   y += 4;
 
-  // 2. Caixas: Dados do Cliente e Condições Comerciais
-  const boxW = (contentWidth - 4) / 2;
-  const boxH = 28;
+  // Tabela de Produtos com imagens
+  const IMG_COL_W = 22;
 
-  // Caixa Cliente
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(margin, y, boxW, boxH, 2, 2, "FD");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("DADOS DO CLIENTE", margin + 3, y + 5);
-
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(15, 23, 42);
-  const clienteNome = data.cliente_nome || "Consumidor";
-  doc.text(clienteNome.length > 38 ? clienteNome.slice(0, 36) + "..." : clienteNome, margin + 3, y + 10);
-
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  if (data.cliente_cnpj) {
-    doc.text(`CPF/CNPJ: ${data.cliente_cnpj}`, margin + 3, y + 14.5);
-  }
-  if (data.cliente_telefone) {
-    doc.text(`Telefone: ${data.cliente_telefone}`, margin + 3, y + 19);
-  }
-  if (data.cliente_endereco) {
-    const endStr = data.cliente_endereco.length > 44
-      ? data.cliente_endereco.slice(0, 42) + "..."
-      : data.cliente_endereco;
-    doc.text(`End: ${endStr}`, margin + 3, y + 23.5);
-  }
-
-  // Caixa Condições
-  const boxX2 = margin + boxW + 4;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(boxX2, y, boxW, boxH, 2, 2, "FD");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("CONDIÇÕES COMERCIAIS", boxX2 + 3, y + 5);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`Pagamento: ${data.condicao_pagamento || "À vista"}`, boxX2 + 3, y + 10);
-
-  if (data.observacoes_pagamento) {
-    const obsStr = data.observacoes_pagamento.length > 40
-      ? data.observacoes_pagamento.slice(0, 38) + "..."
-      : data.observacoes_pagamento;
-    doc.setTextColor(71, 85, 105);
-    doc.text(`Obs. Pagamento: ${obsStr}`, boxX2 + 3, y + 15);
-  }
-
-  y += boxH + 4;
-
-  // 3. Tabela de Produtos (autoTable)
-  const tableRows = (data.itens || []).map((item, idx) => {
-    const cod = item.codigo || "—";
+  const tableBody = (data.itens || []).map((item) => {
     const nome = item.nome || item.produto || "Produto";
+    const marcaLine = item.marca ? `Marca : ${item.marca}` : "";
+    const descCell = marcaLine ? `${nome}\n${marcaLine}` : nome;
+    const unidade = item.unidade || "";
     const qtd = String(item.quantidade ?? item.qtd ?? 1);
     const unit = formatCurrency(item.valor_unitario);
     const tot = formatCurrency(item.subtotal ?? item.total);
-    return [String(idx + 1), cod, nome, qtd, unit, tot];
+    return ["", descCell, unidade, unit, qtd, tot];
   });
 
   autoTable(doc, {
     startY: y,
-    head: [["#", "Cód.", "Descrição do Produto", "Qtd", "Vlr. Unitário", "Total"]],
-    body: tableRows,
-    theme: "striped",
+    head: [["", "Descrição", "Unidade", "Preço unitário", "Qtd.", "Preço"]],
+    body: tableBody,
+    theme: "plain",
     headStyles: {
-      fillColor: [15, 23, 42], // Slate 900
-      textColor: [255, 255, 255],
+      fillColor: [238, 240, 244],
+      textColor: [90, 100, 115],
+      lineWidth: { bottom: 0.3 },
+      lineColor: [200, 205, 215],
+      fontStyle: "normal",
       fontSize: 8,
-      fontStyle: "bold",
+      cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
       halign: "left",
     },
     styles: {
       fontSize: 8,
-      cellPadding: 2,
-      textColor: [30, 41, 59],
-      lineColor: [226, 232, 240],
-      lineWidth: 0.1,
+      cellPadding: { top: 3, left: 2, right: 2, bottom: 3 },
+      minCellHeight: 26,
+      lineWidth: { bottom: 0.2 },
+      lineColor: [210, 215, 225],
+      textColor: [35, 40, 50],
+      valign: "middle",
     },
     columnStyles: {
-      0: { halign: "center", cellWidth: 8 },
-      1: { halign: "center", cellWidth: 16 },
-      2: { halign: "left" },
-      3: { halign: "center", cellWidth: 14 },
-      4: { halign: "right", cellWidth: 26 },
-      5: { halign: "right", cellWidth: 26, fontStyle: "bold" },
+      0: { cellWidth: IMG_COL_W, halign: "center" },
+      1: { cellWidth: "auto", halign: "left" },
+      2: { cellWidth: 15, halign: "center" },
+      3: { cellWidth: 26, halign: "right" },
+      4: { cellWidth: 13, halign: "center" },
+      5: { cellWidth: 24, halign: "right", fontStyle: "bold" },
     },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
+    margin: { left: M, right: M },
+    rowPageBreak: "avoid",
+    didDrawCell: (hook) => {
+      if (hook.section !== "body") return;
+      // Imagem do produto na coluna 0
+      if (hook.column.index === 0) {
+        const imgData = productImages[hook.row.index];
+        if (imgData) {
+          const pad = 2;
+          const iX = hook.cell.x + pad;
+          const iY = hook.cell.y + pad;
+          const iW = hook.cell.width - pad * 2;
+          const iH = hook.cell.height - pad * 2;
+          try {
+            doc.addImage(imgData, "JPEG", iX, iY, iW, iH, undefined, "FAST");
+          } catch {
+            // Produto sem imagem válida — ignora silenciosamente
+          }
+        }
+      }
     },
-    margin: { left: margin, right: margin },
   });
 
-  // 4. Totais e Observações
   // @ts-ignore
-  let finalY = (doc as any).lastAutoTable?.finalY || y + 40;
+  let finalY: number = (doc as any).lastAutoTable?.finalY ?? y + 40;
+  finalY += 8;
 
-  // Quebra de página se estiver muito no final
-  if (finalY > pageHeight - 50) {
-    doc.addPage();
-    finalY = 20;
-  } else {
-    finalY += 4;
-  }
+  // ══════════════════════════════════════════════════════════════════════════════
+  // 5. TOTAIS (alinhado à direita)
+  // ══════════════════════════════════════════════════════════════════════════════
 
-  // Calcula a soma real dos itens para garantir subtotal exato e evitar 0,00
+  // Calcula valores
   const itemsSum = (data.itens || []).reduce((acc, it) => {
     const itSub = Number(it.subtotal ?? it.total ?? 0);
     if (itSub > 0) return acc + itSub;
@@ -283,117 +342,213 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
   const totalGeral = Number(data.total ?? data.valor_total ?? 0);
   const dataSub = Number(data.subtotal || 0);
   const descVal = Number(data.desconto_valor ?? 0);
+  const descPct = Number(data.desconto_percentual ?? 0);
   const freteVal = Number(data.frete_valor ?? 0);
 
   let subtotal = dataSub > 0 ? dataSub : itemsSum > 0 ? itemsSum : 0;
   if (subtotal === 0 && totalGeral > 0) {
     subtotal = totalGeral + descVal - freteVal;
   }
+  const displayTotal = totalGeral > 0 ? totalGeral : Math.max(0, subtotal - descVal + freteVal);
 
-  // Bloco de Totais à Direita
-  const totalBoxW = 75;
-  const totalBoxX = pageWidth - margin - totalBoxW;
-  const totalBoxH = 26;
+  const TOTAL_COL_W = 90;
+  const totalX = PW - M - TOTAL_COL_W;
+  const lineH = 5.5;
+  let ty = finalY;
 
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(totalBoxX, finalY, totalBoxW, totalBoxH, 2, 2, "FD");
+  // Verifica se precisa de nova página
+  const estimatedTotalsHeight = 60;
+  if (ty + estimatedTotalsHeight > PH - 20) {
+    doc.addPage();
+    ty = 16;
+  }
 
-  doc.setFontSize(8);
+  // Linha "Produtos"
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Subtotal:", totalBoxX + 4, finalY + 6);
-  doc.text(formatCurrency(subtotal), pageWidth - margin - 4, finalY + 6, { align: "right" });
+  doc.setFontSize(8.5);
+  doc.setTextColor(60, 70, 80);
+  doc.text("Produtos", totalX, ty);
+  doc.text(formatCurrency(subtotal), PW - M, ty, { align: "right" });
+  ty += lineH;
 
+  // Linha "Subtotal" (bold)
+  doc.setFont("helvetica", "bold");
+  doc.text("Subtotal", totalX, ty);
+  doc.text(formatCurrency(subtotal), PW - M, ty, { align: "right" });
+  ty += lineH;
+
+  // Desconto
   if (descVal > 0) {
-    doc.setTextColor(220, 38, 38);
-    doc.text(`Desconto (${data.desconto_percentual || 0}%):`, totalBoxX + 4, finalY + 11);
-    doc.text(`- ${formatCurrency(descVal)}`, pageWidth - margin - 4, finalY + 11, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 70, 80);
+    const descLabel =
+      descPct > 0 ? `Desconto sobre produtos (${descPct}%)` : "Desconto";
+    doc.text(descLabel, totalX, ty);
+    doc.text(`- ${formatCurrency(descVal)}`, PW - M, ty, { align: "right" });
+    ty += lineH;
   }
 
+  // Frete
   if (freteVal > 0) {
-    doc.setTextColor(71, 85, 105);
-    doc.text("Frete:", totalBoxX + 4, finalY + 16);
-    doc.text(formatCurrency(freteVal), pageWidth - margin - 4, finalY + 16, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 70, 80);
+    doc.text("Frete", totalX, ty);
+    doc.text(formatCurrency(freteVal), PW - M, ty, { align: "right" });
+    ty += lineH;
   }
 
-  doc.setDrawColor(203, 213, 225);
-  doc.line(totalBoxX + 2, finalY + totalBoxH - 8, pageWidth - margin - 2, finalY + totalBoxH - 8);
+  ty += 2;
+
+  // Barra Total (fundo preto)
+  const totalBarH = 9;
+  doc.setFillColor(15, 15, 15);
+  doc.rect(totalX - 2, ty, TOTAL_COL_W + 2, totalBarH, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Total", totalX + 2, ty + 6);
+  doc.text(formatCurrency(displayTotal), PW - M - 2, ty + 6, { align: "right" });
+
+  ty += totalBarH + 10;
+
+  // ══════════════════════════════════════════════════════════════════════════════
+  // 6. SEÇÃO PAGAMENTO
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  const payMethod = data.condicao_pagamento || "PIX";
+  const payDetail = data.observacoes_pagamento || "";
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text("TOTAL:", totalBoxX + 4, finalY + totalBoxH - 2.5);
-  doc.setTextColor(22, 163, 74);
-  doc.text(formatCurrency(totalGeral), pageWidth - margin - 4, finalY + totalBoxH - 2.5, { align: "right" });
+  doc.text("Pagamento", M, ty);
+  ty += 2;
+  doc.setDrawColor(200, 205, 215);
+  doc.setLineWidth(0.5);
+  doc.line(M, ty, PW - M, ty);
+  ty += 6;
 
-  // Bloco de Observações à Esquerda
-  if (data.observacoes) {
-    const obsW = totalBoxX - margin - 4;
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(226, 232, 240);
-    doc.roundedRect(margin, finalY, obsW, totalBoxH, 2, 2, "FD");
+  const labelCol = M;
+  const valueCol = M + 50;
 
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(80, 90, 105);
+  doc.text("Meios de pagamento", labelCol, ty);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(30, 35, 45);
+  doc.text(payMethod, valueCol, ty);
+  ty += 5.5;
+
+  if (payDetail) {
+    const payLabel = payMethod.toLowerCase().includes("pix") ? "Pix." : "Detalhes:";
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text("OBSERVAÇÕES ADICIONAIS", margin + 3, finalY + 5);
-
+    doc.setFontSize(8.5);
+    doc.setTextColor(80, 90, 105);
+    doc.text(payLabel, labelCol, ty);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(51, 65, 85);
-    const splitObs = doc.splitTextToSize(data.observacoes, obsW - 6);
-    doc.text(splitObs.slice(0, 4), margin + 3, finalY + 9.5);
+    doc.setTextColor(30, 35, 45);
+    // quebra em várias linhas se necessário
+    const payLines = doc.splitTextToSize(payDetail, CW - 50);
+    doc.text(payLines, valueCol, ty);
+    ty += Math.max(5.5, payLines.length * 4.5);
   }
 
-  // 5. Linhas de Assinatura no Rodapé
-  const signY = Math.max(finalY + totalBoxH + 16, pageHeight - 25);
-  const signWidth = 65;
+  ty += 6;
 
-  doc.setDrawColor(148, 163, 184);
-  doc.line(margin + 10, signY, margin + 10 + signWidth, signY);
+  // ══════════════════════════════════════════════════════════════════════════════
+  // 7. RODAPÉ — DEUS É FIEL + ASSINATURAS
+  // ══════════════════════════════════════════════════════════════════════════════
+
+  // Garante espaço mínimo para o rodapé
+  const minFooterSpace = 38;
+  const footerY = Math.max(ty, PH - minFooterSpace - 10);
+
+  if (ty + minFooterSpace > PH - 5) {
+    doc.addPage();
+    ty = 20;
+  } else {
+    ty = footerY;
+  }
+
+  // "DEUS É FIEL" — centralizado, itálico
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9);
+  doc.setTextColor(80, 90, 100);
+  doc.text("DEUS É FIEL", PW / 2, ty, { align: "center" });
+  ty += 5;
+
+  // Cidade e data — alinhado à direita
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(50, 60, 75);
+  doc.text(`${cidade}, ${dataEmissao}`, PW - M, ty, { align: "right" });
+  ty += 10;
+
+  // Linhas de assinatura (ambas no mesmo nível)
+  const signW = 65;
+  const leftSigX = M + 8;
+  const rightSigX = PW - M - 8 - signW;
+
+  doc.setDrawColor(130, 140, 155);
+  doc.setLineWidth(0.4);
+  doc.line(leftSigX, ty, leftSigX + signW, ty);
+  doc.line(rightSigX, ty, rightSigX + signW, ty);
+  ty += 4;
+
+  // Texto assinatura esquerda (emissor)
+  const leftCX = leftSigX + signW / 2;
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Assinatura do Vendedor", margin + 10 + signWidth / 2, signY + 4, { align: "center" });
+  doc.setTextColor(20, 25, 35);
+  doc.text(emissorNome, leftCX, ty, { align: "center" });
 
-  const sign2X = pageWidth - margin - signWidth - 10;
-  doc.line(sign2X, signY, sign2X + signWidth, signY);
-  doc.text("Assinatura do Cliente", sign2X + signWidth / 2, signY + 4, { align: "center" });
+  let leftTy = ty + 3.5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(60, 70, 85);
+  doc.text("GARDEN PREMIUM PRODUTOS", leftCX, leftTy, { align: "center" });
+  leftTy += 3.5;
+  doc.text("JARDINAGEM LTDA", leftCX, leftTy, { align: "center" });
+  leftTy += 3.5;
+  doc.text("Entrega 5 à 10 Dias", leftCX, leftTy, { align: "center" });
 
-  // Mensagem legal
-  doc.setFontSize(6.5);
-  doc.setTextColor(148, 163, 184);
-  doc.text(
-    "Documento Auxiliar de Venda (DAV) - Não possui valor fiscal.",
-    pageWidth / 2,
-    pageHeight - 6,
-    { align: "center" },
-  );
+  // Texto assinatura direita (cliente)
+  const rightCX = rightSigX + signW / 2;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(20, 25, 35);
+  doc.text(data.cliente_nome || "CLIENTE", rightCX, ty, { align: "center" });
+
+  if (data.cliente_cnpj) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(60, 70, 85);
+    doc.text(`CNPJ ${data.cliente_cnpj}`, rightCX, ty + 3.5, { align: "center" });
+  }
 
   return doc;
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Funções públicas de compartilhamento / download
+// ══════════════════════════════════════════════════════════════════════════════
+
 /**
- * Gera e compartilha o PDF do orçamento diretamente via WhatsApp no modo arquivo/documento.
- * Se o navegador suportar navigator.share com arquivos (celulares Android/iOS), abre o WhatsApp
- * com o PDF já anexado em modo documento.
- * Se for computador/desktop sem suporte a Web Share com arquivos, faz o download automático do PDF
- * e abre o WhatsApp Web para o usuário anexar diretamente.
+ * Gera e compartilha o PDF via WhatsApp (mobile) ou faz download + abre WhatsApp Web (desktop).
  */
 export async function shareOrcamentoPDF(data: OrcamentoPdfData): Promise<void> {
-  const toastId = toast.loading("Gerando arquivo PDF do orçamento...");
+  const toastId = toast.loading("Gerando arquivo PDF...");
   try {
     const doc = await createOrcamentoPdfDoc(data);
     const numDisplay = data.numero
-      ? String(data.numero).padStart(4, "0")
+      ? String(data.numero)
       : data.id?.slice(0, 8).toUpperCase() || "0001";
-    const fileName = `Orcamento_${numDisplay}_Premium_Garden.pdf`;
-
+    const fileName = `Pedido_${numDisplay}_Premium_Garden.pdf`;
     const pdfBlob = doc.output("blob");
     const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
-    // Verifica se o navegador suporta compartilhamento nativo de arquivos (Android/iOS/Chrome mobile)
     if (
       typeof navigator !== "undefined" &&
       navigator.canShare &&
@@ -403,26 +558,21 @@ export async function shareOrcamentoPDF(data: OrcamentoPdfData): Promise<void> {
       try {
         await navigator.share({
           files: [file],
-          title: `Orçamento #${numDisplay} - Premium Garden`,
-          text: `Olá! Segue em anexo o arquivo em PDF do Orçamento #${numDisplay} da Premium Garden.`,
+          title: `Pedido #${numDisplay} - Premium Garden`,
+          text: `Olá! Segue em anexo o arquivo PDF do Pedido #${numDisplay} da Premium Garden.`,
         });
-        toast.success("Orçamento compartilhado!");
+        toast.success("PDF compartilhado!");
         return;
       } catch (err: any) {
-        if (err.name === "AbortError") {
-          // Usuário apenas cancelou a seleção do app
-          return;
-        }
-        // Se der outro erro no share, faz fallback para download
+        if (err.name === "AbortError") return;
       }
     }
 
-    // Fallback: Computador ou navegador sem Web Share de arquivos
+    // Fallback: download + WhatsApp Web
     doc.save(fileName);
     toast.dismiss(toastId);
     toast.success("PDF baixado! Abrindo WhatsApp...");
-
-    const whatsappText = `Olá! Segue em anexo o arquivo PDF do Orçamento #${numDisplay} da Premium Garden.`;
+    const whatsappText = `Olá! Segue em anexo o PDF do Pedido #${numDisplay} da Premium Garden.`;
     window.open(`https://web.whatsapp.com/send?text=${encodeURIComponent(whatsappText)}`, "_blank");
   } catch (error: any) {
     toast.dismiss(toastId);
@@ -432,16 +582,16 @@ export async function shareOrcamentoPDF(data: OrcamentoPdfData): Promise<void> {
 }
 
 /**
- * Baixa o PDF do orçamento diretamente para o dispositivo.
+ * Baixa o PDF diretamente para o dispositivo.
  */
 export async function downloadOrcamentoPDF(data: OrcamentoPdfData): Promise<void> {
   const toastId = toast.loading("Preparando download do PDF...");
   try {
     const doc = await createOrcamentoPdfDoc(data);
     const numDisplay = data.numero
-      ? String(data.numero).padStart(4, "0")
+      ? String(data.numero)
       : data.id?.slice(0, 8).toUpperCase() || "0001";
-    const fileName = `Orcamento_${numDisplay}_Premium_Garden.pdf`;
+    const fileName = `Pedido_${numDisplay}_Premium_Garden.pdf`;
     doc.save(fileName);
     toast.dismiss(toastId);
     toast.success("PDF baixado com sucesso!");
@@ -452,9 +602,12 @@ export async function downloadOrcamentoPDF(data: OrcamentoPdfData): Promise<void
   }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// Conversores de dados da tabela vendas → OrcamentoPdfData
+// ══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Converte um registro da tabela vendas e seus itens para o formato OrcamentoPdfData
+ * Converte um registro da tabela vendas e seus itens para o formato OrcamentoPdfData.
  */
 export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData {
   const clienteNome =
@@ -473,9 +626,13 @@ export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData 
       codigo: it.produtos?.codigo || it.produto?.codigo || it.codigo || "—",
       nome: it.produtos?.nome || it.produto?.nome || it.nome || it.produto_nome || "Produto",
       quantidade: qtd,
-      valor_unitario: unit > 0 ? unit : (qtd > 0 && itSub > 0 ? itSub / qtd : 0),
+      valor_unitario: unit > 0 ? unit : qtd > 0 && itSub > 0 ? itSub / qtd : 0,
       subtotal: itSub > 0 ? itSub : qtd * unit,
       total: itSub > 0 ? itSub : qtd * unit,
+      // Campos enriquecidos — presentes quando a query inclui esses campos
+      imagem: it.produtos?.imagem || it.imagem || null,
+      marca: it.produtos?.marca || it.marca || null,
+      unidade: it.produtos?.unidade || it.unidade || null,
     };
   });
 
@@ -514,14 +671,14 @@ export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData 
 }
 
 /**
- * Baixa diretamente o PDF de uma venda/orçamento buscando os itens se necessário
+ * Baixa diretamente o PDF de uma venda/orçamento, buscando os itens (com imagem) se necessário.
  */
 export async function downloadVendaPdf(venda: any, itens?: any[]): Promise<void> {
   let finalItens = itens;
   if (!finalItens || finalItens.length === 0) {
     const { data } = await supabase
       .from("vendas_itens")
-      .select("*, produtos(nome, codigo)")
+      .select("*, produtos(nome, codigo, imagem, marca, unidade)")
       .eq("venda_id", venda.id);
     finalItens = data || [];
   }
@@ -530,14 +687,14 @@ export async function downloadVendaPdf(venda: any, itens?: any[]): Promise<void>
 }
 
 /**
- * Compartilha o PDF de uma venda/orçamento direto no WhatsApp buscando os itens se necessário
+ * Compartilha o PDF de uma venda/orçamento no WhatsApp, buscando os itens (com imagem) se necessário.
  */
 export async function shareVendaWhatsApp(venda: any, itens?: any[]): Promise<void> {
   let finalItens = itens;
   if (!finalItens || finalItens.length === 0) {
     const { data } = await supabase
       .from("vendas_itens")
-      .select("*, produtos(nome, codigo)")
+      .select("*, produtos(nome, codigo, imagem, marca, unidade)")
       .eq("venda_id", venda.id);
     finalItens = data || [];
   }

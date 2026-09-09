@@ -1082,6 +1082,7 @@ function NovoPedido() {
                     quantidade: it.quantidade,
                     valor_unitario: it.valor_unitario,
                     subtotal: it.subtotal,
+                    imagem: it.imagem || null,
                   })),
                 });
               }}
@@ -1122,6 +1123,7 @@ function NovoPedido() {
                     quantidade: it.quantidade,
                     valor_unitario: it.valor_unitario,
                     subtotal: it.subtotal,
+                    imagem: it.imagem || null,
                   })),
                 });
               }}

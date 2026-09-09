@@ -287,13 +287,15 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
       lineColor: [200, 205, 215],
       fontStyle: "normal",
       fontSize: 8,
-      cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
+      cellPadding: { top: 3, bottom: 3, left: 2, right: 2 },
       halign: "left",
+    },
+    bodyStyles: {
+      minCellHeight: 26,
     },
     styles: {
       fontSize: 8,
       cellPadding: { top: 3, left: 2, right: 2, bottom: 3 },
-      minCellHeight: 26,
       lineWidth: { bottom: 0.2 },
       lineColor: [210, 215, 225],
       textColor: [35, 40, 50],
@@ -388,7 +390,7 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
   // Desconto
   if (descVal > 0) {
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(60, 70, 80);
+    doc.setTextColor(220, 38, 38); // Vermelho
     const descLabel =
       descPct > 0 ? `Desconto sobre produtos (${descPct}%)` : "Desconto";
     doc.text(descLabel, totalX, ty);

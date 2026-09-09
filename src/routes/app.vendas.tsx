@@ -297,6 +297,7 @@ function Pedidos() {
       <h1>${empresaDados?.razao_social || "PREMIUM GARDEN"}</h1>
       <div style="font-size:12px;color:#555;margin-top:4px">${empresaDados?.endereco || ""}</div>
       <div style="font-size:12px;color:#555">CNPJ: ${empresaDados?.cnpj || ""}</div>
+      <div style="font-size:12px;color:#555">Tel: ${empresaDados?.telefone || "(15) 98105-4330 / (15) 99797-0059"}</div>
     </div>
     <div style="text-align:right">
       <h2>Pedido #${getOrderNumber(venda)}</h2>
@@ -1125,7 +1126,8 @@ function Pedidos() {
                     </div>
                     <div className="text-sm text-gray-500 mt-2 max-w-sm">
                       {empresaDados?.endereco || "Endereço não configurado"}<br/>
-                      CNPJ: {empresaDados?.cnpj || "00.000.000/0000-00"}
+                      CNPJ: {empresaDados?.cnpj || "00.000.000/0000-00"}<br/>
+                      Tel: {empresaDados?.telefone || "(15) 98105-4330 / (15) 99797-0059"}
                     </div>
                   </div>
                   <div className="text-right">

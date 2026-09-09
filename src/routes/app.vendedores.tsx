@@ -64,6 +64,31 @@ function VendedoresAdmin() {
   const [todasVendas, setTodasVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const fixOldNumbers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("vendas")
+          .select("id, numero")
+          .is("numero", null)
+          .order("created_at", { ascending: true });
+          
+        if (data && data.length > 0) {
+          console.log("Corrigindo números de pedidos antigos...", data);
+          let nextNum = 2;
+          for (const v of data) {
+            await supabase.from("vendas").update({ numero: nextNum }).eq("id", v.id);
+            nextNum++;
+          }
+          toast.success("Números antigos corrigidos com sucesso! Atualize a página.");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fixOldNumbers();
+  }, []);
+
   const [selectedVendedor, setSelectedVendedor] = useState<any>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 

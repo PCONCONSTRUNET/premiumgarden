@@ -292,7 +292,7 @@ function VendedoresAdmin() {
       await supabase.from("contas_receber").insert([
         {
           venda_id: venda.id,
-          descricao: `Venda Parceiro #${venda.numero_venda || venda.id.substring(0, 8).toUpperCase()} - ${vendedor?.nome || ""}`,
+          descricao: `Venda Parceiro #${formatNumero(venda.numero_venda ?? venda.numero, venda.id)} - ${vendedor?.nome || ""}`,
           valor: valorVenda,
           vencimento: dataAtual,
           status: "Pendente",
@@ -689,7 +689,7 @@ function VendedoresAdmin() {
                   >
                     <TableCell>
                       <p className="font-medium">{v.vendedor?.nome || "Desconhecido"}</p>
-                      <p className="text-xs text-muted-foreground">#{v.id.substring(0, 6)}</p>
+                      <p className="text-xs text-muted-foreground">#{formatNumero(v.numero_venda ?? v.numero, v.id)}</p>
                     </TableCell>
                     <TableCell className="font-semibold">
                       R$ {Number(v.valor_total).toFixed(2)}
@@ -930,7 +930,7 @@ function VendedoresAdmin() {
             <DialogDescription asChild>
               <div>
                 <p className="font-bold text-slate-900 text-base">
-                  Pedido #{selectedSaleForDetails?.id?.substring(0, 6).toUpperCase()} • Vendedor:{" "}
+                  Pedido #{formatNumero(selectedSaleForDetails?.numero_venda ?? selectedSaleForDetails?.numero, selectedSaleForDetails?.id)} • Vendedor:{" "}
                   {selectedSaleForDetails?.vendedor?.nome || "Desconhecido"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1 font-medium">

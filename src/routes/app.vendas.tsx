@@ -12,6 +12,7 @@ import {
   MessageCircle,
   PackageCheck,
   Pencil,
+  Edit,
   Plus,
   Printer,
   Search,
@@ -161,7 +162,7 @@ function Pedidos() {
       setValorJaFaturado(totalFaturado);
       
       const totalRestante = Number(venda.valor_total || 0) - totalFaturado;
-      setFaturarValor(Math.max(0, Math.round(totalRestante * 100) / 100));
+      setFaturarValor(String(Math.max(0, Math.round(totalRestante * 100) / 100)));
       
       setOpenFaturar(true);
     } catch (err) {
@@ -793,16 +794,48 @@ function Pedidos() {
             <div>
               <div className="mb-3 flex items-center justify-between border-b pb-2">
                 <h3 className="font-semibold">Produtos</h3>
-                <Badge variant="outline">{vendaItens.length} itens</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{vendaItens.length} itens</Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs font-semibold border-blue-200 text-blue-700 hover:bg-blue-50 gap-1"
+                    onClick={() => {
+                      setOpenSheet(false);
+                      navigate({
+                        to: "/app/venda-nova",
+                        search: { id: selectedVenda.id },
+                      });
+                    }}
+                  >
+                    <Edit className="h-3 w-3" /> Editar Pedido
+                  </Button>
+                </div>
               </div>
               {loadingItens ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   Carregando itens...
                 </p>
               ) : vendaItens.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  Nenhum item encontrado.
-                </p>
+                <div className="py-6 text-center space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum item cadastrado neste pedido.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs font-semibold gap-1.5"
+                    onClick={() => {
+                      setOpenSheet(false);
+                      navigate({
+                        to: "/app/venda-nova",
+                        search: { id: selectedVenda.id },
+                      });
+                    }}
+                  >
+                    <Edit className="h-3.5 w-3.5" /> Adicionar / Editar Produtos
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {vendaItens.map((item) => (
@@ -1068,9 +1101,30 @@ function Pedidos() {
                     </thead>
                     <tbody>
                       {loadingItens ? (
-                        <tr><td colSpan={5} className="py-4 text-center text-gray-500">Carregando itens...</td></tr>
+                        <tr><td colSpan={6} className="py-6 text-center text-gray-500">Carregando itens...</td></tr>
                       ) : vendaItens.length === 0 ? (
-                        <tr><td colSpan={5} className="py-4 text-center text-gray-500">Nenhum item.</td></tr>
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center bg-slate-50/50">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <p className="text-gray-500 font-medium">Nenhum item registrado para este pedido.</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-blue-300 text-blue-700 hover:bg-blue-50 text-xs font-semibold gap-1.5"
+                                onClick={() => {
+                                  setOpenVisualizar(false);
+                                  navigate({
+                                    to: "/app/venda-nova",
+                                    search: { id: selectedVenda.id },
+                                  });
+                                }}
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                                Editar Pedido e Adicionar Produtos
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
                       ) : (
                         vendaItens.map((item) => (
                           <tr key={item.id} className="border-b border-gray-50">
@@ -1141,14 +1195,29 @@ function Pedidos() {
               </div>
 
               {/* Botões - Não aparecem na impressão */}
-              <div className="bg-gray-50 p-4 border-t flex justify-end gap-3 print:hidden">
-                <Button variant="outline" onClick={() => setOpenVisualizar(false)}>Fechar</Button>
-                <Button 
-                  onClick={handlePrint}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+              <div className="bg-gray-50 p-4 border-t flex justify-between items-center print:hidden">
+                <Button
+                  variant="outline"
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50 text-xs font-semibold gap-1.5"
+                  onClick={() => {
+                    setOpenVisualizar(false);
+                    navigate({
+                      to: "/app/venda-nova",
+                      search: { id: selectedVenda.id },
+                    });
+                  }}
                 >
-                  <Printer className="mr-2 h-4 w-4" /> Imprimir
+                  <Edit className="h-4 w-4" /> Editar Pedido
                 </Button>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setOpenVisualizar(false)}>Fechar</Button>
+                  <Button 
+                    onClick={handlePrint}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Printer className="mr-2 h-4 w-4" /> Imprimir
+                  </Button>
+                </div>
               </div>
             </div>
           )}

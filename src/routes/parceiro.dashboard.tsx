@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Wallet, Clock, CheckCircle2, TrendingUp, XCircle, FileText, Trash2, Ban } from "lucide-react";
+import { Wallet, Clock, CheckCircle2, TrendingUp, XCircle, FileText, Trash2, Ban, Edit2, Plus, Minus, Save, PlusCircle } from "lucide-react";
 
 export const Route = createFileRoute("/parceiro/dashboard")({
   head: () => ({ meta: [{ title: "Meu Painel — Premium Garden" }] }),
@@ -43,16 +43,29 @@ function ParceiroDashboard() {
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [cancelingOrder, setCancelingOrder] = useState(false);
 
+  // Estados de Edição de Itens do Pedido
+  const [isEditingItems, setIsEditingItems] = useState(false);
+  const [editItemsList, setEditItemsList] = useState<any[]>([]);
+  const [deletedItemIds, setDeletedItemIds] = useState<string[]>([]);
+  const [savingItems, setSavingItems] = useState(false);
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
   const openSaleDetails = async (venda: any) => {
     setSelectedSaleForDetails(venda);
     setIsSaleDetailsOpen(true);
     setLoadingSaleDetails(true);
     setSaleItems([]);
+    setIsEditingItems(false);
+    setDeletedItemIds([]);
+    setShowAddProduct(false);
 
     try {
       const { data, error } = await supabase
         .from("vendas_itens")
-        .select("*, produto:produtos(nome, imagem)")
+        .select("*, produto:produtos(nome, imagem, codigo, valor, estoque)")
         .eq("venda_id", venda.id);
 
       if (!error && data) {
@@ -62,6 +75,245 @@ function ParceiroDashboard() {
       console.error(e);
     } finally {
       setLoadingSaleDetails(false);
+    }
+  };
+
+  const iniciarEdicaoItens = () => {
+    setEditItemsList(
+      saleItems.map((item) => ({
+        ...item,
+        quantidade: Number(item.quantidade) || 1,
+        valor_unitario: Number(item.valor_unitario) || 0,
+        subtotal: (Number(item.quantidade) || 1) * (Number(item.valor_unitario) || 0),
+      }))
+    );
+    setDeletedItemIds([]);
+    setIsEditingItems(true);
+    setShowAddProduct(false);
+  };
+
+  const cancelarEdicaoItens = () => {
+    setIsEditingItems(false);
+    setEditItemsList([]);
+    setDeletedItemIds([]);
+    setShowAddProduct(false);
+  };
+
+  const handleUpdateQuantidade = (index: number, novaQtd: number) => {
+    if (novaQtd <= 0) return;
+    setEditItemsList((prev) => {
+      const copy = [...prev];
+      const item = copy[index];
+      const qtd = Number(novaQtd);
+      copy[index] = {
+        ...item,
+        quantidade: qtd,
+        subtotal: qtd * Number(item.valor_unitario || 0),
+      };
+      return copy;
+    });
+  };
+
+  const handleRemoverItem = (index: number) => {
+    if (editItemsList.length <= 1) {
+      toast.error("O pedido deve conter pelo menos 1 produto. Se deseja cancelar o pedido, utilize a opção Cancelar Orçamento.");
+      return;
+    }
+    const itemToRemove = editItemsList[index];
+    if (!itemToRemove.isNew && itemToRemove.id) {
+      setDeletedItemIds((prev) => [...prev, itemToRemove.id]);
+    }
+    setEditItemsList((prev) => prev.filter((_, i) => i !== index));
+    toast.info("Produto removido do pedido.");
+  };
+
+  const abrirBuscarProdutos = async () => {
+    setShowAddProduct(true);
+    if (availableProducts.length === 0) {
+      setLoadingProducts(true);
+      try {
+        const { data, error } = await supabase
+          .from("produtos")
+          .select("id, nome, valor, imagem, codigo, emoji, estoque")
+          .eq("status", "Ativo")
+          .order("nome");
+        if (!error && data) {
+          setAvailableProducts(data);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingProducts(false);
+      }
+    }
+  };
+
+  const handleAdicionarProduto = (prod: any) => {
+    const unitPrice = Number(prod.valor) || 0;
+    const newItem = {
+      id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      isNew: true,
+      venda_id: selectedSaleForDetails.id,
+      produto_id: prod.id,
+      quantidade: 1,
+      valor_unitario: unitPrice,
+      subtotal: unitPrice,
+      produto: {
+        nome: prod.nome,
+        imagem: prod.imagem,
+        codigo: prod.codigo,
+        emoji: prod.emoji,
+      },
+    };
+    setEditItemsList((prev) => [...prev, newItem]);
+    setShowAddProduct(false);
+    setProductSearch("");
+    toast.success(`${prod.nome} adicionado ao pedido!`);
+  };
+
+  // Cálculos dinâmicos em modo de edição
+  const editSubtotal = editItemsList.reduce(
+    (acc, item) => acc + (Number(item.quantidade) * Number(item.valor_unitario)),
+    0
+  );
+  const descontoPerc = Number(selectedSaleForDetails?.desconto_percentual) || 0;
+  const descontoOrig = Number(selectedSaleForDetails?.desconto_valor) || 0;
+  const editDesconto = descontoPerc > 0
+    ? (editSubtotal * descontoPerc) / 100
+    : Math.min(editSubtotal, descontoOrig);
+  const editTotal = Math.max(0, editSubtotal - editDesconto);
+
+  const handleSalvarEdicaoItens = async () => {
+    if (!selectedSaleForDetails) return;
+    if (editItemsList.length === 0) {
+      toast.error("O pedido precisa conter pelo menos 1 item.");
+      return;
+    }
+
+    setSavingItems(true);
+    try {
+      // 1. Deletar itens excluídos
+      if (deletedItemIds.length > 0) {
+        await supabase.from("vendas_itens").delete().in("id", deletedItemIds);
+        try {
+          await supabase.from("dav_items").delete().in("id", deletedItemIds);
+        } catch {}
+      }
+
+      // 2. Atualizar itens existentes
+      for (const item of editItemsList.filter((i) => !i.isNew)) {
+        const itemSubtotal = Number(item.quantidade) * Number(item.valor_unitario);
+        await supabase
+          .from("vendas_itens")
+          .update({
+            quantidade: Number(item.quantidade),
+            subtotal: itemSubtotal,
+            valor_unitario: Number(item.valor_unitario),
+          })
+          .eq("id", item.id);
+      }
+
+      // 3. Inserir novos itens adicionados
+      const novos = editItemsList
+        .filter((i) => i.isNew)
+        .map((item) => ({
+          venda_id: selectedSaleForDetails.id,
+          produto_id: item.produto_id,
+          quantidade: Number(item.quantidade),
+          valor_unitario: Number(item.valor_unitario),
+          subtotal: Number(item.quantidade) * Number(item.valor_unitario),
+        }));
+
+      if (novos.length > 0) {
+        const { error: insErr } = await supabase.from("vendas_itens").insert(novos);
+        if (insErr) throw insErr;
+      }
+
+      // 4. Calcular totais e comissão
+      const finalSubtotal = editSubtotal;
+      const finalDesconto = editDesconto;
+      const finalTotal = editTotal;
+
+      let finalComissao = Number(selectedSaleForDetails.valor_comissao) || 0;
+      if (tipoComissao && valorComissao !== undefined) {
+        finalComissao = tipoComissao === "fixo" ? valorComissao : (finalTotal * valorComissao) / 100;
+      }
+
+      // 5. Atualizar tabela de vendas
+      const { error: vErr } = await supabase
+        .from("vendas")
+        .update({
+          valor_total: finalTotal,
+          subtotal: finalSubtotal,
+          desconto_valor: finalDesconto,
+          valor_comissao: finalComissao,
+        })
+        .eq("id", selectedSaleForDetails.id);
+
+      if (vErr) throw vErr;
+
+      // Sincronizar davs se existir
+      try {
+        await supabase
+          .from("davs")
+          .update({
+            valor_total: finalTotal,
+            subtotal: finalSubtotal,
+            desconto_valor: finalDesconto,
+          })
+          .eq("id", selectedSaleForDetails.id);
+      } catch {}
+
+      // Sincronizar contas_receber se houver pendente
+      try {
+        await supabase
+          .from("contas_receber")
+          .update({ valor: finalTotal })
+          .eq("venda_id", selectedSaleForDetails.id)
+          .neq("status", "Recebido");
+      } catch {}
+
+      // 6. Recarregar itens atualizados
+      const { data: refreshedItems } = await supabase
+        .from("vendas_itens")
+        .select("*, produto:produtos(nome, imagem, codigo, valor, estoque)")
+        .eq("venda_id", selectedSaleForDetails.id);
+
+      setSaleItems(refreshedItems || []);
+
+      // 7. Atualizar a venda selecionada no modal
+      setSelectedSaleForDetails((prev: any) => ({
+        ...prev,
+        valor_total: finalTotal,
+        subtotal: finalSubtotal,
+        desconto_valor: finalDesconto,
+        valor_comissao: finalComissao,
+      }));
+
+      // 8. Atualizar lista global de vendas no dashboard
+      setVendas((prev) =>
+        prev.map((v) =>
+          v.id === selectedSaleForDetails.id
+            ? {
+                ...v,
+                valor_total: finalTotal,
+                total: finalTotal,
+                subtotal: finalSubtotal,
+                desconto_valor: finalDesconto,
+                valor_comissao: finalComissao,
+              }
+            : v
+        )
+      );
+
+      setIsEditingItems(false);
+      setDeletedItemIds([]);
+      toast.success("Pedido atualizado com sucesso!");
+    } catch (err: any) {
+      console.error("Erro ao salvar alterações do pedido:", err);
+      toast.error("Erro ao salvar alterações: " + (err.message || "Erro desconhecido"));
+    } finally {
+      setSavingItems(false);
     }
   };
 
@@ -578,8 +830,245 @@ function ParceiroDashboard() {
           <div className="py-2">
             {loadingSaleDetails ? (
               <div className="text-center py-6 text-muted-foreground">Carregando itens...</div>
+            ) : isEditingItems ? (
+              /* MODO DE EDIÇÃO DE ITENS */
+              <div className="space-y-4 animate-in fade-in-50 duration-200">
+                <div className="flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 rounded-lg text-xs">
+                  <span className="font-semibold flex items-center gap-1.5">
+                    <Edit2 className="w-3.5 h-3.5 text-amber-600" />
+                    Edite as quantidades ou remova itens
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-amber-900 hover:bg-amber-100"
+                    onClick={cancelarEdicaoItens}
+                    disabled={savingItems}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+
+                <div className="max-h-[320px] overflow-y-auto divide-y border rounded-lg bg-white shadow-2xs">
+                  {editItemsList.map((item, index) => {
+                    const prodNome = item.produto?.nome || item.produtos?.nome || "Produto";
+                    const prodImg = item.produto?.imagem || item.produtos?.imagem;
+                    const prodEmoji = item.produto?.emoji || item.produtos?.emoji || "📦";
+                    const unitPrice = Number(item.valor_unitario) || 0;
+                    const itemSubtotal = Number(item.quantidade) * unitPrice;
+
+                    return (
+                      <div key={item.id || index} className="p-3 bg-slate-50/50 flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-md bg-slate-200 text-lg">
+                              {prodImg ? (
+                                <img src={prodImg} alt={prodNome} className="h-full w-full object-cover" />
+                              ) : (
+                                prodEmoji
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate" title={prodNome}>
+                                {prodNome}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                R$ {unitPrice.toFixed(2).replace(".", ",")} / un
+                              </p>
+                            </div>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-red-500 hover:bg-red-100 hover:text-red-700 shrink-0"
+                            title="Excluir item"
+                            onClick={() => handleRemoverItem(index)}
+                            disabled={savingItems}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+
+                        {/* Controles de Quantidade e Subtotal */}
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/50">
+                          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                              onClick={() => handleUpdateQuantidade(index, Number(item.quantidade) - 1)}
+                              disabled={Number(item.quantidade) <= 1 || savingItems}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <input
+                              type="number"
+                              min="1"
+                              step="any"
+                              value={item.quantidade}
+                              onChange={(e) => handleUpdateQuantidade(index, Number(e.target.value))}
+                              disabled={savingItems}
+                              className="w-12 text-center text-xs font-bold text-slate-800 bg-transparent focus:outline-hidden"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-slate-600 hover:bg-slate-100"
+                              onClick={() => handleUpdateQuantidade(index, Number(item.quantidade) + 1)}
+                              disabled={savingItems}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-[10px] text-slate-400 mr-1.5">Subtotal:</span>
+                            <span className="font-bold text-xs sm:text-sm text-brand">
+                              R$ {itemSubtotal.toFixed(2).replace(".", ",")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Adicionar Produto ao Pedido */}
+                {!showAddProduct ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={abrirBuscarProdutos}
+                    className="w-full border-dashed border-brand/40 text-brand hover:bg-brand/5 text-xs font-semibold gap-1.5 h-9"
+                    disabled={savingItems}
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Adicionar Outro Produto ao Pedido
+                  </Button>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">Selecione um produto</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] text-slate-500"
+                        onClick={() => setShowAddProduct(false)}
+                      >
+                        Fechar
+                      </Button>
+                    </div>
+                    <Input
+                      placeholder="Buscar por nome ou código..."
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      className="h-8 text-xs bg-white"
+                      autoFocus
+                    />
+                    <div className="max-h-36 overflow-y-auto divide-y divide-slate-100 bg-white rounded-lg border border-slate-200">
+                      {loadingProducts ? (
+                        <div className="p-3 text-center text-xs text-slate-400">Carregando catálogo...</div>
+                      ) : (
+                        availableProducts
+                          .filter(
+                            (p) =>
+                              !productSearch ||
+                              p.nome?.toLowerCase().includes(productSearch.toLowerCase()) ||
+                              p.codigo?.toLowerCase().includes(productSearch.toLowerCase())
+                          )
+                          .slice(0, 10)
+                          .map((p) => (
+                            <div key={p.id} className="flex items-center justify-between p-2 hover:bg-slate-50 text-xs">
+                              <div className="truncate mr-2">
+                                <p className="font-semibold text-slate-800 truncate">{p.nome}</p>
+                                <p className="text-slate-500 text-[10px]">
+                                  R$ {Number(p.valor).toFixed(2).replace(".", ",")}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-6 px-2 text-[10px] bg-brand text-white hover:bg-brand/90"
+                                onClick={() => handleAdicionarProduto(p)}
+                              >
+                                Adicionar
+                              </Button>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Box de Totais Recalculados */}
+                <div className="flex flex-col gap-1 p-3.5 bg-slate-100 rounded-lg border border-slate-200">
+                  <div className="flex justify-between items-center text-xs text-slate-600">
+                    <span>Novo Subtotal:</span>
+                    <span className="font-semibold">R$ {editSubtotal.toFixed(2).replace(".", ",")}</span>
+                  </div>
+                  {editDesconto > 0 && (
+                    <div className="flex justify-between items-center text-xs text-red-600">
+                      <span>Desconto:</span>
+                      <span className="font-bold">- R$ {editDesconto.toFixed(2).replace(".", ",")}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-slate-200">
+                    <span className="font-bold text-sm text-slate-800">Novo Total do Pedido:</span>
+                    <span className="text-lg font-extrabold text-emerald-600 font-display">
+                      R$ {editTotal.toFixed(2).replace(".", ",")}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 text-right mt-0.5">Valores recalculados em tempo real</p>
+                </div>
+
+                {/* Botões de Ação do Modo Edição */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full font-semibold border-slate-300 text-slate-700 h-10"
+                    onClick={cancelarEdicaoItens}
+                    disabled={savingItems}
+                  >
+                    Descartar
+                  </Button>
+                  <Button
+                    type="button"
+                    className="w-full font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 shadow-sm h-10"
+                    onClick={handleSalvarEdicaoItens}
+                    disabled={savingItems}
+                  >
+                    <Save className="w-4 h-4" />
+                    {savingItems ? "Salvando..." : "Salvar Alterações"}
+                  </Button>
+                </div>
+              </div>
             ) : (
+              /* MODO VISUALIZAÇÃO PADRÃO */
               <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    Itens ({saleItems.length})
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={iniciarEdicaoItens}
+                    className="h-7 px-2 text-xs font-semibold gap-1 text-brand border-brand/30 hover:bg-brand/10 rounded-md shadow-2xs"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    Editar Itens
+                  </Button>
+                </div>
+
                 <div className="max-h-[300px] overflow-y-auto divide-y border rounded-lg">
                   {saleItems.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
@@ -636,23 +1125,34 @@ function ParceiroDashboard() {
               </div>
             )}
           </div>
-          <div className="pt-2 flex flex-col gap-2 w-full">
-            <div className="grid grid-cols-2 gap-2">
+          {!isEditingItems && (
+            <div className="pt-2 flex flex-col gap-2 w-full">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-md flex items-center justify-center gap-1.5"
+                  onClick={() => downloadVendaPdf(selectedSaleForDetails, saleItems)}
+                >
+                  <FileText className="h-4 w-4 text-red-400" />
+                  Baixar PDF
+                </Button>
+                <Button
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md flex items-center justify-center gap-1.5"
+                  onClick={() => shareVendaWhatsApp(selectedSaleForDetails, saleItems)}
+                >
+                  <WhatsAppIcon className="h-4 w-4 text-white" />
+                  WhatsApp (PDF)
+                </Button>
+              </div>
+
+              {/* Botão de Editar Itens também no menu principal de ações */}
               <Button
-                className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-md flex items-center justify-center gap-1.5"
-                onClick={() => downloadVendaPdf(selectedSaleForDetails, saleItems)}
+                variant="outline"
+                className="w-full border-brand/40 text-brand hover:bg-brand/10 font-semibold flex items-center justify-center gap-2"
+                onClick={iniciarEdicaoItens}
               >
-                <FileText className="h-4 w-4 text-red-400" />
-                Baixar PDF
+                <Edit2 className="w-4 h-4" />
+                Editar Itens do Pedido (Quantidades e Produtos)
               </Button>
-              <Button
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md flex items-center justify-center gap-1.5"
-                onClick={() => shareVendaWhatsApp(selectedSaleForDetails, saleItems)}
-              >
-                <WhatsAppIcon className="h-4 w-4 text-white" />
-                WhatsApp (PDF)
-              </Button>
-            </div>
 
             {selectedSaleForDetails?.status_aprovacao === "Pendente" && (
               <>
@@ -747,6 +1247,7 @@ function ParceiroDashboard() {
               Fechar
             </Button>
           </div>
+          )}
         </DialogContent>
       </Dialog>
 

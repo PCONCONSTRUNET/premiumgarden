@@ -19,6 +19,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+import { getCachedProdutos, setCachedProdutos } from "@/lib/parceiro-cache";
+
 export const Route = createFileRoute("/parceiro/pdv")({
   head: () => ({ meta: [{ title: "Nova Venda — Premium Garden" }] }),
   component: ParceiroPDV,
@@ -26,7 +28,7 @@ export const Route = createFileRoute("/parceiro/pdv")({
 
 function ParceiroPDV() {
   const navigate = useNavigate();
-  const [produtos, setProdutos] = useState<any[]>([]);
+  const [produtos, setProdutos] = useState<any[]>(() => getCachedProdutos() || []);
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingCnpj, setLoadingCnpj] = useState(false);
@@ -105,6 +107,7 @@ function ParceiroPDV() {
         }
 
         setProdutos(finalProducts);
+        setCachedProdutos(finalProducts);
 
         // Verifica se veio um produto mágico pela URL (formato antigo)
         const params = new URLSearchParams(window.location.search);

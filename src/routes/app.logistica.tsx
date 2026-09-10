@@ -166,10 +166,21 @@ function Logistica() {
     )
       return;
     try {
-      await supabase.from("vendas").delete().eq("id", id);
+      await supabase.from("contas_receber").delete().eq("venda_id", id);
+      try {
+        await supabase.from("contas_pagar").delete().eq("venda_id", id);
+      } catch {}
+      await supabase.from("vendas_itens").delete().eq("venda_id", id);
+      try {
+        await supabase.from("dav_items").delete().eq("dav_id", id);
+        await supabase.from("davs").delete().eq("id", id);
+      } catch {}
+      const { error } = await supabase.from("vendas").delete().eq("id", id);
+      if (error) throw error;
       fetchVendas();
-    } catch (err) {
-      toast.error("Erro ao excluir pedido.");
+      toast.success("Pedido excluído com sucesso.");
+    } catch (err: any) {
+      toast.error("Erro ao excluir pedido: " + (err?.message || ""));
     }
   };
 

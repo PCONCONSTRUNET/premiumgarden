@@ -412,9 +412,17 @@ function Pedidos() {
 
       // Excluir registros filhos primeiro para não dar erro de foreign key constraint
       await supabase.from("contas_receber").delete().eq("venda_id", venda.id);
-      await supabase.from("contas_pagar").delete().eq("venda_id", venda.id);
-      await supabase.from("historico_faturamento").delete().eq("venda_id", venda.id);
+      try {
+        await supabase.from("contas_pagar").delete().eq("venda_id", venda.id);
+      } catch {}
+      try {
+        await supabase.from("historico_faturamento").delete().eq("venda_id", venda.id);
+      } catch {}
       await supabase.from("vendas_itens").delete().eq("venda_id", venda.id);
+      try {
+        await supabase.from("dav_items").delete().eq("dav_id", venda.id);
+        await supabase.from("davs").delete().eq("id", venda.id);
+      } catch {}
 
       const { error } = await supabase.from("vendas").delete().eq("id", venda.id);
       if (error) throw error;

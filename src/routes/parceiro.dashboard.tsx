@@ -1237,9 +1237,18 @@ function ParceiroDashboard() {
                       if (!confirm("Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.")) return;
                       setDeletingOrder(true);
                       try {
+                        await supabase.from("contas_receber").delete().eq("venda_id", selectedSaleForDetails.id);
+                        try {
+                          await supabase.from("contas_pagar").delete().eq("venda_id", selectedSaleForDetails.id);
+                        } catch {}
+                        try {
+                          await supabase.from("historico_faturamento").delete().eq("venda_id", selectedSaleForDetails.id);
+                        } catch {}
                         await supabase.from("vendas_itens").delete().eq("venda_id", selectedSaleForDetails.id);
-                        await supabase.from("dav_items").delete().eq("dav_id", selectedSaleForDetails.id);
-                        await supabase.from("davs").delete().eq("id", selectedSaleForDetails.id);
+                        try {
+                          await supabase.from("dav_items").delete().eq("dav_id", selectedSaleForDetails.id);
+                          await supabase.from("davs").delete().eq("id", selectedSaleForDetails.id);
+                        } catch {}
                         const { error } = await supabase.from("vendas").delete().eq("id", selectedSaleForDetails.id);
                         if (error) throw error;
                         toast.success("Pedido excluído com sucesso!");

@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
-import { shareOrcamentoPDF, downloadOrcamentoPDF, printVendaPdf } from "@/lib/orcamento-pdf";
+import { shareOrcamentoPDF, downloadOrcamentoPDF, printVendaPdf, downloadVendaPdf } from "@/lib/orcamento-pdf";
 import { formatNumero } from "@/lib/utils";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -26,6 +26,8 @@ import {
   Info,
   DollarSign,
   Receipt,
+  Download,
+  Loader2,
 } from "lucide-react";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { useEffect, useMemo, useState } from "react";
@@ -98,6 +100,7 @@ function Pedidos() {
 
   const [openPrintModal, setOpenPrintModal] = useState(false);
   const [buscaImpressao, setBuscaImpressao] = useState("");
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const fetchVendas = async () => {
     setLoading(true);
@@ -982,10 +985,18 @@ function Pedidos() {
                 >
                   <FileDown className="mr-2 h-4 w-4 text-primary" /> Baixar PDF
                 </Button>
-                <Button className="flex-1" asChild>
-                  <Link to="/orcamento/$id" params={{ id: selectedVenda?.id }}>
-                    <Printer className="mr-2 h-4 w-4" /> Imprimir
-                  </Link>
+                <Button
+                  className="flex-1"
+                  onClick={async () => {
+                    try {
+                      await printVendaPdf(selectedVenda, vendaItens);
+                    } catch (err: any) {
+                      console.error(err);
+                      toast.error("Erro ao imprimir PDF: " + (err?.message || ""));
+                    }
+                  }}
+                >
+                  <Printer className="mr-2 h-4 w-4" /> Imprimir
                 </Button>
               </div>
             </div>
@@ -1339,11 +1350,54 @@ function Pedidos() {
                       {new Date(v.created_at).toLocaleDateString()} • {currency.format(Number(v.valor_total || 0))}
                     </p>
                   </div>
-                  <Button size="sm" className="bg-brand text-brand-foreground hover:bg-brand/90 shrink-0" asChild>
-                    <a href={`/orcamento/${v.id}`} target="_blank" rel="noopener noreferrer">
-                      <Printer className="w-4 h-4 mr-2" /> Imprimir
-                    </a>
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      className="bg-brand text-brand-foreground hover:bg-brand/90 font-medium text-xs h-8 px-3"
+                      disabled={downloadingId === v.id}
+                      onClick={async () => {
+                        try {
+                          setDownloadingId(v.id);
+                          await downloadVendaPdf(v);
+                        } catch (err: any) {
+                          console.error(err);
+                          toast.error("Erro ao baixar PDF: " + (err?.message || ""));
+                        } finally {
+                          setDownloadingId(null);
+                        }
+                      }}
+                    >
+                      {downloadingId === v.id ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Baixando...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar PDF
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-2.5 text-slate-600 hover:text-slate-900 border-slate-200"
+                      title="Imprimir direto"
+                      disabled={downloadingId === v.id}
+                      onClick={async () => {
+                        try {
+                          setDownloadingId(v.id);
+                          await printVendaPdf(v);
+                        } catch (err: any) {
+                          console.error(err);
+                          toast.error("Erro ao imprimir PDF: " + (err?.message || ""));
+                        } finally {
+                          setDownloadingId(null);
+                        }
+                      }}
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
               ))
             )}

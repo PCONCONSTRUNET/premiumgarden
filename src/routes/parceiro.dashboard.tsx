@@ -804,30 +804,33 @@ function ParceiroDashboard() {
       </div>
 
       <Dialog open={isSaleDetailsOpen} onOpenChange={setIsSaleDetailsOpen}>
-        <DialogContent className="sm:max-w-[400px] w-[95vw] max-h-[90dvh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Ficha do Pedido</DialogTitle>
+        <DialogContent className="sm:max-w-[540px] w-[95vw] max-h-[92dvh] flex flex-col p-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-slate-100 shrink-0 pr-12 text-left bg-white">
+            <DialogTitle className="text-lg font-bold text-slate-900">Ficha do Pedido</DialogTitle>
             <DialogDescription asChild>
-              <div>
-                Pedido #{selectedSaleForDetails?.id.substring(0, 6)} •{" "}
-                {new Date(selectedSaleForDetails?.created_at).toLocaleDateString()}
+              <div className="mt-1">
+                <p className="text-xs text-slate-500 font-medium">
+                  Pedido #{selectedSaleForDetails?.id.substring(0, 6)} •{" "}
+                  {new Date(selectedSaleForDetails?.created_at).toLocaleDateString()}
+                </p>
                 {selectedSaleForDetails?.cliente?.nome && (
-                  <div className="mt-3 text-sm text-slate-700 bg-slate-100 p-3 rounded-md border border-slate-200 text-left">
-                    <p className="font-semibold text-slate-900 flex items-center gap-2">
+                  <div className="mt-2.5 text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-left">
+                    <p className="font-semibold text-slate-900 flex items-center gap-1.5 truncate">
                       👤 {selectedSaleForDetails.cliente.nome}
                     </p>
                     {selectedSaleForDetails.cliente.cpf_cnpj && (
-                      <p className="mt-1">📄 {selectedSaleForDetails.cliente.cpf_cnpj}</p>
+                      <p className="mt-0.5 text-slate-600">📄 {selectedSaleForDetails.cliente.cpf_cnpj}</p>
                     )}
                     {selectedSaleForDetails.cliente.telefone && (
-                      <p className="mt-1">📞 {selectedSaleForDetails.cliente.telefone}</p>
+                      <p className="mt-0.5 text-slate-600">📞 {selectedSaleForDetails.cliente.telefone}</p>
                     )}
                   </div>
                 )}
               </div>
             </DialogDescription>
           </DialogHeader>
-          <div className="py-2">
+
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-4">
             {loadingSaleDetails ? (
               <div className="text-center py-6 text-muted-foreground">Carregando itens...</div>
             ) : isEditingItems ? (
@@ -835,14 +838,14 @@ function ParceiroDashboard() {
               <div className="space-y-4 animate-in fade-in-50 duration-200">
                 <div className="flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 rounded-lg text-xs">
                   <span className="font-semibold flex items-center gap-1.5">
-                    <Edit2 className="w-3.5 h-3.5 text-amber-600" />
+                    <Edit2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     Edite as quantidades ou remova itens
                   </span>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-xs text-amber-900 hover:bg-amber-100"
+                    className="h-6 px-2 text-xs text-amber-900 hover:bg-amber-100 shrink-0"
                     onClick={cancelarEdicaoItens}
                     disabled={savingItems}
                   >
@@ -859,9 +862,9 @@ function ParceiroDashboard() {
                     const itemSubtotal = Number(item.quantidade) * unitPrice;
 
                     return (
-                      <div key={item.id || index} className="p-3 bg-slate-50/50 flex flex-col gap-2">
+                      <div key={item.id || index} className="p-2.5 sm:p-3 bg-slate-50/50 flex flex-col gap-2">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-md bg-slate-200 text-lg">
                               {prodImg ? (
                                 <img src={prodImg} alt={prodNome} className="h-full w-full object-cover" />
@@ -869,7 +872,7 @@ function ParceiroDashboard() {
                                 prodEmoji
                               )}
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate" title={prodNome}>
                                 {prodNome}
                               </p>
@@ -893,8 +896,8 @@ function ParceiroDashboard() {
                         </div>
 
                         {/* Controles de Quantidade e Subtotal */}
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/50">
-                          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 gap-2">
+                          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs shrink-0">
                             <Button
                               type="button"
                               variant="ghost"
@@ -926,9 +929,9 @@ function ParceiroDashboard() {
                             </Button>
                           </div>
 
-                          <div className="text-right">
+                          <div className="text-right shrink-0">
                             <span className="text-[10px] text-slate-400 mr-1.5">Subtotal:</span>
-                            <span className="font-bold text-xs sm:text-sm text-brand">
+                            <span className="font-bold text-xs sm:text-sm text-brand whitespace-nowrap">
                               R$ {itemSubtotal.toFixed(2).replace(".", ",")}
                             </span>
                           </div>
@@ -945,10 +948,10 @@ function ParceiroDashboard() {
                     variant="outline"
                     size="sm"
                     onClick={abrirBuscarProdutos}
-                    className="w-full border-dashed border-brand/40 text-brand hover:bg-brand/5 text-xs font-semibold gap-1.5 h-9"
+                    className="w-full border-dashed border-brand/40 text-brand hover:bg-brand/5 text-xs font-semibold gap-1.5 h-9 whitespace-normal"
                     disabled={savingItems}
                   >
-                    <PlusCircle className="w-4 h-4" />
+                    <PlusCircle className="w-4 h-4 shrink-0" />
                     Adicionar Outro Produto ao Pedido
                   </Button>
                 ) : (
@@ -985,8 +988,8 @@ function ParceiroDashboard() {
                           )
                           .slice(0, 10)
                           .map((p) => (
-                            <div key={p.id} className="flex items-center justify-between p-2 hover:bg-slate-50 text-xs">
-                              <div className="truncate mr-2">
+                            <div key={p.id} className="flex items-center justify-between p-2 hover:bg-slate-50 text-xs gap-2">
+                              <div className="truncate mr-2 min-w-0 flex-1">
                                 <p className="font-semibold text-slate-800 truncate">{p.nome}</p>
                                 <p className="text-slate-500 text-[10px]">
                                   R$ {Number(p.valor).toFixed(2).replace(".", ",")}
@@ -995,7 +998,7 @@ function ParceiroDashboard() {
                               <Button
                                 type="button"
                                 size="sm"
-                                className="h-6 px-2 text-[10px] bg-brand text-white hover:bg-brand/90"
+                                className="h-6 px-2 text-[10px] bg-brand text-white hover:bg-brand/90 shrink-0"
                                 onClick={() => handleAdicionarProduto(p)}
                               >
                                 Adicionar
@@ -1011,17 +1014,17 @@ function ParceiroDashboard() {
                 <div className="flex flex-col gap-1 p-3.5 bg-slate-100 rounded-lg border border-slate-200">
                   <div className="flex justify-between items-center text-xs text-slate-600">
                     <span>Novo Subtotal:</span>
-                    <span className="font-semibold">R$ {editSubtotal.toFixed(2).replace(".", ",")}</span>
+                    <span className="font-semibold shrink-0">R$ {editSubtotal.toFixed(2).replace(".", ",")}</span>
                   </div>
                   {editDesconto > 0 && (
                     <div className="flex justify-between items-center text-xs text-red-600">
                       <span>Desconto:</span>
-                      <span className="font-bold">- R$ {editDesconto.toFixed(2).replace(".", ",")}</span>
+                      <span className="font-bold shrink-0">- R$ {editDesconto.toFixed(2).replace(".", ",")}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-slate-200">
                     <span className="font-bold text-sm text-slate-800">Novo Total do Pedido:</span>
-                    <span className="text-lg font-extrabold text-emerald-600 font-display">
+                    <span className="text-lg font-extrabold text-emerald-600 font-display shrink-0">
                       R$ {editTotal.toFixed(2).replace(".", ",")}
                     </span>
                   </div>
@@ -1029,11 +1032,11 @@ function ParceiroDashboard() {
                 </div>
 
                 {/* Botões de Ação do Modo Edição */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="grid grid-cols-2 gap-2 pt-1 w-full">
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full font-semibold border-slate-300 text-slate-700 h-10"
+                    className="w-full font-semibold border-slate-300 text-slate-700 h-10 text-xs sm:text-sm whitespace-normal"
                     onClick={cancelarEdicaoItens}
                     disabled={savingItems}
                   >
@@ -1041,19 +1044,19 @@ function ParceiroDashboard() {
                   </Button>
                   <Button
                     type="button"
-                    className="w-full font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 shadow-sm h-10"
+                    className="w-full font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 shadow-sm h-10 text-xs sm:text-sm whitespace-normal"
                     onClick={handleSalvarEdicaoItens}
                     disabled={savingItems}
                   >
-                    <Save className="w-4 h-4" />
-                    {savingItems ? "Salvando..." : "Salvar Alterações"}
+                    <Save className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{savingItems ? "Salvando..." : "Salvar Alterações"}</span>
                   </Button>
                 </div>
               </div>
             ) : (
               /* MODO VISUALIZAÇÃO PADRÃO */
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                     Itens ({saleItems.length})
                   </span>
@@ -1062,14 +1065,14 @@ function ParceiroDashboard() {
                     variant="outline"
                     size="sm"
                     onClick={iniciarEdicaoItens}
-                    className="h-7 px-2 text-xs font-semibold gap-1 text-brand border-brand/30 hover:bg-brand/10 rounded-md shadow-2xs"
+                    className="h-7 px-2.5 text-xs font-semibold gap-1 text-brand border-brand/30 hover:bg-brand/10 rounded-md shadow-2xs shrink-0 whitespace-nowrap"
                   >
                     <Edit2 className="w-3 h-3" />
                     Editar Itens
                   </Button>
                 </div>
 
-                <div className="max-h-[300px] overflow-y-auto divide-y border rounded-lg">
+                <div className="max-h-[300px] overflow-y-auto divide-y border rounded-lg bg-white">
                   {saleItems.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
                       Nenhum item encontrado.
@@ -1078,9 +1081,9 @@ function ParceiroDashboard() {
                     saleItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between p-3 bg-slate-50/50"
+                        className="flex items-center justify-between p-2.5 sm:p-3 bg-slate-50/50 gap-2 sm:gap-3"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-slate-200 text-xl">
                             {item.produto?.imagem ? (
                               <img src={item.produto.imagem} alt={item.produto?.nome} className="h-full w-full object-cover" />
@@ -1088,166 +1091,167 @@ function ParceiroDashboard() {
                               "📦"
                             )}
                           </div>
-                          <div>
-                            <p className="font-semibold text-sm text-slate-800">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate" title={item.produto?.nome || "Produto"}>
                               {item.produto?.nome || "Produto Excluído"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {item.quantidade}x R$ {Number(item.valor_unitario).toFixed(2)}
+                              {item.quantidade}x R$ {Number(item.valor_unitario).toFixed(2).replace(".", ",")}
                             </p>
                           </div>
                         </div>
-                        <p className="font-bold text-brand">
-                          R$ {Number(item.subtotal).toFixed(2)}
+                        <p className="font-bold text-xs sm:text-sm text-brand shrink-0 text-right whitespace-nowrap pl-1">
+                          R$ {Number(item.subtotal).toFixed(2).replace(".", ",")}
                         </p>
                       </div>
                     ))
                   )}
                 </div>
-                <div className="flex flex-col gap-1 p-4 bg-slate-100 rounded-lg">
+
+                <div className="flex flex-col gap-1 p-3.5 sm:p-4 bg-slate-100 rounded-lg">
                   {Number(selectedSaleForDetails?.desconto_valor) > 0 && (
-                    <div className="flex justify-between items-center text-red-600 text-sm">
+                    <div className="flex justify-between items-center text-red-600 text-xs sm:text-sm">
                       <span className="font-medium">
                         Desconto {Number(selectedSaleForDetails?.desconto_percentual) > 0 ? `(${selectedSaleForDetails.desconto_percentual}%)` : ''}:
                       </span>
-                      <span className="font-bold">
-                        - R$ {Number(selectedSaleForDetails?.desconto_valor).toFixed(2)}
+                      <span className="font-bold shrink-0">
+                        - R$ {Number(selectedSaleForDetails?.desconto_valor).toFixed(2).replace(".", ",")}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-200/60">
-                    <span className="font-semibold text-slate-700">Total do Pedido:</span>
-                    <span className="text-xl font-bold font-display text-slate-900">
-                      R$ {Number(selectedSaleForDetails?.valor_total || 0).toFixed(2)}
+                    <span className="font-semibold text-slate-700 text-sm sm:text-base">Total do Pedido:</span>
+                    <span className="text-lg sm:text-xl font-bold font-display text-slate-900 shrink-0">
+                      R$ {Number(selectedSaleForDetails?.valor_total || 0).toFixed(2).replace(".", ",")}
                     </span>
                   </div>
+                </div>
+
+                {/* Ações da Venda */}
+                <div className="pt-2 flex flex-col gap-2 w-full">
+                  <div className="grid grid-cols-2 gap-2 w-full">
+                    <Button
+                      className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-md flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 h-10 whitespace-normal"
+                      onClick={() => downloadVendaPdf(selectedSaleForDetails, saleItems)}
+                    >
+                      <FileText className="h-4 w-4 text-red-400 shrink-0" />
+                      <span className="truncate">Baixar PDF</span>
+                    </Button>
+                    <Button
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 h-10 whitespace-normal"
+                      onClick={() => shareVendaWhatsApp(selectedSaleForDetails, saleItems)}
+                    >
+                      <WhatsAppIcon className="h-4 w-4 text-white shrink-0" />
+                      <span className="truncate">WhatsApp (PDF)</span>
+                    </Button>
+                  </div>
+
+                  {/* Botão de Editar Itens também no menu principal de ações */}
+                  <Button
+                    variant="outline"
+                    className="w-full border-brand/40 text-brand hover:bg-brand/10 font-semibold flex items-center justify-center gap-2 text-xs sm:text-sm h-10 px-3 whitespace-normal"
+                    onClick={iniciarEdicaoItens}
+                  >
+                    <Edit2 className="w-4 h-4 shrink-0" />
+                    <span>Editar Itens do Pedido</span>
+                  </Button>
+
+                  {selectedSaleForDetails?.status_aprovacao === "Pendente" && (
+                    <>
+                      <Button
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold h-10 text-xs sm:text-sm whitespace-normal"
+                        onClick={handleEnviarPedido}
+                      >
+                        🚀 Enviar pedido para o dono
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full border-slate-300 text-slate-800 font-semibold h-10 text-xs sm:text-sm whitespace-normal"
+                        onClick={openEditClient}
+                      >
+                        ✏️ Editar Informações do Cliente
+                      </Button>
+                    </>
+                  )}
+
+                  {/* Cancelar Orçamento */}
+                  {(selectedSaleForDetails?.tipo === "DAV" || selectedSaleForDetails?.status_aprovacao === "Pendente") && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-amber-200 text-amber-700 hover:bg-amber-50 font-semibold flex items-center justify-center gap-2 h-10 text-xs sm:text-sm whitespace-normal"
+                      disabled={cancelingOrder}
+                      onClick={async () => {
+                        if (!confirm("Deseja realmente cancelar este orçamento?")) return;
+                        setCancelingOrder(true);
+                        try {
+                          await supabase
+                            .from("vendas")
+                            .update({ status: "Cancelado", status_aprovacao: "Recusado" })
+                            .eq("id", selectedSaleForDetails.id);
+                          await supabase
+                            .from("davs")
+                            .update({ status: "Cancelado" })
+                            .eq("id", selectedSaleForDetails.id);
+                          toast.success("Orçamento cancelado com sucesso!");
+                          setVendas((prev) =>
+                            prev.map((v) =>
+                              v.id === selectedSaleForDetails.id
+                                ? { ...v, status: "Cancelado", status_aprovacao: "Recusado" }
+                                : v
+                            )
+                          );
+                          setIsSaleDetailsOpen(false);
+                        } catch (err: any) {
+                          toast.error("Erro ao cancelar orçamento: " + err.message);
+                        } finally {
+                          setCancelingOrder(false);
+                        }
+                      }}
+                    >
+                      <Ban className="h-4 w-4 shrink-0" />
+                      {cancelingOrder ? "Cancelando..." : "Cancelar Orçamento"}
+                    </Button>
+                  )}
+
+                  {/* Excluir Pedido */}
+                  <Button
+                    variant="outline"
+                    className="w-full border-red-200 text-red-600 hover:bg-red-50 font-semibold flex items-center justify-center gap-2 h-10 text-xs sm:text-sm whitespace-normal"
+                    disabled={deletingOrder}
+                    onClick={async () => {
+                      if (!confirm("Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.")) return;
+                      setDeletingOrder(true);
+                      try {
+                        await supabase.from("vendas_itens").delete().eq("venda_id", selectedSaleForDetails.id);
+                        await supabase.from("dav_items").delete().eq("dav_id", selectedSaleForDetails.id);
+                        await supabase.from("davs").delete().eq("id", selectedSaleForDetails.id);
+                        const { error } = await supabase.from("vendas").delete().eq("id", selectedSaleForDetails.id);
+                        if (error) throw error;
+                        toast.success("Pedido excluído com sucesso!");
+                        setVendas((prev) => prev.filter((v) => v.id !== selectedSaleForDetails.id));
+                        setIsSaleDetailsOpen(false);
+                      } catch (err: any) {
+                        toast.error("Erro ao excluir pedido: " + err.message);
+                      } finally {
+                        setDeletingOrder(false);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 shrink-0" />
+                    {deletingOrder ? "Excluindo..." : "Excluir Pedido"}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full border-slate-200 text-slate-600 h-10 text-xs sm:text-sm mt-1 whitespace-normal"
+                    onClick={() => setIsSaleDetailsOpen(false)}
+                  >
+                    Fechar
+                  </Button>
                 </div>
               </div>
             )}
           </div>
-          {!isEditingItems && (
-            <div className="pt-2 flex flex-col gap-2 w-full">
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-md flex items-center justify-center gap-1.5"
-                  onClick={() => downloadVendaPdf(selectedSaleForDetails, saleItems)}
-                >
-                  <FileText className="h-4 w-4 text-red-400" />
-                  Baixar PDF
-                </Button>
-                <Button
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md flex items-center justify-center gap-1.5"
-                  onClick={() => shareVendaWhatsApp(selectedSaleForDetails, saleItems)}
-                >
-                  <WhatsAppIcon className="h-4 w-4 text-white" />
-                  WhatsApp (PDF)
-                </Button>
-              </div>
-
-              {/* Botão de Editar Itens também no menu principal de ações */}
-              <Button
-                variant="outline"
-                className="w-full border-brand/40 text-brand hover:bg-brand/10 font-semibold flex items-center justify-center gap-2"
-                onClick={iniciarEdicaoItens}
-              >
-                <Edit2 className="w-4 h-4" />
-                Editar Itens do Pedido (Quantidades e Produtos)
-              </Button>
-
-            {selectedSaleForDetails?.status_aprovacao === "Pendente" && (
-              <>
-                <Button
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
-                  onClick={handleEnviarPedido}
-                >
-                  🚀 Enviar pedido para o dono
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full border-slate-300 text-slate-800 font-semibold"
-                  onClick={openEditClient}
-                >
-                  ✏️ Editar Informações do Cliente
-                </Button>
-              </>
-            )}
-
-            {/* Cancelar Orçamento */}
-            {(selectedSaleForDetails?.tipo === "DAV" || selectedSaleForDetails?.status_aprovacao === "Pendente") && (
-              <Button
-                variant="outline"
-                className="w-full border-amber-200 text-amber-700 hover:bg-amber-50 font-semibold flex items-center justify-center gap-2"
-                disabled={cancelingOrder}
-                onClick={async () => {
-                  if (!confirm("Deseja realmente cancelar este orçamento?")) return;
-                  setCancelingOrder(true);
-                  try {
-                    await supabase
-                      .from("vendas")
-                      .update({ status: "Cancelado", status_aprovacao: "Recusado" })
-                      .eq("id", selectedSaleForDetails.id);
-                    await supabase
-                      .from("davs")
-                      .update({ status: "Cancelado" })
-                      .eq("id", selectedSaleForDetails.id);
-                    toast.success("Orçamento cancelado com sucesso!");
-                    setVendas((prev) =>
-                      prev.map((v) =>
-                        v.id === selectedSaleForDetails.id
-                          ? { ...v, status: "Cancelado", status_aprovacao: "Recusado" }
-                          : v
-                      )
-                    );
-                    setIsSaleDetailsOpen(false);
-                  } catch (err: any) {
-                    toast.error("Erro ao cancelar orçamento: " + err.message);
-                  } finally {
-                    setCancelingOrder(false);
-                  }
-                }}
-              >
-                <Ban className="h-4 w-4" />
-                {cancelingOrder ? "Cancelando..." : "Cancelar Orçamento"}
-              </Button>
-            )}
-
-            {/* Excluir Pedido */}
-            <Button
-              variant="outline"
-              className="w-full border-red-200 text-red-600 hover:bg-red-50 font-semibold flex items-center justify-center gap-2"
-              disabled={deletingOrder}
-              onClick={async () => {
-                if (!confirm("Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.")) return;
-                setDeletingOrder(true);
-                try {
-                  await supabase.from("vendas_itens").delete().eq("venda_id", selectedSaleForDetails.id);
-                  await supabase.from("dav_items").delete().eq("dav_id", selectedSaleForDetails.id);
-                  await supabase.from("davs").delete().eq("id", selectedSaleForDetails.id);
-                  const { error } = await supabase.from("vendas").delete().eq("id", selectedSaleForDetails.id);
-                  if (error) throw error;
-                  toast.success("Pedido excluído com sucesso!");
-                  setVendas((prev) => prev.filter((v) => v.id !== selectedSaleForDetails.id));
-                  setIsSaleDetailsOpen(false);
-                } catch (err: any) {
-                  toast.error("Erro ao excluir pedido: " + err.message);
-                } finally {
-                  setDeletingOrder(false);
-                }
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-              {deletingOrder ? "Excluindo..." : "Excluir Pedido"}
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full border-slate-200 text-slate-600"
-              onClick={() => setIsSaleDetailsOpen(false)}
-            >
-              Fechar
-            </Button>
-          </div>
-          )}
         </DialogContent>
       </Dialog>
 

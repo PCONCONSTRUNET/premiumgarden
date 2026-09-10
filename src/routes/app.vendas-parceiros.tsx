@@ -671,16 +671,16 @@ function VendasParceiros() {
       </Card>
 
       <Dialog open={isSaleDetailsOpen} onOpenChange={setIsSaleDetailsOpen}>
-        <DialogContent className="sm:max-w-[500px] w-[95vw] max-h-[90dvh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Detalhes do Pedido</DialogTitle>
+        <DialogContent className="sm:max-w-[540px] w-[95vw] max-h-[92dvh] flex flex-col p-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-slate-100 shrink-0 pr-12 text-left bg-white">
+            <DialogTitle className="text-lg font-bold text-slate-900">Detalhes do Pedido</DialogTitle>
             <DialogDescription asChild>
-              <div>
-                <p className="font-bold text-slate-900 text-base">
+              <div className="mt-1">
+                <p className="font-bold text-slate-900 text-sm sm:text-base">
                   Pedido #{selectedSaleForDetails?.id?.substring(0, 6).toUpperCase()} • Vendedor:{" "}
                   {selectedSaleForDetails?.vendedor?.nome || "Desconhecido"}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1 font-medium">
+                <p className="text-xs text-muted-foreground mt-0.5 font-medium">
                   Enviado em:{" "}
                   {selectedSaleForDetails?.created_at
                     ? new Date(selectedSaleForDetails.created_at).toLocaleDateString("pt-BR")
@@ -694,30 +694,31 @@ function VendasParceiros() {
                     : ""}
                 </p>
                 {selectedSaleForDetails?.cliente?.nome && (
-                  <div className="mt-3 text-sm text-slate-700 bg-slate-100 p-3 rounded-md border border-slate-200">
-                    <p className="font-semibold text-slate-900 flex items-center gap-2">
+                  <div className="mt-2.5 text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-left">
+                    <p className="font-semibold text-slate-900 flex items-center gap-1.5 truncate">
                       👤 {selectedSaleForDetails.cliente.nome}
                     </p>
                     {selectedSaleForDetails.cliente.cpf_cnpj && (
-                      <p className="mt-1">📄 {selectedSaleForDetails.cliente.cpf_cnpj}</p>
+                      <p className="mt-0.5 text-slate-600">📄 {selectedSaleForDetails.cliente.cpf_cnpj}</p>
                     )}
                     {selectedSaleForDetails.cliente.telefone && (
-                      <p className="mt-1">📞 {selectedSaleForDetails.cliente.telefone}</p>
+                      <p className="mt-0.5 text-slate-600">📞 {selectedSaleForDetails.cliente.telefone}</p>
                     )}
                     {selectedSaleForDetails.cliente.endereco && (
-                      <p className="mt-1">🏠 {selectedSaleForDetails.cliente.endereco}</p>
+                      <p className="mt-0.5 text-slate-600 truncate">🏠 {selectedSaleForDetails.cliente.endereco}</p>
                     )}
                   </div>
                 )}
               </div>
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
+
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-4">
             {loadingSaleDetails ? (
               <div className="text-center py-6 text-muted-foreground">Carregando itens...</div>
             ) : (
               <div className="space-y-4">
-                <div className="max-h-[300px] overflow-y-auto divide-y border rounded-lg">
+                <div className="max-h-[300px] overflow-y-auto divide-y border rounded-lg bg-white">
                   {saleItems.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
                       Nenhum item encontrado.
@@ -726,9 +727,9 @@ function VendasParceiros() {
                     saleItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between p-3 bg-slate-50/50"
+                        className="flex items-center justify-between p-2.5 sm:p-3 bg-slate-50/50 gap-2 sm:gap-3"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-slate-200 text-xl">
                             {item.produto?.imagem ? (
                               <img src={item.produto.imagem} alt={item.produto?.nome} className="h-full w-full object-cover" />
@@ -736,100 +737,103 @@ function VendasParceiros() {
                               "📦"
                             )}
                           </div>
-                          <div>
-                            <p className="font-semibold text-sm text-slate-800">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate" title={item.produto?.nome || "Produto"}>
                               {item.produto?.nome || "Produto Excluído"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {item.quantidade}x R$ {Number(item.valor_unitario).toFixed(2)}
+                              {item.quantidade}x R$ {Number(item.valor_unitario).toFixed(2).replace(".", ",")}
                             </p>
                           </div>
                         </div>
-                        <p className="font-bold text-brand">
-                          R$ {Number(item.subtotal).toFixed(2)}
+                        <p className="font-bold text-xs sm:text-sm text-brand shrink-0 text-right whitespace-nowrap pl-1">
+                          R$ {Number(item.subtotal).toFixed(2).replace(".", ",")}
                         </p>
                       </div>
                     ))
                   )}
                 </div>
-                <div className="flex flex-col gap-1 p-4 bg-slate-100 rounded-lg">
+                <div className="flex flex-col gap-1 p-3.5 sm:p-4 bg-slate-100 rounded-lg">
                   {Number(selectedSaleForDetails?.desconto_valor) > 0 && (
-                    <div className="flex justify-between items-center text-red-600 text-sm">
+                    <div className="flex justify-between items-center text-red-600 text-xs sm:text-sm">
                       <span className="font-medium">
                         Desconto {Number(selectedSaleForDetails?.desconto_percentual) > 0 ? `(${selectedSaleForDetails.desconto_percentual}%)` : ''}:
                       </span>
-                      <span className="font-bold">
-                        - R$ {Number(selectedSaleForDetails?.desconto_valor).toFixed(2)}
+                      <span className="font-bold shrink-0">
+                        - R$ {Number(selectedSaleForDetails?.desconto_valor).toFixed(2).replace(".", ",")}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-200/60">
-                    <span className="font-semibold text-slate-700">Total do Pedido:</span>
-                    <span className="text-xl font-bold font-display text-slate-900">
-                      R$ {Number(selectedSaleForDetails?.valor_total || 0).toFixed(2)}
+                    <span className="font-semibold text-slate-700 text-sm sm:text-base">Total do Pedido:</span>
+                    <span className="text-lg sm:text-xl font-bold font-display text-slate-900 shrink-0">
+                      R$ {Number(selectedSaleForDetails?.valor_total || 0).toFixed(2).replace(".", ",")}
                     </span>
                   </div>
                 </div>
               </div>
             )}
           </div>
-          {selectedSaleForDetails?.status_aprovacao === "Pendente" ? (
-            <DialogFooter className="flex flex-col sm:flex-row justify-between items-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                className="border-blue-200 text-blue-700 hover:bg-blue-50 gap-1.5 w-full sm:w-auto"
-                onClick={() => {
-                  setIsSaleDetailsOpen(false);
-                  navigate({
-                    to: "/app/venda-nova",
-                    search: { id: selectedSaleForDetails.id } as any,
-                  });
-                }}
-              >
-                <Pencil className="w-4 h-4" /> Editar Pedido
-              </Button>
-              <div className="flex gap-2 w-full sm:w-auto justify-end">
+
+          <div className="p-3 sm:p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+            {selectedSaleForDetails?.status_aprovacao === "Pendente" ? (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
                 <Button
-                  variant="destructive"
-                  className="w-full sm:w-auto"
+                  variant="outline"
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50 gap-1.5 w-full sm:w-auto h-9 text-xs sm:text-sm"
                   onClick={() => {
                     setIsSaleDetailsOpen(false);
-                    rejeitarVenda(selectedSaleForDetails.id);
+                    navigate({
+                      to: "/app/venda-nova",
+                      search: { id: selectedSaleForDetails.id } as any,
+                    });
                   }}
                 >
-                  Recusar Pedido
+                  <Pencil className="w-4 h-4 shrink-0" /> Editar Pedido
                 </Button>
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
+                  <Button
+                    variant="destructive"
+                    className="w-full sm:w-auto h-9 text-xs sm:text-sm"
+                    onClick={() => {
+                      setIsSaleDetailsOpen(false);
+                      rejeitarVenda(selectedSaleForDetails.id);
+                    }}
+                  >
+                    Recusar Pedido
+                  </Button>
+                  <Button
+                    className="w-full sm:w-auto bg-success hover:bg-success/90 text-white h-9 text-xs sm:text-sm"
+                    onClick={() => {
+                      setIsSaleDetailsOpen(false);
+                      aprovarVenda(selectedSaleForDetails);
+                    }}
+                  >
+                    Aprovar Pedido
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
                 <Button
-                  className="w-full sm:w-auto bg-success hover:bg-success/90 text-white"
+                  variant="outline"
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50 gap-1.5 w-full sm:w-auto h-9 text-xs sm:text-sm"
                   onClick={() => {
                     setIsSaleDetailsOpen(false);
-                    aprovarVenda(selectedSaleForDetails);
+                    navigate({
+                      to: "/app/venda-nova",
+                      search: { id: selectedSaleForDetails.id } as any,
+                    });
                   }}
                 >
-                  Aprovar Pedido
+                  <Pencil className="w-4 h-4 shrink-0" /> Editar Pedido
+                </Button>
+                <Button variant="outline" className="h-9 text-xs sm:text-sm w-full sm:w-auto" onClick={() => setIsSaleDetailsOpen(false)}>
+                  Fechar
                 </Button>
               </div>
-            </DialogFooter>
-          ) : (
-            <DialogFooter className="flex flex-col sm:flex-row justify-between items-center gap-2">
-              <Button
-                variant="outline"
-                className="border-blue-200 text-blue-700 hover:bg-blue-50 gap-1.5 w-full sm:w-auto"
-                onClick={() => {
-                  setIsSaleDetailsOpen(false);
-                  navigate({
-                    to: "/app/venda-nova",
-                    search: { id: selectedSaleForDetails.id } as any,
-                  });
-                }}
-              >
-                <Pencil className="w-4 h-4" /> Editar Pedido
-              </Button>
-              <Button variant="outline" onClick={() => setIsSaleDetailsOpen(false)}>
-                Fechar
-              </Button>
-            </DialogFooter>
-          )}
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

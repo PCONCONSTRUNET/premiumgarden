@@ -443,61 +443,74 @@ function NovoPedido() {
       if (observacoesPagamento) {
         vendaPayload.observacoes_pagamento = observacoesPagamento;
       }
-      if (observacoes) {
-        vendaPayload.observacoes = observacoes;
+
+      // Concatena informações extras (contato, transportadora, etc) nas observações gerais
+      const obsExtras: string[] = [];
+      if (contato) obsExtras.push(`Contato: ${contato}`);
+      if (transportadora) obsExtras.push(`Transportadora: ${transportadora}`);
+      if (rastreamento) obsExtras.push(`Rastreamento: ${rastreamento}`);
+      if (enderecoEntrega) obsExtras.push(`Entrega: ${enderecoEntrega}`);
+      if (freteValor !== "" && freteValor !== undefined && Number(_frete) > 0) {
+        obsExtras.push(`Frete: R$ ${Number(_frete).toFixed(2).replace(".", ",")}`);
       }
-      if (freteValor !== "" && freteValor !== undefined) {
-        vendaPayload.frete_valor = _frete;
+
+      let obsFinal = observacoes || "";
+      if (obsExtras.length > 0) {
+        obsFinal = obsFinal ? `${obsFinal}\n${obsExtras.join(" | ")}` : obsExtras.join(" | ");
       }
-      if (transportadora) {
-        vendaPayload.transportadora = transportadora;
-      }
-      if (rastreamento) {
-        vendaPayload.rastreamento = rastreamento;
-      }
-      if (enderecoEntrega) {
-        vendaPayload.endereco_entrega = enderecoEntrega;
-      }
-      if (contato) {
-        vendaPayload.contato = contato;
+      if (obsFinal) {
+        vendaPayload.observacoes = obsFinal;
       }
 
       let vendaData: any;
 
       const tentarSalvarVenda = async (payload: Record<string, any>) => {
-        if (isEditing && editId) {
-          return await supabase
-            .from("vendas")
-            .update(payload)
-            .eq("id", editId)
-            .select()
-            .single();
-        } else {
-          return await supabase
-            .from("vendas")
-            .insert([payload])
-            .select()
-            .single();
+        let currentPayload = { ...payload };
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const res = isEditing && editId
+            ? await supabase
+                .from("vendas")
+                .update(currentPayload)
+                .eq("id", editId)
+                .select()
+                .single()
+            : await supabase
+                .from("vendas")
+                .insert([currentPayload])
+                .select()
+                .single();
+
+          if (!res.error) {
+            return res;
+          }
+
+          const msg = res.error.message || "";
+          const matchSchema = msg.match(/Could not find the '([^']+)' column of 'vendas' in the schema cache/i);
+          const matchCol = msg.match(/column vendas\.([a-zA-Z0-9_]+) does not exist/i);
+          const missingColumn = matchSchema?.[1] || matchCol?.[1];
+
+          if (missingColumn && currentPayload[missingColumn] !== undefined) {
+            console.warn(`Coluna '${missingColumn}' não existe na tabela vendas. Removendo do payload e tentando novamente...`);
+            delete currentPayload[missingColumn];
+            continue;
+          }
+
+          if (msg.includes("observacoes_pagamento") && currentPayload.observacoes_pagamento !== undefined) {
+            delete currentPayload.observacoes_pagamento;
+            continue;
+          }
+          if (msg.includes("observacoes") && currentPayload.observacoes !== undefined) {
+            delete currentPayload.observacoes;
+            continue;
+          }
+
+          return res;
         }
+
+        return { data: null, error: new Error("Falha ao salvar venda após tentativas automáticas.") };
       };
 
-      let { data, error: vendaError } = await tentarSalvarVenda(vendaPayload);
-
-      // Se der erro por coluna inexistente no schema cache do PostgREST (ex: observacoes ou observacoes_pagamento)
-      if (
-        vendaError &&
-        (vendaError.message?.includes("observacoes_pagamento") ||
-          vendaError.message?.includes("observacoes") ||
-          vendaError.message?.includes("schema cache"))
-      ) {
-        const fallbackPayload = { ...vendaPayload };
-        delete fallbackPayload.observacoes_pagamento;
-        delete fallbackPayload.observacoes;
-        const retry = await tentarSalvarVenda(fallbackPayload);
-        data = retry.data;
-        vendaError = retry.error;
-      }
-
+      const { data, error: vendaError } = await tentarSalvarVenda(vendaPayload);
       if (vendaError) throw vendaError;
       vendaData = data;
 
@@ -512,6 +525,20 @@ function NovoPedido() {
               desconto_valor: _desconto,
             })
             .eq("id", editId);
+
+          await supabase.from("dav_items").delete().eq("dav_id", editId);
+          await supabase.from("dav_items").insert(
+            itens.map((item) => ({
+              dav_id: editId,
+              produto_id: item.produto_id,
+              quantidade: item.quantidade,
+              qtd: item.quantidade,
+              valor_unitario: item.valor_unitario,
+              preco_unitario: item.valor_unitario,
+              subtotal: item.subtotal,
+              total: item.subtotal,
+            }))
+          );
         } catch {}
       }
 

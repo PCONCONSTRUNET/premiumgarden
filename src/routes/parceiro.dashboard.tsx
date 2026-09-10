@@ -63,14 +63,30 @@ function ParceiroDashboard() {
     setShowAddProduct(false);
 
     try {
+      let items: any[] = [];
       const { data, error } = await supabase
         .from("vendas_itens")
         .select("*, produto:produtos(nome, imagem, codigo, valor, estoque)")
         .eq("venda_id", venda.id);
 
-      if (!error && data) {
-        setSaleItems(data);
+      if (!error && data && data.length > 0) {
+        items = data;
+      } else {
+        const { data: davData } = await supabase
+          .from("dav_items")
+          .select("*, produto:produtos(nome, imagem, codigo, valor, estoque)")
+          .eq("dav_id", venda.id);
+
+        if (davData && davData.length > 0) {
+          items = davData.map((d: any) => ({
+            ...d,
+            quantidade: d.quantidade ?? d.qtd,
+            valor_unitario: d.valor_unitario ?? d.preco_unitario,
+            subtotal: d.subtotal ?? d.total,
+          }));
+        }
       }
+      setSaleItems(items);
     } catch (e) {
       console.error(e);
     } finally {
@@ -134,7 +150,7 @@ function ParceiroDashboard() {
       try {
         const { data, error } = await supabase
           .from("produtos")
-          .select("id, nome, valor, imagem, codigo, emoji, estoque")
+          .select("id, nome, valor, imagem, codigo, estoque")
           .eq("status", "Ativo")
           .order("nome");
         if (!error && data) {
@@ -162,7 +178,6 @@ function ParceiroDashboard() {
         nome: prod.nome,
         imagem: prod.imagem,
         codigo: prod.codigo,
-        emoji: prod.emoji,
       },
     };
     setEditItemsList((prev) => [...prev, newItem]);

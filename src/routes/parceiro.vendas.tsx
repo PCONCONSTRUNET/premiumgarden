@@ -109,13 +109,35 @@ function VendasParceiro() {
     setShowAddProduct(false);
 
     try {
+      let items: any[] = [];
       const { data, error } = await supabase
         .from("vendas_itens")
-        .select("*, produtos(nome, codigo, imagem, emoji, valor, estoque)")
+        .select("*, produtos(nome, codigo, imagem, valor, estoque)")
         .eq("venda_id", venda.id);
 
-      if (error) throw error;
-      setVendaItens(data || []);
+      if (error) {
+        console.warn("Erro ao buscar vendas_itens, tentando dav_items:", error);
+      }
+
+      if (data && data.length > 0) {
+        items = data;
+      } else {
+        const { data: davData } = await supabase
+          .from("dav_items")
+          .select("*, produtos(nome, codigo, imagem, valor, estoque)")
+          .eq("dav_id", venda.id);
+
+        if (davData && davData.length > 0) {
+          items = davData.map((d: any) => ({
+            ...d,
+            quantidade: d.quantidade ?? d.qtd,
+            valor_unitario: d.valor_unitario ?? d.preco_unitario,
+            subtotal: d.subtotal ?? d.total,
+          }));
+        }
+      }
+
+      setVendaItens(items);
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar itens da venda.");
@@ -180,7 +202,7 @@ function VendasParceiro() {
       try {
         const { data, error } = await supabase
           .from("produtos")
-          .select("id, nome, valor, imagem, codigo, emoji, estoque")
+          .select("id, nome, valor, imagem, codigo, estoque")
           .eq("status", "Ativo")
           .order("nome");
         if (!error && data) {
@@ -208,7 +230,6 @@ function VendasParceiro() {
         nome: prod.nome,
         imagem: prod.imagem,
         codigo: prod.codigo,
-        emoji: prod.emoji,
       },
     };
     setEditItemsList((prev) => [...prev, newItem]);
@@ -325,7 +346,7 @@ function VendasParceiro() {
       // 6. Recarregar itens atualizados
       const { data: refreshedItems } = await supabase
         .from("vendas_itens")
-        .select("*, produtos(nome, codigo, imagem, emoji, valor, estoque)")
+        .select("*, produtos(nome, codigo, imagem, valor, estoque)")
         .eq("venda_id", selectedVenda.id);
 
       setVendaItens(refreshedItems || []);
@@ -787,19 +808,19 @@ function VendasParceiro() {
                     ) : (
                       <div className="space-y-3">
                         {vendaItens.map((i) => (
-                          <div key={i.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg shadow-sm">
-                            <div className="flex-1">
+                          <div key={i.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-lg shadow-sm gap-2">
+                            <div className="flex-1 min-w-0">
                               {i.produtos?.codigo && (
                                 <div className="text-xs text-slate-400 mb-0.5">Cód. {i.produtos.codigo}</div>
                               )}
-                              <div className="font-semibold text-slate-800 text-sm leading-tight">
+                              <div className="font-semibold text-slate-800 text-sm leading-tight truncate" title={i.produtos?.nome || "Produto"}>
                                 {i.produtos?.nome || "Produto"}
                               </div>
                               <div className="text-xs text-slate-500 mt-1">
                                 {i.quantidade}x {currency.format(i.valor_unitario)}
                               </div>
                             </div>
-                            <div className="font-bold text-slate-800 text-sm">
+                            <div className="font-bold text-slate-800 text-sm shrink-0 whitespace-nowrap text-right pl-2">
                               {currency.format(i.subtotal)}
                             </div>
                           </div>
@@ -834,29 +855,29 @@ function VendasParceiro() {
                   <div className="space-y-2 pt-4 border-t border-slate-200">
                     <div className="grid grid-cols-2 gap-2">
                       <Button
-                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+                        className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm text-xs sm:text-sm px-2 h-10 whitespace-normal"
                         onClick={() => downloadVendaPdf(selectedVenda, vendaItens)}
                       >
-                        <FileText className="w-4 h-4 text-red-400" />
-                        Baixar PDF
+                        <FileText className="w-4 h-4 text-red-400 shrink-0" />
+                        <span className="truncate">Baixar PDF</span>
                       </Button>
                       <Button
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm"
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm text-xs sm:text-sm px-2 h-10 whitespace-normal"
                         onClick={() => shareVendaWhatsApp(selectedVenda, vendaItens)}
                       >
-                        <WhatsAppIcon className="w-4 h-4 text-white" />
-                        WhatsApp (PDF)
+                        <WhatsAppIcon className="w-4 h-4 text-white shrink-0" />
+                        <span className="truncate">WhatsApp (PDF)</span>
                       </Button>
                     </div>
 
                     {/* Botão de Editar Itens também nas ações */}
                     <Button
                       variant="outline"
-                      className="w-full border-brand/40 text-brand hover:bg-brand/10 font-semibold flex items-center justify-center gap-2"
+                      className="w-full border-brand/40 text-brand hover:bg-brand/10 font-semibold flex items-center justify-center gap-2 text-xs sm:text-sm h-10 px-3 whitespace-normal"
                       onClick={iniciarEdicaoItens}
                     >
-                      <Edit2 className="w-4 h-4" />
-                      Editar Itens do Pedido (Quantidades e Produtos)
+                      <Edit2 className="w-4 h-4 shrink-0" />
+                      <span>Editar Itens do Pedido</span>
                     </Button>
 
                     {/* Cancelar Orçamento */}

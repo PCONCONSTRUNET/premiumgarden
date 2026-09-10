@@ -157,7 +157,7 @@ function PDV() {
       if (orcamento.isNovoDav) {
         const { data, error } = await supabase
           .from("dav_items")
-          .select("*, produtos(nome, estoque, valor, emoji, imagem)")
+          .select("*, produtos(nome, estoque, valor, imagem)")
           .eq("dav_id", orcamento.id);
 
         if (error) {
@@ -172,7 +172,7 @@ function PDV() {
             q: item.qtd,
             u: Number(item.valor_unitario),
             t: Number(item.total),
-            emoji: item.produtos?.emoji || "📦",
+            emoji: "📦",
             imagem: item.produtos?.imagem || null,
             max: item.produtos?.estoque || 0,
             hasDbId: !!item.produto_id
@@ -190,7 +190,7 @@ function PDV() {
       } else {
         const { data, error } = await supabase
           .from("vendas_itens")
-          .select("*, produto:produtos(nome, estoque, valor, emoji, imagem)")
+          .select("*, produto:produtos(nome, estoque, valor, imagem)")
           .eq("venda_id", orcamento.id);
 
         if (error) {
@@ -206,7 +206,7 @@ function PDV() {
             q: item.quantidade,
             u: Number(item.valor_unitario),
             t: Number(item.subtotal),
-            emoji: item.produto?.emoji || "📦",
+            emoji: "📦",
             imagem: item.produto?.imagem || null,
             max: item.produto?.estoque || 0,
             hasDbId: true

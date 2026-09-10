@@ -97,6 +97,7 @@ function Pedidos() {
   const [empresaDados, setEmpresaDados] = useState<any>(null);
 
   const [openPrintModal, setOpenPrintModal] = useState(false);
+  const [buscaImpressao, setBuscaImpressao] = useState("");
 
   const fetchVendas = async () => {
     setLoading(true);
@@ -268,11 +269,18 @@ function Pedidos() {
 
   const filteredVendas = useMemo(() => {
     const term = busca.trim().toLocaleLowerCase("pt-BR");
+    const cleanDigits = term.replace(/\D/g, "");
+
     return vendas.filter((venda) => {
       const status = getStatusLabel(venda);
+      const doc = String(venda.clientes?.cpf_cnpj || venda.cliente_documento || "");
+      const cleanDoc = doc.replace(/\D/g, "");
+
       const searchText = [
         getOrderNumber(venda),
         venda.clientes?.nome,
+        venda.cliente_nome,
+        doc,
         venda.vendedores?.nome,
         venda.tipo,
         status,
@@ -281,12 +289,38 @@ function Pedidos() {
         .join(" ")
         .toLocaleLowerCase("pt-BR");
 
-      const matchesSearch = !term || searchText.includes(term);
+      const matchDigits = cleanDigits && cleanDoc && cleanDoc.includes(cleanDigits);
+      const matchesSearch = !term || searchText.includes(term) || Boolean(matchDigits);
       const matchesStatus = statusFilter === "todos" || status === statusFilter;
       const matchesType = typeFilter === "todos" || venda.tipo === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
     });
   }, [busca, statusFilter, typeFilter, vendas]);
+
+  const printFilteredVendas = useMemo(() => {
+    const rawTerm = buscaImpressao.trim().toLowerCase();
+    const cleanDigits = rawTerm.replace(/\D/g, "");
+
+    return vendas.filter((venda) => {
+      if (!rawTerm) return true;
+
+      const orderNum = String(getOrderNumber(venda) || "").toLowerCase();
+      const clientName = String(venda.clientes?.nome || venda.cliente_nome || "").toLowerCase();
+      const vendorName = String(venda.vendedores?.nome || "").toLowerCase();
+      const doc = String(venda.clientes?.cpf_cnpj || venda.cliente_documento || "").toLowerCase();
+      const cleanDoc = doc.replace(/\D/g, "");
+
+      const matchText =
+        orderNum.includes(rawTerm) ||
+        clientName.includes(rawTerm) ||
+        vendorName.includes(rawTerm) ||
+        doc.includes(rawTerm);
+
+      const matchDigits = cleanDigits && cleanDoc && cleanDoc.includes(cleanDigits);
+
+      return matchText || Boolean(matchDigits);
+    });
+  }, [buscaImpressao, vendas]);
 
   const groupedVendas = useMemo(() => {
     return filteredVendas.reduce<Record<string, any[]>>((groups, venda) => {
@@ -1243,29 +1277,69 @@ function Pedidos() {
       </Dialog>
 
       {/* Print Modal */}
-      <Dialog open={openPrintModal} onOpenChange={setOpenPrintModal}>
-        <DialogContent className="sm:max-w-[500px]">
+      <Dialog
+        open={openPrintModal}
+        onOpenChange={(open) => {
+          setOpenPrintModal(open);
+          if (!open) setBuscaImpressao("");
+        }}
+      >
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Imprimir Pedido</DialogTitle>
-            <DialogDescription>Selecione qual pedido da lista você deseja imprimir.</DialogDescription>
+            <DialogDescription>
+              Pesquise pelo nome do cliente, CNPJ/CPF ou número do pedido para imprimir.
+            </DialogDescription>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto space-y-2 mt-4 px-1">
-            {filteredVendas.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-4">
-                Nenhum pedido encontrado nos filtros atuais.
-              </p>
+
+          {/* Campo de Busca por Nome / CNPJ / Nº */}
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={buscaImpressao}
+              onChange={(e) => setBuscaImpressao(e.target.value)}
+              placeholder="Buscar por cliente, CNPJ/CPF ou nº..."
+              className="pl-9 pr-8"
+              autoFocus
+            />
+            {buscaImpressao && (
+              <button
+                type="button"
+                onClick={() => setBuscaImpressao("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs p-1"
+                title="Limpar busca"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-[60vh] overflow-y-auto space-y-2 mt-2 px-1">
+            {printFilteredVendas.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground space-y-1">
+                <p className="text-sm font-medium">Nenhum pedido encontrado.</p>
+                <p className="text-xs">Tente buscar por outro nome, CNPJ/CPF ou número.</p>
+              </div>
             ) : (
-              filteredVendas.map((v) => (
-                <div key={v.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30">
-                  <div>
-                    <p className="font-semibold text-sm text-primary">
+              printFilteredVendas.map((v) => (
+                <div
+                  key={v.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors gap-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm text-primary truncate">
                       #{getOrderNumber(v)} - {v.clientes?.nome || "Cliente Padrão"}
                     </p>
+                    {v.clientes?.cpf_cnpj && (
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">
+                        CNPJ/CPF: {v.clientes.cpf_cnpj}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {new Date(v.created_at).toLocaleDateString()} • {currency.format(Number(v.valor_total || 0))}
                     </p>
                   </div>
-                  <Button size="sm" className="bg-brand text-brand-foreground hover:bg-brand/90" asChild>
+                  <Button size="sm" className="bg-brand text-brand-foreground hover:bg-brand/90 shrink-0" asChild>
                     <a href={`/orcamento/${v.id}`} target="_blank" rel="noopener noreferrer">
                       <Printer className="w-4 h-4 mr-2" /> Imprimir
                     </a>
@@ -1274,7 +1348,11 @@ function Pedidos() {
               ))
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex justify-between items-center sm:justify-between w-full">
+            <span className="text-xs text-muted-foreground">
+              {printFilteredVendas.length}{" "}
+              {printFilteredVendas.length === 1 ? "pedido encontrado" : "pedidos encontrados"}
+            </span>
             <Button variant="outline" onClick={() => setOpenPrintModal(false)}>
               Fechar
             </Button>

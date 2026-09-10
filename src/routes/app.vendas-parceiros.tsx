@@ -31,7 +31,9 @@ import {
 } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, CheckCircle, Store, Banknote, Wallet, Clock, TrendingUp, Trash2 } from "lucide-react";
+import { Search, CheckCircle, Store, Banknote, Wallet, Clock, TrendingUp, Trash2, FileDown } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export const Route = createFileRoute("/app/vendas-parceiros")({
   head: () => ({ meta: [{ title: "Vendas Parceiros — PREMIUM GARDEN" }] }),
@@ -316,6 +318,76 @@ function VendasParceiros() {
     });
   };
 
+  const gerarRelatorioPDF = () => {
+    const doc = new jsPDF({ orientation: "landscape" });
+    const now = new Date();
+    const dataHora = now.toLocaleString("pt-BR");
+
+    // Cabeçalho
+    doc.setFillColor(74, 20, 140);
+    doc.rect(0, 0, doc.internal.pageSize.getWidth(), 28, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("PREMIUM GARDEN — Relatório Geral de Vendas dos Parceiros", 14, 12);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Gerado em: ${dataHora}`, 14, 20);
+
+    // Resumo
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Resumo Geral", 14, 36);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    doc.text(`Total Vendido (aprovadas): ${fmt(totalVendido)}`, 14, 44);
+    doc.text(`Comissões Pagas: ${fmt(comissoesPagas)}`, 90, 44);
+    doc.text(`Comissões a Pagar: ${fmt(comissoesAPagar)}`, 175, 44);
+    doc.text(`Pedidos Pendentes: ${pedidosPendentes}`, 260, 44);
+
+    // Tabela
+    const rows = vendasFiltradas.map((v) => [
+      `#${formatNumero(v.numero_venda ?? v.numero, v.id)}`,
+      new Date(v.created_at).toLocaleDateString("pt-BR"),
+      v.vendedor?.nome || "Desconhecido",
+      v.cliente?.nome || "Consumidor Final",
+      v.status || v.status_aprovacao || "—",
+      fmt(Number(v.valor_total) || 0),
+      fmt(Number(v.valor_comissao) || 0),
+      v.status_pagamento_comissao === "Paga" ? "Paga" : "Pendente",
+    ]);
+
+    autoTable(doc, {
+      startY: 52,
+      head: [["Pedido", "Data", "Parceiro", "Cliente", "Status Venda", "Valor", "Comissão", "Status Comissão"]],
+      body: rows,
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [74, 20, 140], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 245, 255] },
+      columnStyles: {
+        5: { halign: "right" },
+        6: { halign: "right" },
+        7: { halign: "center" },
+      },
+      didDrawPage: (data: any) => {
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(
+          `Página ${data.pageNumber} de ${pageCount}`,
+          doc.internal.pageSize.getWidth() / 2,
+          doc.internal.pageSize.getHeight() - 8,
+          { align: "center" }
+        );
+      },
+    });
+
+    doc.save(`relatorio-vendas-parceiros-${now.toISOString().slice(0, 10)}.pdf`);
+    toast.success("Relatório PDF gerado com sucesso!");
+  };
+
   const vendasFiltradas = vendas.filter((v) => {
     const matchBusca =
       v.id.toLowerCase().includes(filtro.toLowerCase()) ||
@@ -443,8 +515,17 @@ function VendasParceiros() {
       </Card>
 
       <Card className="shadow-card overflow-hidden">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle>Histórico de Vendas (Parceiros)</CardTitle>
+          <Button
+            id="btn-relatorio-pdf"
+            onClick={gerarRelatorioPDF}
+            className="bg-[#4a148c] hover:bg-[#4a148c]/90 text-white gap-2 shrink-0"
+            size="sm"
+          >
+            <FileDown className="h-4 w-4" />
+            Baixar Relatório PDF
+          </Button>
         </CardHeader>
         <Table>
           <TableHeader>

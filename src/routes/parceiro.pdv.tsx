@@ -306,6 +306,11 @@ function ParceiroPDV() {
       return;
     }
 
+    if (cart.length === 0) {
+      toast.error("Adicione pelo menos um produto ao carrinho antes de finalizar.");
+      return;
+    }
+
     setIsClientModalOpen(false);
     setLoading(true);
 
@@ -437,7 +442,12 @@ function ParceiroPDV() {
       }));
 
       const { error: itensError } = await supabase.from("vendas_itens").insert(itensToInsert);
-      if (itensError) throw itensError;
+      if (itensError) {
+        // Rollback da venda se falhar os itens
+        await supabase.from("vendas").delete().eq("id", vendaData.id);
+        console.error("Erro ao inserir itens da venda:", itensError);
+        throw new Error("Falha ao salvar os produtos no banco. A venda foi cancelada: " + itensError.message);
+      }
 
       // Guarda os identificadores oficiais do pedido para compartilhar no WhatsApp e baixar PDF
       const finalNumero = vendaData.numero || nextNumero || vendaData.id.substring(0, 8).toUpperCase();

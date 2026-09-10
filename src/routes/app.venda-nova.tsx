@@ -350,6 +350,11 @@ function NovoPedido() {
   };
 
   const executarSalvamentoVenda = async (clientId: string, comoOrcamento = false) => {
+    if (itens.length === 0) {
+      toast.error("Adicione pelo menos um produto antes de salvar a venda.");
+      return;
+    }
+
     setLoading(true);
     try {
       let nextNumero = savedNumero || 1;
@@ -438,7 +443,13 @@ function NovoPedido() {
           subtotal: item.subtotal,
         })),
       );
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        if (!isEditing) {
+          await supabase.from("vendas").delete().eq("id", vendaData.id);
+        }
+        console.error("Erro ao inserir itens da venda no app.venda-nova:", itemsError);
+        throw new Error("Falha ao salvar itens no banco. A venda não foi salva corretamente: " + itemsError.message);
+      }
 
       if (tipo === "VENDA" && !comoOrcamento) {
         for (const item of itens) {

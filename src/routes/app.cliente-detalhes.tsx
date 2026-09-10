@@ -49,6 +49,14 @@ function ClienteDetalhes() {
   const [tituloValor, setTituloValor] = useState("");
   const [tituloVencimento, setTituloVencimento] = useState("");
 
+  const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+  const titulosFiltrados = titulos.filter(t =>
+    tabTitulos === "a-receber"
+      ? t.status !== "Recebido" && t.status !== "Pago"
+      : t.status === "Recebido" || t.status === "Pago"
+  );
+
   // Modal states
   const [openTarefa, setOpenTarefa] = useState(false);
   const [openAtividade, setOpenAtividade] = useState(false);
@@ -179,6 +187,40 @@ function ClienteDetalhes() {
       toast.error("Erro ao registrar atividade: " + err.message);
     } finally {
       setSalvandoAtividade(false);
+    }
+  };
+
+  const handleSalvarTitulo = async () => {
+    if (!tituloDescricao.trim() || !tituloValor) {
+      toast.info("Informe a descrição e o valor do título.");
+      return;
+    }
+    setSalvandoTitulo(true);
+    try {
+      const { error } = await supabase.from("contas_receber").insert({
+        descricao: tituloDescricao,
+        valor: parseFloat(tituloValor),
+        vencimento: tituloVencimento || null,
+        cliente_id: id,
+        status: "Pendente",
+      });
+      if (error) throw error;
+      toast.success("Título adicionado com sucesso!");
+      setTituloDescricao("");
+      setTituloValor("");
+      setTituloVencimento("");
+      setOpenTituloModal(false);
+      // Re-fetch titles
+      const { data } = await supabase
+        .from("contas_receber")
+        .select("*")
+        .eq("cliente_id", id)
+        .order("created_at", { ascending: false });
+      if (data) setTitulos(data);
+    } catch (err: any) {
+      toast.error("Erro ao salvar título: " + err.message);
+    } finally {
+      setSalvandoTitulo(false);
     }
   };
 

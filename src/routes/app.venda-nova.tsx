@@ -109,6 +109,11 @@ function NovoPedido() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
   const [company, setCompany] = useState<any>(null);
+  const [vendedores, setVendedores] = useState<any[]>([]);
+  const [vendedorSelecionadoId, setVendedorSelecionadoId] = useState<string>("");
+  const [statusAprovacao, setStatusAprovacao] = useState<string | null>(null);
+  const [statusPagamentoComissao, setStatusPagamentoComissao] = useState<string | null>(null);
+  const [originalItens, setOriginalItens] = useState<{ produto_id: string; quantidade: number }[]>([]);
   
   const search = Route.useSearch();
   const isEditing = !!search.id;
@@ -185,14 +190,16 @@ function NovoPedido() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [{ data: clients }, { data: products }, { data: config }] = await Promise.all([
+      const [{ data: clients }, { data: products }, { data: config }, { data: vends }] = await Promise.all([
         supabase.from("clientes").select("*").order("nome"),
         supabase.from("produtos").select("*").eq("status", "Ativo").order("nome"),
         supabase.from("configuracoes").select("*").limit(1).maybeSingle(),
+        supabase.from("vendedores").select("id, nome, tipo_comissao, valor_comissao, status").order("nome"),
       ]);
       setClientes(clients || []);
       setProdutos(products || []);
       setCompany(config || null);
+      setVendedores(vends || []);
 
       if (isEditing && editId) {
         const { data: vendaData, error: vendaError } = await supabase
@@ -206,6 +213,15 @@ function NovoPedido() {
           setClienteId(vendaData.cliente_id || "");
           setTipo(vendaData.tipo || "VENDA");
           setStatus(vendaData.status || "Pendente");
+          if (vendaData.vendedor_id) {
+            setVendedorSelecionadoId(vendaData.vendedor_id);
+          }
+          if (vendaData.status_aprovacao) {
+            setStatusAprovacao(vendaData.status_aprovacao);
+          }
+          if (vendaData.status_pagamento_comissao) {
+            setStatusPagamentoComissao(vendaData.status_pagamento_comissao);
+          }
           if (vendaData.created_at) {
             setDataEmissao(vendaData.created_at.split("T")[0]);
           }
@@ -214,6 +230,21 @@ function NovoPedido() {
           setObservacoes(vendaData.observacoes || "");
           setDescontoValor(Number(vendaData.desconto_valor) || 0);
           setDescontoPercentual(Number(vendaData.desconto_percentual) || 0);
+          if (vendaData.frete_valor) {
+            setFreteValor(Number(vendaData.frete_valor) || "");
+          }
+          if (vendaData.transportadora) {
+            setTransportadora(vendaData.transportadora);
+          }
+          if (vendaData.rastreamento) {
+            setRastreamento(vendaData.rastreamento);
+          }
+          if (vendaData.endereco_entrega) {
+            setEnderecoEntrega(vendaData.endereco_entrega);
+          }
+          if (vendaData.contato) {
+            setContato(vendaData.contato);
+          }
           setSavedNumero(vendaData.numero);
           
           const { data: itensData } = await supabase
@@ -222,10 +253,11 @@ function NovoPedido() {
             .eq("venda_id", editId);
             
           if (itensData) {
+            setOriginalItens(itensData.map((i: any) => ({ produto_id: i.produto_id, quantidade: Number(i.quantidade) || 0 })));
             setItens(
               itensData.map((i: any) => ({
                 produto_id: i.produto_id,
-                nome: i.produtos?.nome || "Produto removido",
+                nome: i.produtos?.nome || "Produto",
                 codigo: i.produtos?.codigo || "",
                 imagem: i.produtos?.imagem || "",
                 quantidade: i.quantidade,
@@ -260,6 +292,10 @@ function NovoPedido() {
 
   const selectedClient = clientes.find((client) => client.id === clienteId);
   const selectedProduct = produtos.find((product) => product.id === produtoSelecionado);
+  const selectedVendedor = useMemo(() => {
+    return vendedores.find((v) => v.id === vendedorSelecionadoId) || null;
+  }, [vendedores, vendedorSelecionadoId]);
+
   const categories = useMemo(
     () => Array.from(new Set(produtos.map((product) => product.categoria).filter(Boolean))).sort(),
     [produtos],
@@ -271,6 +307,15 @@ function NovoPedido() {
   const _frete = typeof freteValor === "string" ? parseCurrencyInput(freteValor) : (Number(freteValor) || 0);
   const percentualValue = (subtotal * _percentual) / 100;
   const totalPedido = Math.max(0, subtotal + _frete - _desconto - percentualValue);
+
+  const comissaoCalculada = useMemo(() => {
+    if (!selectedVendedor) return 0;
+    const taxa = Number(selectedVendedor.valor_comissao) || 0;
+    if (selectedVendedor.tipo_comissao === "fixo") {
+      return taxa;
+    }
+    return Math.round(((totalPedido * taxa) / 100) * 100) / 100;
+  }, [selectedVendedor, totalPedido]);
 
   const handleAddItem = () => {
     if (!selectedProduct || parseInt(quantidade) <= 0 || quantidade === "") {
@@ -374,17 +419,47 @@ function NovoPedido() {
         tipo,
         status: comoOrcamento ? "Em orçamento" : (tipo === "DAV" ? "Em orçamento" : status),
         valor_total: totalPedido,
+        subtotal: subtotal,
         numero: nextNumero,
         condicao_pagamento: condicaoPagamento,
         desconto_percentual: Number(descontoPercentual) || 0,
         desconto_valor: _desconto,
       };
 
+      if (vendedorSelecionadoId) {
+        vendaPayload.vendedor_id = vendedorSelecionadoId;
+        vendaPayload.valor_comissao = comissaoCalculada;
+        if (statusAprovacao) {
+          vendaPayload.status_aprovacao = statusAprovacao;
+        }
+        if (statusPagamentoComissao) {
+          vendaPayload.status_pagamento_comissao = statusPagamentoComissao;
+        }
+      } else {
+        vendaPayload.vendedor_id = null;
+        vendaPayload.valor_comissao = 0;
+      }
+
       if (observacoesPagamento) {
         vendaPayload.observacoes_pagamento = observacoesPagamento;
       }
       if (observacoes) {
         vendaPayload.observacoes = observacoes;
+      }
+      if (freteValor !== "" && freteValor !== undefined) {
+        vendaPayload.frete_valor = _frete;
+      }
+      if (transportadora) {
+        vendaPayload.transportadora = transportadora;
+      }
+      if (rastreamento) {
+        vendaPayload.rastreamento = rastreamento;
+      }
+      if (enderecoEntrega) {
+        vendaPayload.endereco_entrega = enderecoEntrega;
+      }
+      if (contato) {
+        vendaPayload.contato = contato;
       }
 
       let vendaData: any;
@@ -426,6 +501,20 @@ function NovoPedido() {
       if (vendaError) throw vendaError;
       vendaData = data;
 
+      // Sincronizar davs se existir
+      if (isEditing && editId) {
+        try {
+          await supabase
+            .from("davs")
+            .update({
+              valor_total: totalPedido,
+              subtotal: subtotal,
+              desconto_valor: _desconto,
+            })
+            .eq("id", editId);
+        } catch {}
+      }
+
       if (isEditing && editId) {
         const { error: deleteError } = await supabase
           .from("vendas_itens")
@@ -452,29 +541,85 @@ function NovoPedido() {
       }
 
       if (tipo === "VENDA" && !comoOrcamento) {
-        for (const item of itens) {
-          const product = produtos.find((candidate) => candidate.id === item.produto_id);
-          if (product) {
-            await supabase
-              .from("produtos")
-              .update({ estoque: Number(product.estoque || 0) - Number(item.quantidade) })
-              .eq("id", item.produto_id);
+        // Ajuste inteligente de estoque considerando apenas a diferença se for edição
+        const origMap = new Map<string, number>();
+        if (isEditing) {
+          for (const oi of originalItens) {
+            origMap.set(oi.produto_id, (origMap.get(oi.produto_id) || 0) + Number(oi.quantidade));
           }
         }
 
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30);
-        await supabase.from("contas_receber").insert([
-          {
-            venda_id: vendaData.id,
-            cliente_id: clientId,
-            descricao: `Pedido #${nextNumero}`,
-            valor: totalPedido,
-            vencimento: dueDate.toISOString().split("T")[0],
-            status: status === "Pago" ? "Recebido" : "Pendente",
-            data_pagamento: status === "Pago" ? new Date().toISOString().split("T")[0] : null,
-          },
-        ]);
+        const newMap = new Map<string, number>();
+        for (const item of itens) {
+          newMap.set(item.produto_id, (newMap.get(item.produto_id) || 0) + Number(item.quantidade));
+        }
+
+        const allProductIds = Array.from(new Set([...Array.from(origMap.keys()), ...Array.from(newMap.keys())]));
+        for (const prodId of allProductIds) {
+          const origQtd = origMap.get(prodId) || 0;
+          const newQtd = newMap.get(prodId) || 0;
+          const diff = newQtd - origQtd;
+          if (diff !== 0) {
+            const product = produtos.find((candidate) => candidate.id === prodId);
+            if (product) {
+              const currentStock = Number(product.estoque || 0);
+              await supabase
+                .from("produtos")
+                .update({ estoque: currentStock - diff })
+                .eq("id", prodId);
+            }
+          }
+        }
+
+        // Atualizar ou inserir em contas_receber
+        if (isEditing && editId) {
+          const { data: existingConta } = await supabase
+            .from("contas_receber")
+            .select("id")
+            .eq("venda_id", editId)
+            .maybeSingle();
+
+          if (existingConta) {
+            await supabase
+              .from("contas_receber")
+              .update({
+                cliente_id: clientId,
+                valor: totalPedido,
+                descricao: `Pedido #${nextNumero}`,
+                status: status === "Pago" ? "Recebido" : "Pendente",
+                data_pagamento: status === "Pago" ? new Date().toISOString().split("T")[0] : null,
+              })
+              .eq("id", existingConta.id);
+          } else {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 30);
+            await supabase.from("contas_receber").insert([
+              {
+                venda_id: vendaData.id,
+                cliente_id: clientId,
+                descricao: `Pedido #${nextNumero}`,
+                valor: totalPedido,
+                vencimento: dueDate.toISOString().split("T")[0],
+                status: status === "Pago" ? "Recebido" : "Pendente",
+                data_pagamento: status === "Pago" ? new Date().toISOString().split("T")[0] : null,
+              },
+            ]);
+          }
+        } else {
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 30);
+          await supabase.from("contas_receber").insert([
+            {
+              venda_id: vendaData.id,
+              cliente_id: clientId,
+              descricao: `Pedido #${nextNumero}`,
+              valor: totalPedido,
+              vencimento: dueDate.toISOString().split("T")[0],
+              status: status === "Pago" ? "Recebido" : "Pendente",
+              data_pagamento: status === "Pago" ? new Date().toISOString().split("T")[0] : null,
+            },
+          ]);
+        }
       }
 
       if (tipo === "DAV" || comoOrcamento) {
@@ -482,7 +627,7 @@ function NovoPedido() {
         setSavedNumero(nextNumero);
         setOpenSuccessModal(true);
       } else {
-        toast.success("Pedido gerado com sucesso.");
+        toast.success(isEditing ? "Pedido atualizado com sucesso!" : "Pedido gerado com sucesso.");
         navigate({ to: "/app/vendas" });
       }
     } catch (err: any) {
@@ -600,13 +745,22 @@ function NovoPedido() {
         <div className="flex flex-col gap-3 bg-muted/40 px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold">Pedido #novo</h1>
-              <Badge className="border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-100">
-                {tipo === "DAV" ? "Em orçamento" : "Novo pedido"}
+              <h1 className="text-xl font-semibold">
+                {isEditing ? `Pedido #${savedNumero ? String(savedNumero).padStart(4, "0") : (editId ? editId.substring(0, 6).toUpperCase() : "")}` : "Pedido #novo"}
+              </h1>
+              <Badge className={isEditing ? "border-blue-300 bg-blue-100 text-blue-800" : "border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-100"}>
+                {isEditing ? "Modo Edição" : (tipo === "DAV" ? "Em orçamento" : "Novo pedido")}
               </Badge>
+              {selectedVendedor && (
+                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800 font-medium">
+                  Vendedor: {selectedVendedor.nome}
+                </Badge>
+              )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Preencha cliente, produtos e condição de pagamento para gerar o pedido.
+              {isEditing
+                ? "Edite produtos, quantidades, valores e comissões deste pedido."
+                : "Preencha cliente, produtos e condição de pagamento para gerar o pedido."}
             </p>
           </div>
           <Button variant="ghost" asChild>
@@ -616,9 +770,55 @@ function NovoPedido() {
           </Button>
         </div>
 
+        {selectedVendedor && (
+          <div className="mx-5 my-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50/80 p-4 text-blue-950 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-lg">
+                🤝
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold">
+                    Pedido originado do parceiro: <span className="underline">{selectedVendedor.nome}</span>
+                  </p>
+                  {statusAprovacao && (
+                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold ${
+                      statusAprovacao === "Aprovada"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : statusAprovacao === "Rejeitada"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-amber-100 text-amber-800"
+                    }`}>
+                      {statusAprovacao}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  Regra do parceiro:{" "}
+                  <strong>
+                    {selectedVendedor.tipo_comissao === "fixo"
+                      ? `R$ ${selectedVendedor.valor_comissao} (Fixo)`
+                      : `${selectedVendedor.valor_comissao}%`}
+                  </strong>
+                  {" • "}
+                  As alterações feitas aqui sincronizam automaticamente com o painel do parceiro.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 bg-white/90 px-3.5 py-2 rounded-lg border border-blue-100 self-end sm:self-center">
+              <div className="text-right">
+                <span className="text-[11px] text-muted-foreground block font-medium">Comissão recalculada:</span>
+                <span className="text-base font-extrabold text-emerald-600">
+                  {currency.format(comissaoCalculada)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 border-y-2 border-foreground/80 px-5 py-3">
           <Button onClick={() => handleSalvar(false)} disabled={loading}>
-            <Save className="mr-2 h-4 w-4" /> {loading ? "Gerando..." : "Gerar pedido"}
+            <Save className="mr-2 h-4 w-4" /> {loading ? "Salvando..." : (isEditing ? "Salvar alterações do pedido" : "Gerar pedido")}
           </Button>
           <Button 
             variant="secondary" 
@@ -626,7 +826,7 @@ function NovoPedido() {
             onClick={() => handleSalvar(true)} 
             disabled={loading}
           >
-            <FileText className="mr-2 h-4 w-4" /> {loading ? "Gerando..." : "Salvar orçamento"}
+            <FileText className="mr-2 h-4 w-4" /> {loading ? "Salvando..." : "Salvar orçamento"}
           </Button>
           <Button variant="outline" onClick={() => setDetailsOpen(true)}>
             <Pencil className="mr-2 h-4 w-4" /> Detalhes do pedido
@@ -914,13 +1114,29 @@ function NovoPedido() {
           <div className="grid gap-8 lg:grid-cols-3">
             <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Nº do pedido</dt>
-              <dd>Novo</dd>
+              <dd>{isEditing && savedNumero ? `#${String(savedNumero).padStart(4, "0")}` : "Novo"}</dd>
               <dt className="text-muted-foreground">Data da emissão</dt>
               <dd>{new Date(`${dataEmissao}T12:00:00`).toLocaleDateString("pt-BR")}</dd>
               <dt className="text-muted-foreground">Tipo de pedido</dt>
               <dd>{tipo === "DAV" ? "Orçamento" : "Venda"}</dd>
-              <dt className="text-muted-foreground">Vendedor</dt>
-              <dd>Administrador</dd>
+              <dt className="text-muted-foreground">Vendedor / Parceiro</dt>
+              <dd>
+                {selectedVendedor ? (
+                  <span className="font-semibold text-blue-700">
+                    {selectedVendedor.nome} ({selectedVendedor.tipo_comissao === "fixo" ? `R$ ${selectedVendedor.valor_comissao}` : `${selectedVendedor.valor_comissao}%`})
+                  </span>
+                ) : (
+                  "Administrador (Venda Direta)"
+                )}
+              </dd>
+              {selectedVendedor && (
+                <>
+                  <dt className="text-muted-foreground">Comissão</dt>
+                  <dd className="font-bold text-emerald-600">
+                    {currency.format(comissaoCalculada)}
+                  </dd>
+                </>
+              )}
               <dt className="text-muted-foreground">Contato</dt>
               <dd>{contato || "---"}</dd>
             </dl>
@@ -936,7 +1152,7 @@ function NovoPedido() {
             </dl>
             <dl className="grid grid-cols-[130px_1fr] gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Valor do frete</dt>
-              <dd>{currency.format(freteValor)}</dd>
+              <dd>{currency.format(_frete)}</dd>
               <dt className="text-muted-foreground">Transportadora</dt>
               <dd>{transportadora || "---"}</dd>
               <dt className="text-muted-foreground">Rastreamento</dt>
@@ -1002,28 +1218,41 @@ function NovoPedido() {
             )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Frete</span>
-              <span>{currency.format(freteValor)}</span>
+              <span>{currency.format(_frete)}</span>
             </div>
             <div className="flex justify-between border-t pt-3 text-lg">
               <strong>Total</strong>
               <strong className="text-primary">{currency.format(totalPedido)}</strong>
             </div>
+            {selectedVendedor && (
+              <div className="flex justify-between items-center rounded-md bg-emerald-50 px-3 py-2 text-emerald-800 text-sm font-semibold border border-emerald-200 mt-2">
+                <span className="flex items-center gap-1.5">
+                  <span>🤝 Comissão Parceiro</span>
+                  <span className="text-xs font-normal opacity-80">
+                    ({selectedVendedor.tipo_comissao === "fixo" ? "Fixo" : `${selectedVendedor.valor_comissao}%`})
+                  </span>
+                </span>
+                <span className="text-base font-bold text-emerald-700">
+                  {currency.format(comissaoCalculada)}
+                </span>
+              </div>
+            )}
           </div>
         </section>
 
         <div className="flex flex-wrap gap-2 border-t-2 border-foreground/80 bg-card px-5 py-4 md:px-8">
           {isEditing && tipo === "DAV" ? (
             <>
-              <Button onClick={handleSalvar} disabled={loading} variant="outline" className="border-primary text-primary hover:text-primary">
+              <Button onClick={() => handleSalvar(true)} disabled={loading} variant="outline" className="border-primary text-primary hover:text-primary">
                 <Save className="mr-2 h-4 w-4" /> {loading ? "Salvando..." : "Salvar orçamento"}
               </Button>
-              <Button onClick={() => { setTipo("VENDA"); setTimeout(handleSalvar, 100); }} disabled={loading}>
+              <Button onClick={() => { setTipo("VENDA"); setTimeout(() => handleSalvar(false), 100); }} disabled={loading}>
                 <Check className="mr-2 h-4 w-4" /> {loading ? "Gerando..." : "Gerar pedido"}
               </Button>
             </>
           ) : (
-            <Button onClick={handleSalvar} disabled={loading}>
-              <Save className="mr-2 h-4 w-4" /> {loading ? "Salvando..." : (tipo === "DAV" ? "Gerar orçamento" : "Gerar pedido")}
+            <Button onClick={() => handleSalvar(false)} disabled={loading}>
+              <Save className="mr-2 h-4 w-4" /> {loading ? "Salvando..." : (isEditing ? "Salvar alterações do pedido" : (tipo === "DAV" ? "Gerar orçamento" : "Gerar pedido"))}
             </Button>
           )}
           <Button variant="outline" asChild>
@@ -1213,6 +1442,35 @@ function NovoPedido() {
                   placeholder="Nome do contato"
                 />
               </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Vendedor / Parceiro</Label>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  value={vendedorSelecionadoId}
+                  onChange={(event) => setVendedorSelecionadoId(event.target.value)}
+                >
+                  <option value="">Venda Direta / Premium Garden (Sem parceiro)</option>
+                  {vendedores.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.nome} ({v.tipo_comissao === "fixo" ? `R$ ${v.valor_comissao}` : `${v.valor_comissao}%`})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {vendedorSelecionadoId && (
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Status de Aprovação do Pedido (Parceiro)</Label>
+                  <select
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    value={statusAprovacao || "Aprovada"}
+                    onChange={(event) => setStatusAprovacao(event.target.value)}
+                  >
+                    <option value="Aprovada">Aprovada (Comissão confirmada)</option>
+                    <option value="Pendente">Pendente (Aguardando análise)</option>
+                    <option value="Rejeitada">Rejeitada</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">

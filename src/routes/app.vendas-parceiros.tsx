@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { formatNumero } from "@/lib/utils";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Search, CheckCircle, Store, Banknote, Wallet, Clock, TrendingUp, Trash2, FileDown } from "lucide-react";
+import { Search, CheckCircle, Store, Banknote, Wallet, Clock, TrendingUp, Trash2, FileDown, Pencil } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -41,6 +41,7 @@ export const Route = createFileRoute("/app/vendas-parceiros")({
 });
 
 function VendasParceiros() {
+  const navigate = useNavigate();
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState("");
@@ -231,6 +232,12 @@ function VendasParceiros() {
             .eq("id", id);
           if (error) throw error;
 
+          const { data: vendedor } = await supabase
+            .from("vendedores")
+            .select("nome, comissoes_pendentes")
+            .eq("id", vendedor_id)
+            .single();
+
           const searchDesc = `Comissão Parceiro #${venda?.numero_venda || id.substring(0, 8).toUpperCase()} - ${vendedor?.nome || ""}`;
           
           await supabase.from("contas_pagar").insert([
@@ -244,11 +251,6 @@ function VendasParceiros() {
             }
           ]);
 
-          const { data: vendedor } = await supabase
-            .from("vendedores")
-            .select("comissoes_pendentes")
-            .eq("id", vendedor_id)
-            .single();
           if (vendedor) {
             const novaComissaoPendente = Math.max(
               0,
@@ -638,6 +640,21 @@ function VendasParceiros() {
                       <Button
                         size="sm"
                         variant="ghost"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate({
+                            to: "/app/venda-nova",
+                            search: { id: v.id } as any,
+                          });
+                        }}
+                        title="Editar Pedido"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={(e) => excluirVenda(e, v.id)}
                         title="Excluir Venda"
@@ -757,29 +774,57 @@ function VendasParceiros() {
             )}
           </div>
           {selectedSaleForDetails?.status_aprovacao === "Pendente" ? (
-            <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
+            <DialogFooter className="flex flex-col sm:flex-row justify-between items-center gap-2 mt-4">
               <Button
-                variant="destructive"
-                className="w-full sm:w-auto"
+                variant="outline"
+                className="border-blue-200 text-blue-700 hover:bg-blue-50 gap-1.5 w-full sm:w-auto"
                 onClick={() => {
                   setIsSaleDetailsOpen(false);
-                  rejeitarVenda(selectedSaleForDetails.id);
+                  navigate({
+                    to: "/app/venda-nova",
+                    search: { id: selectedSaleForDetails.id } as any,
+                  });
                 }}
               >
-                Recusar Pedido
+                <Pencil className="w-4 h-4" /> Editar Pedido
               </Button>
-              <Button
-                className="w-full sm:w-auto bg-success hover:bg-success/90 text-white"
-                onClick={() => {
-                  setIsSaleDetailsOpen(false);
-                  aprovarVenda(selectedSaleForDetails);
-                }}
-              >
-                Aprovar Pedido
-              </Button>
+              <div className="flex gap-2 w-full sm:w-auto justify-end">
+                <Button
+                  variant="destructive"
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setIsSaleDetailsOpen(false);
+                    rejeitarVenda(selectedSaleForDetails.id);
+                  }}
+                >
+                  Recusar Pedido
+                </Button>
+                <Button
+                  className="w-full sm:w-auto bg-success hover:bg-success/90 text-white"
+                  onClick={() => {
+                    setIsSaleDetailsOpen(false);
+                    aprovarVenda(selectedSaleForDetails);
+                  }}
+                >
+                  Aprovar Pedido
+                </Button>
+              </div>
             </DialogFooter>
           ) : (
-            <DialogFooter>
+            <DialogFooter className="flex flex-col sm:flex-row justify-between items-center gap-2">
+              <Button
+                variant="outline"
+                className="border-blue-200 text-blue-700 hover:bg-blue-50 gap-1.5 w-full sm:w-auto"
+                onClick={() => {
+                  setIsSaleDetailsOpen(false);
+                  navigate({
+                    to: "/app/venda-nova",
+                    search: { id: selectedSaleForDetails.id } as any,
+                  });
+                }}
+              >
+                <Pencil className="w-4 h-4" /> Editar Pedido
+              </Button>
               <Button variant="outline" onClick={() => setIsSaleDetailsOpen(false)}>
                 Fechar
               </Button>

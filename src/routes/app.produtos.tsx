@@ -70,25 +70,25 @@ function Produtos() {
   }, [fetchProdutos]);
 
   const handleExcluirProduto = async (produto: any) => {
-    confirm({
+    const ok = await confirm({
       title: "Excluir produto",
       description: `Tem certeza que deseja excluir o produto "${produto.nome}"? Esta ação não pode ser desfeita e pode falhar se o produto já estiver vinculado a vendas ou orçamentos.`,
-      onConfirm: async () => {
-        try {
-          const { data, error } = await supabase.from("produtos").delete().eq("id", produto.id).select();
-          if (error) throw error;
-          if (!data || data.length === 0) {
-            toast.error("Não foi possível excluir o produto. Verifique as permissões ou atualize a página.");
-            return;
-          }
-          removeProdutoLocal(produto.id);
-          toast.success("Produto excluído com sucesso.");
-        } catch (err: any) {
-          console.error(err);
-          toast.error("Erro ao excluir produto: " + (err.message || "Ele pode estar vinculado a vendas."));
-        }
-      }
     });
+    if (!ok) return;
+
+    try {
+      const { data, error } = await supabase.from("produtos").delete().eq("id", produto.id).select();
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.error("Não foi possível excluir o produto. Verifique as permissões ou atualize a página.");
+        return;
+      }
+      removeProdutoLocal(produto.id);
+      toast.success("Produto excluído com sucesso.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao excluir produto: " + (err.message || "Ele pode estar vinculado a vendas."));
+    }
   };
 
   const handleSaveInlineEstoque = async (p: any) => {
@@ -427,17 +427,13 @@ function Produtos() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               {p.status === "Ativo" ? (
-                                <Eye 
-                                  className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" 
-                                  onClick={() => toggleProductStatus(p)}
-                                  title="Desativar produto"
-                                />
+                                <span title="Desativar produto" onClick={() => toggleProductStatus(p)} className="cursor-pointer">
+                                  <Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                                </span>
                               ) : (
-                                <EyeOff 
-                                  className="w-4 h-4 text-red-500 cursor-pointer hover:text-red-600" 
-                                  onClick={() => toggleProductStatus(p)}
-                                  title="Ativar produto"
-                                />
+                                <span title="Ativar produto" onClick={() => toggleProductStatus(p)} className="cursor-pointer">
+                                  <EyeOff className="w-4 h-4 text-red-500 hover:text-red-600" />
+                                </span>
                               )}
                               <div className="w-8 h-8 rounded border bg-white flex items-center justify-center overflow-hidden">
                                 {p.imagem ? (

@@ -220,7 +220,7 @@ function Dashboard() {
       (vendasMes || []).forEach((v) => {
         const d = new Date(v.created_at);
         const k = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-        porDia[k] = (porDia[k] || 0) + Number(v.valor_total || v.total || 0);
+        porDia[k] = (porDia[k] || 0) + Number(v.valor_total || (v as any).total || 0);
       });
       
       const evolData = [];

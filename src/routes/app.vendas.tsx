@@ -664,6 +664,16 @@ function Pedidos() {
                                   {status === "Parcialmente Faturado" ? "Faturar restante" : "Faturar pedido"}
                                 </Button>
                               )}
+                              {status !== "Em orçamento" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-blue-200 text-blue-700 hover:bg-blue-50 font-medium"
+                                  onClick={() => navigate({ to: "/app/venda-nova", search: { id: venda.id } as any })}
+                                >
+                                  <Pencil className="mr-2 h-4 w-4" /> Editar Pedido
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="outline"

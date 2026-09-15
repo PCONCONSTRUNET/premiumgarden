@@ -449,14 +449,19 @@ function PublicCatalogo() {
                                 {p.cores.join(", ")}
                               </div>
                             )}
-                            {p.numero && (
+                            {(p.largura || p.altura || p.comprimento) ? (
                               <p>
-                                <span className="font-medium text-slate-700">Número:</span> {p.numero}
+                                <span className="font-medium text-slate-700">Dimensões:</span>{" "}
+                                {[p.largura, p.altura, p.comprimento].map(v => v || "0").join(" x ")} cm
                               </p>
-                            )}
-                            {p.dimensao && (
+                            ) : p.dimensao ? (
                               <p>
                                 <span className="font-medium text-slate-700">Dimensões:</span> {p.dimensao}
+                              </p>
+                            ) : null}
+                            {p.peso_bruto && (
+                              <p>
+                                <span className="font-medium text-slate-700">Peso Bruto:</span> {p.peso_bruto} kg
                               </p>
                             )}
                             {p.volume && (
@@ -464,10 +469,9 @@ function PublicCatalogo() {
                                 <span className="font-medium text-slate-700">Volume:</span> {p.volume} L
                               </p>
                             )}
-                            {p.comprimento && (
+                            {p.multiplos_venda > 1 && (
                               <p>
-                                <span className="font-medium text-slate-700">Comprimento:</span>{" "}
-                                {p.comprimento} cm
+                                <span className="font-medium text-slate-700">Múltiplos de:</span> {p.multiplos_venda} {p.unidade_medida || "Un"}
                               </p>
                             )}
                           </div>

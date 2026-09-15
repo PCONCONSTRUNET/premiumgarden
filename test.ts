@@ -1,0 +1,1 @@
+import { supabase } from './src/lib/supabase'; supabase.from('produtos').select('unidade_medida, multiplos_venda, forma_peso, peso_bruto, largura, altura, comprimento').limit(1).then(r => console.log(r.error || r.data));

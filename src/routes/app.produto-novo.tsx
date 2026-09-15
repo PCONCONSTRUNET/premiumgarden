@@ -116,6 +116,13 @@ function NovoProduto() {
               cores: data.cores || [],
               variacoes: data.cores || [], // Sync colors to variations for now
               estoque: data.estoque || 0,
+              unidade_medida: data.unidade_medida || "",
+              multiplos_venda: data.multiplos_venda || 1,
+              forma_peso: data.forma_peso || "unitaria",
+              peso_bruto: data.peso_bruto ? String(data.peso_bruto) : "",
+              largura: data.largura ? String(data.largura) : "",
+              altura: data.altura ? String(data.altura) : "",
+              comprimento: data.comprimento ? String(data.comprimento) : "",
             }));
           }
         } catch (err) {
@@ -196,6 +203,14 @@ function NovoProduto() {
         imagem: produto.imagem,
         ncm: produto.ncm || null,
         cores: produto.variacoes, // Saving variations in cores column to preserve DB structure
+        
+        unidade_medida: produto.unidade_medida || null,
+        multiplos_venda: produto.multiplos_venda || null,
+        forma_peso: produto.forma_peso || null,
+        peso_bruto: produto.peso_bruto ? parseFloat(produto.peso_bruto.replace(',', '.')) : null,
+        largura: produto.largura ? parseFloat(produto.largura.replace(',', '.')) : null,
+        altura: produto.altura ? parseFloat(produto.altura.replace(',', '.')) : null,
+        comprimento: produto.comprimento ? parseFloat(produto.comprimento.replace(',', '.')) : null,
       };
 
       if (isEditing) {

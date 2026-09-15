@@ -245,6 +245,18 @@ function ParceiroCatalogo() {
                           R$ {Number(p.valor).toFixed(2).replace(".", ",")}
                         </p>
 
+                        <div className="text-[10px] text-slate-500 space-y-0.5 mb-2">
+                          {p.cores && p.cores.length > 0 && <div>Variedade: {p.cores.join(", ")}</div>}
+                          {(p.largura || p.altura || p.comprimento) ? (
+                            <div>Dimensões: {[p.largura, p.altura, p.comprimento].map(v => v || "0").join(" x ")} cm</div>
+                          ) : p.dimensao ? (
+                            <div>Dimensões: {p.dimensao}</div>
+                          ) : null}
+                          {p.peso_bruto && <div>Peso Bruto: {p.peso_bruto} kg</div>}
+                          {p.volume && <div>Volume: {p.volume} L</div>}
+                          {p.multiplos_venda > 1 && <div>Múltiplos de: {p.multiplos_venda} {p.unidade_medida || "Un"}</div>}
+                        </div>
+
                         <div className="mt-auto pt-2 grid gap-2">
                           <Button
                             onClick={() => handlePedir(p.id)}

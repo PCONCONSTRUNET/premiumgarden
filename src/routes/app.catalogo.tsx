@@ -420,9 +420,19 @@ function Catalogo() {
                               <span className="font-semibold text-foreground">Número:</span> {p.numero}
                             </p>
                           )}
-                          {p.dimensao && (
+                          {(p.largura || p.altura || p.comprimento) ? (
+                            <p>
+                              <span className="font-semibold text-foreground">Dimensões:</span>{" "}
+                              {[p.largura, p.altura, p.comprimento].map(v => v || "0").join(" x ")} cm
+                            </p>
+                          ) : p.dimensao ? (
                             <p>
                               <span className="font-semibold text-foreground">Dimensões:</span> {p.dimensao}
+                            </p>
+                          ) : null}
+                          {p.peso_bruto && (
+                            <p>
+                              <span className="font-semibold text-foreground">Peso Bruto:</span> {p.peso_bruto} kg
                             </p>
                           )}
                           {p.volume && (
@@ -430,10 +440,9 @@ function Catalogo() {
                               <span className="font-semibold text-foreground">Volume:</span> {p.volume} L
                             </p>
                           )}
-                          {p.comprimento && (
+                          {p.multiplos_venda > 1 && (
                             <p>
-                              <span className="font-semibold text-foreground">Comprimento:</span>{" "}
-                              {p.comprimento} cm
+                              <span className="font-semibold text-foreground">Múltiplos de:</span> {p.multiplos_venda} {p.unidade_medida || "Un"}
                             </p>
                           )}
                           {p.cores && p.cores.length > 0 && (

@@ -742,8 +742,11 @@ function NovoPedido() {
             imagem: "",
             numero: null,
             dimensao: dimensao || null,
+            peso_bruto: newProduct.peso ? parseFloat(newProduct.peso.replace(',', '.')) : null,
+            largura: newProduct.largura ? parseFloat(newProduct.largura.replace(',', '.')) : null,
+            altura: newProduct.altura ? parseFloat(newProduct.altura.replace(',', '.')) : null,
+            comprimento: newProduct.comprimento ? parseFloat(newProduct.comprimento.replace(',', '.')) : null,
             volume: null,
-            comprimento: newProduct.comprimento || null,
             cores: newProduct.variacoes
               .split(",")
               .map((item) => item.trim())

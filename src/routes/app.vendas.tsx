@@ -28,6 +28,7 @@ import {
   Receipt,
   Download,
   Loader2,
+  ChevronsUpDown,
 } from "lucide-react";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
 import { useEffect, useMemo, useState } from "react";
@@ -59,6 +60,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/vendas")({
   head: () => ({ meta: [{ title: "Pedidos - PREMIUM GARDEN" }] }),
@@ -101,6 +105,11 @@ function Pedidos() {
   const [openPrintModal, setOpenPrintModal] = useState(false);
   const [buscaImpressao, setBuscaImpressao] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const [openEditCliente, setOpenEditCliente] = useState(false);
+  const [clientesList, setClientesList] = useState<any[]>([]);
+  const [clienteEditId, setClienteEditId] = useState("");
+  const [openComboCliente, setOpenComboCliente] = useState(false);
 
   const fetchVendas = async () => {
     setLoading(true);
@@ -520,6 +529,38 @@ function Pedidos() {
     }
   };
 
+  const handleOpenEditCliente = async () => {
+    if (clientesList.length === 0) {
+      const { data } = await supabase.from("clientes").select("id, nome, cpf_cnpj, cidade, uf").order("nome");
+      if (data) setClientesList(data);
+    }
+    setClienteEditId(selectedVenda?.cliente_id || "");
+    setOpenEditCliente(true);
+  };
+
+  const handleSaveEditCliente = async () => {
+    if (!clienteEditId || !selectedVenda) return;
+    try {
+      const { error } = await supabase.from("vendas").update({ cliente_id: clienteEditId }).eq("id", selectedVenda.id);
+      if (error) throw error;
+      
+      try {
+        await supabase.from("contas_receber").update({ cliente_id: clienteEditId }).eq("venda_id", selectedVenda.id);
+      } catch (e) {}
+      
+      const novoCliente = clientesList.find(c => c.id === clienteEditId);
+      const updatedVenda = { ...selectedVenda, cliente_id: clienteEditId, clientes: novoCliente };
+      
+      setSelectedVenda(updatedVenda);
+      setVendas(current => current.map(v => v.id === selectedVenda.id ? updatedVenda : v));
+      
+      toast.success("Cliente do pedido atualizado com sucesso!");
+      setOpenEditCliente(false);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar cliente: " + err.message);
+    }
+  };
+
   return (
     <>
       <section className="overflow-hidden border-2 border-border bg-card shadow-sm">
@@ -774,9 +815,14 @@ function Pedidos() {
                 <span className="mb-1 flex items-center gap-1 text-xs uppercase text-muted-foreground">
                   <UserRound className="h-3.5 w-3.5" /> Cliente
                 </span>
-                <span className="font-medium">
-                  {selectedVenda?.clientes?.nome || "Não informado"}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">
+                    {selectedVenda?.clientes?.nome || "Não informado"}
+                  </span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={handleOpenEditCliente}>
+                    <Edit className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
               <div>
                 <span className="mb-1 block text-xs uppercase text-muted-foreground">Data</span>
@@ -1410,6 +1456,73 @@ function Pedidos() {
             <Button variant="outline" onClick={() => setOpenPrintModal(false)}>
               Fechar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openEditCliente} onOpenChange={setOpenEditCliente}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Cliente do Pedido</DialogTitle>
+            <DialogDescription>Selecione o novo cliente para este pedido.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Popover open={openComboCliente} onOpenChange={setOpenComboCliente}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openComboCliente}
+                  className="w-full justify-between font-normal"
+                >
+                  <span className="truncate">
+                    {clienteEditId && clientesList.find(c => c.id === clienteEditId)
+                      ? `${clientesList.find(c => c.id === clienteEditId)?.nome}`
+                      : "Selecione um cliente..."}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[min(400px,calc(100vw-2rem))] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar cliente..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {clientesList.map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          value={`${client.nome} ${client.cpf_cnpj || ""} ${client.cidade || ""}`}
+                          onSelect={() => {
+                            setClienteEditId(client.id);
+                            setOpenComboCliente(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              clienteEditId === client.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div>
+                            <p className="font-medium">{client.nome}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {[client.cpf_cnpj, client.cidade, client.uf]
+                                .filter(Boolean)
+                                .join(" - ")}
+                            </p>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenEditCliente(false)}>Cancelar</Button>
+            <Button onClick={handleSaveEditCliente}>Salvar Alteração</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

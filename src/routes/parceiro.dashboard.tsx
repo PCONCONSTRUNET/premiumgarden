@@ -52,6 +52,7 @@ function ParceiroDashboard() {
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [editDescontoState, setEditDescontoState] = useState(0);
 
   const openSaleDetails = async (venda: any) => {
     setSelectedSaleForDetails(venda);
@@ -95,6 +96,11 @@ function ParceiroDashboard() {
   };
 
   const iniciarEdicaoItens = () => {
+    const subtotalInicial = saleItems.reduce((acc, item) => acc + (Number(item.quantidade) || 1) * (Number(item.valor_unitario) || 0), 0);
+    const descP = Number(selectedSaleForDetails?.desconto_percentual) || 0;
+    const descV = Number(selectedSaleForDetails?.desconto_valor) || 0;
+    setEditDescontoState(descP > 0 ? (subtotalInicial * descP) / 100 : descV);
+
     setEditItemsList(
       saleItems.map((item) => ({
         ...item,
@@ -191,11 +197,7 @@ function ParceiroDashboard() {
     (acc, item) => acc + (Number(item.quantidade) * Number(item.valor_unitario)),
     0
   );
-  const descontoPerc = Number(selectedSaleForDetails?.desconto_percentual) || 0;
-  const descontoOrig = Number(selectedSaleForDetails?.desconto_valor) || 0;
-  const editDesconto = descontoPerc > 0
-    ? (editSubtotal * descontoPerc) / 100
-    : Math.min(editSubtotal, descontoOrig);
+  const editDesconto = Math.min(editSubtotal, editDescontoState || 0);
   const editTotal = Math.max(0, editSubtotal - editDesconto);
 
   const handleSalvarEdicaoItens = async () => {
@@ -261,6 +263,7 @@ function ParceiroDashboard() {
           valor_total: finalTotal,
           subtotal: finalSubtotal,
           desconto_valor: finalDesconto,
+          desconto_percentual: 0,
           valor_comissao: finalComissao,
         })
         .eq("id", selectedSaleForDetails.id);
@@ -315,6 +318,7 @@ function ParceiroDashboard() {
                 total: finalTotal,
                 subtotal: finalSubtotal,
                 desconto_valor: finalDesconto,
+                desconto_percentual: 0,
                 valor_comissao: finalComissao,
               }
             : v
@@ -891,9 +895,27 @@ function ParceiroDashboard() {
                               <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate" title={prodNome}>
                                 {prodNome}
                               </p>
-                              <p className="text-[11px] text-slate-500">
-                                R$ {unitPrice.toFixed(2).replace(".", ",")} / un
-                              </p>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] text-slate-500">R$</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.valor_unitario}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    setEditItemsList(prev => {
+                                      const copy = [...prev];
+                                      copy[index].valor_unitario = val;
+                                      copy[index].subtotal = Number(copy[index].quantidade) * val;
+                                      return copy;
+                                    });
+                                  }}
+                                  disabled={savingItems}
+                                  className="w-20 text-xs px-1.5 py-0.5 border border-slate-200 rounded text-slate-700 bg-white focus:outline-hidden focus:border-brand/50"
+                                />
+                                <span className="text-[10px] text-slate-500">/ un</span>
+                              </div>
                             </div>
                           </div>
 
@@ -1031,10 +1053,21 @@ function ParceiroDashboard() {
                     <span>Novo Subtotal:</span>
                     <span className="font-semibold shrink-0">R$ {editSubtotal.toFixed(2).replace(".", ",")}</span>
                   </div>
-                  {editDesconto > 0 && (
+                  {editDescontoState >= 0 && (
                     <div className="flex justify-between items-center text-xs text-red-600">
                       <span>Desconto:</span>
-                      <span className="font-bold shrink-0">- R$ {editDesconto.toFixed(2).replace(".", ",")}</span>
+                      <div className="flex items-center gap-1 font-bold">
+                        <span>- R$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={editDescontoState || ""}
+                          onChange={(e) => setEditDescontoState(Number(e.target.value) || 0)}
+                          disabled={savingItems}
+                          className="w-20 text-right text-xs px-1.5 py-0.5 border border-red-200 rounded text-red-700 bg-red-50 focus:outline-hidden focus:border-red-400"
+                        />
+                      </div>
                     </div>
                   )}
                   <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-slate-200">

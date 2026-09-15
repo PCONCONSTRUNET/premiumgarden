@@ -20,9 +20,22 @@ import {
   Minus,
   Save,
   PlusCircle,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -63,6 +76,12 @@ function VendasParceiro() {
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [editDescontoState, setEditDescontoState] = useState(0);
+
+  const [openEditCliente, setOpenEditCliente] = useState(false);
+  const [clientesList, setClientesList] = useState<any[]>([]);
+  const [clienteEditId, setClienteEditId] = useState("");
+  const [openComboCliente, setOpenComboCliente] = useState(false);
 
   useEffect(() => {
     const fetchVendas = async () => {
@@ -147,6 +166,11 @@ function VendasParceiro() {
   };
 
   const iniciarEdicaoItens = () => {
+    const subtotalInicial = vendaItens.reduce((acc, item) => acc + (Number(item.quantidade) || 1) * (Number(item.valor_unitario) || 0), 0);
+    const descP = Number(selectedVenda?.desconto_percentual) || 0;
+    const descV = Number(selectedVenda?.desconto_valor) || 0;
+    setEditDescontoState(descP > 0 ? (subtotalInicial * descP) / 100 : descV);
+
     setEditItemsList(
       vendaItens.map((item) => ({
         ...item,
@@ -243,11 +267,7 @@ function VendasParceiro() {
     (acc, item) => acc + (Number(item.quantidade) * Number(item.valor_unitario)),
     0
   );
-  const descontoPerc = Number(selectedVenda?.desconto_percentual) || 0;
-  const descontoOrig = Number(selectedVenda?.desconto_valor) || 0;
-  const editDesconto = descontoPerc > 0
-    ? (editSubtotal * descontoPerc) / 100
-    : Math.min(editSubtotal, descontoOrig);
+  const editDesconto = Math.min(editSubtotal, editDescontoState || 0);
   const editTotal = Math.max(0, editSubtotal - editDesconto);
 
   const handleSalvarEdicaoItens = async () => {
@@ -316,6 +336,7 @@ function VendasParceiro() {
           valor_total: finalTotal,
           subtotal: finalSubtotal,
           desconto_valor: finalDesconto,
+          desconto_percentual: 0,
           valor_comissao: finalComissao,
         })
         .eq("id", selectedVenda.id);
@@ -370,6 +391,7 @@ function VendasParceiro() {
                 total: finalTotal,
                 subtotal: finalSubtotal,
                 desconto_valor: finalDesconto,
+                desconto_percentual: 0,
                 valor_comissao: finalComissao,
               }
             : v
@@ -384,6 +406,38 @@ function VendasParceiro() {
       toast.error("Erro ao salvar alterações: " + (err.message || "Erro desconhecido"));
     } finally {
       setSavingItems(false);
+    }
+  };
+
+  const handleOpenEditCliente = async () => {
+    if (clientesList.length === 0) {
+      const { data } = await supabase.from("clientes").select("id, nome, cpf_cnpj, cidade, uf").order("nome");
+      if (data) setClientesList(data);
+    }
+    setClienteEditId(selectedVenda?.cliente_id || "");
+    setOpenEditCliente(true);
+  };
+
+  const handleSaveEditCliente = async () => {
+    if (!clienteEditId || !selectedVenda) return;
+    try {
+      const { error } = await supabase.from("vendas").update({ cliente_id: clienteEditId }).eq("id", selectedVenda.id);
+      if (error) throw error;
+      
+      try {
+        await supabase.from("contas_receber").update({ cliente_id: clienteEditId }).eq("venda_id", selectedVenda.id);
+      } catch (e) {}
+      
+      const novoCliente = clientesList.find(c => c.id === clienteEditId);
+      const updatedVenda = { ...selectedVenda, cliente_id: clienteEditId, clientes: novoCliente };
+      
+      setSelectedVenda(updatedVenda);
+      setVendas(current => current.map(v => v.id === selectedVenda.id ? updatedVenda : v));
+      
+      toast.success("Cliente do pedido atualizado com sucesso!");
+      setOpenEditCliente(false);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar cliente: " + err.message);
     }
   };
 
@@ -542,7 +596,12 @@ function VendasParceiro() {
               <div className="bg-slate-50 p-4 rounded-xl space-y-3 text-sm">
                 <div className="flex justify-between border-b border-slate-200 pb-2">
                   <span className="text-slate-500">Cliente</span>
-                  <span className="font-semibold text-slate-800">{selectedVenda.clientes?.nome || "Consumidor Final"}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-800">{selectedVenda.clientes?.nome || "Consumidor Final"}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-600" onClick={handleOpenEditCliente}>
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex justify-between border-b border-slate-200 pb-2">
                   <span className="text-slate-500">Data</span>
@@ -607,9 +666,27 @@ function VendasParceiro() {
                                   <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate" title={prodNome}>
                                     {prodNome}
                                   </p>
-                                  <p className="text-[11px] text-slate-500">
-                                    {currency.format(unitPrice)} / un
-                                  </p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <span className="text-[10px] text-slate-500">R$</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={item.valor_unitario}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value);
+                                        setEditItemsList(prev => {
+                                          const copy = [...prev];
+                                          copy[index].valor_unitario = val;
+                                          copy[index].subtotal = Number(copy[index].quantidade) * val;
+                                          return copy;
+                                        });
+                                      }}
+                                      disabled={savingItems}
+                                      className="w-20 text-xs px-1.5 py-0.5 border border-slate-200 rounded text-slate-700 bg-white focus:outline-hidden focus:border-brand/50"
+                                    />
+                                    <span className="text-[10px] text-slate-500">/ un</span>
+                                  </div>
                                 </div>
                               </div>
 
@@ -747,10 +824,21 @@ function VendasParceiro() {
                         <span>Novo Subtotal:</span>
                         <span className="font-semibold">{currency.format(editSubtotal)}</span>
                       </div>
-                      {editDesconto > 0 && (
+                      {editDescontoState >= 0 && (
                         <div className="flex justify-between items-center text-xs text-red-600">
                           <span>Desconto:</span>
-                          <span className="font-bold">- {currency.format(editDesconto)}</span>
+                          <div className="flex items-center gap-1 font-bold">
+                            <span>- R$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editDescontoState || ""}
+                              onChange={(e) => setEditDescontoState(Number(e.target.value) || 0)}
+                              disabled={savingItems}
+                              className="w-20 text-right text-xs px-1.5 py-0.5 border border-red-200 rounded text-red-700 bg-red-50 focus:outline-hidden focus:border-red-400"
+                            />
+                          </div>
                         </div>
                       )}
                       <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-slate-200">
@@ -962,6 +1050,73 @@ function VendasParceiro() {
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={openEditCliente} onOpenChange={setOpenEditCliente}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Cliente do Pedido</DialogTitle>
+            <DialogDescription>Selecione o novo cliente para este pedido.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Popover open={openComboCliente} onOpenChange={setOpenComboCliente}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openComboCliente}
+                  className="w-full justify-between font-normal"
+                >
+                  <span className="truncate">
+                    {clienteEditId && clientesList.find(c => c.id === clienteEditId)
+                      ? `${clientesList.find(c => c.id === clienteEditId)?.nome}`
+                      : "Selecione um cliente..."}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[min(400px,calc(100vw-2rem))] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar cliente..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {clientesList.map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          value={`${client.nome} ${client.cpf_cnpj || ""} ${client.cidade || ""}`}
+                          onSelect={() => {
+                            setClienteEditId(client.id);
+                            setOpenComboCliente(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              clienteEditId === client.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div>
+                            <p className="font-medium">{client.nome}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {[client.cpf_cnpj, client.cidade, client.uf]
+                                .filter(Boolean)
+                                .join(" - ")}
+                            </p>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenEditCliente(false)}>Cancelar</Button>
+            <Button onClick={handleSaveEditCliente}>Salvar Alteração</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

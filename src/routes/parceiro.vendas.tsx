@@ -552,7 +552,7 @@ function VendasParceiro() {
                       variant="outline"
                       size="sm"
                       className="h-8 px-2.5 text-xs font-semibold gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-100 rounded-lg shadow-xs"
-                      onClick={() => downloadVendaPdf(v)}
+                      onClick={() => downloadVendaPdf(v, undefined, supabase)}
                       title="Baixar PDF"
                     >
                       <FileText className="w-3.5 h-3.5 text-red-500" />
@@ -563,7 +563,7 @@ function VendasParceiro() {
                       variant="outline"
                       size="sm"
                       className="h-8 px-2.5 text-xs font-semibold gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg shadow-xs"
-                      onClick={() => shareVendaWhatsApp(v)}
+                      onClick={() => shareVendaWhatsApp(v, undefined, supabase)}
                       title="Enviar PDF no WhatsApp"
                     >
                       <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
@@ -944,14 +944,14 @@ function VendasParceiro() {
                     <div className="grid grid-cols-2 gap-2">
                       <Button
                         className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm text-xs sm:text-sm px-2 h-10 whitespace-normal"
-                        onClick={() => downloadVendaPdf(selectedVenda, vendaItens)}
+                        onClick={() => downloadVendaPdf(selectedVenda, vendaItens, supabase)}
                       >
                         <FileText className="w-4 h-4 text-red-400 shrink-0" />
                         <span className="truncate">Baixar PDF</span>
                       </Button>
                       <Button
                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 shadow-sm text-xs sm:text-sm px-2 h-10 whitespace-normal"
-                        onClick={() => shareVendaWhatsApp(selectedVenda, vendaItens)}
+                        onClick={() => shareVendaWhatsApp(selectedVenda, vendaItens, supabase)}
                       >
                         <WhatsAppIcon className="w-4 h-4 text-white shrink-0" />
                         <span className="truncate">WhatsApp (PDF)</span>

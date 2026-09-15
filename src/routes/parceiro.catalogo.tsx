@@ -211,63 +211,70 @@ function ParceiroCatalogo() {
                   {produtosDaCategoria.map((p, index) => (
                     <Card
                       key={p.id}
-                      className="overflow-hidden shadow-sm hover:shadow-md transition-all border-0 ring-1 ring-slate-900/5 flex flex-row p-3 gap-4 items-center bg-white"
+                      className="overflow-hidden shadow-sm hover:shadow-md transition-all border-0 ring-1 ring-slate-900/5 flex flex-col p-4 gap-4 bg-white cursor-pointer"
+                      onClick={() => handlePedir(p.id)}
                     >
-                      <div
-                        className={`relative w-24 h-24 rounded-md overflow-hidden bg-gradient-to-br ${getGradient(
-                          index
-                        )} flex items-center justify-center text-4xl shrink-0`}
-                      >
-                        {p.imagem ? (
-                          <img
-                            src={p.imagem}
-                            alt={p.nome}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          p.emoji || "🪴"
-                        )}
-                        {p.estoque < 10 && (
-                          <Badge className="absolute top-1 left-1 bg-warning/90 text-warning-foreground border-0 text-[9px] px-1.5 py-0 h-4">
-                            Pouco estoque
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <div className="flex flex-col flex-1 h-full min-w-0">
-                        <p className="text-[10px] text-muted-foreground uppercase truncate">
-                          {p.codigo || "S/ SKU"}
-                        </p>
-                        <h3 className="font-semibold text-sm text-slate-800 line-clamp-2 mt-0.5">
-                          {p.nome}
-                        </h3>
-                        
-                        <div className="text-[10px] text-slate-500 mt-1 line-clamp-1">
-                          {[
-                            p.cores && p.cores.length > 0 ? `Var: ${p.cores.join(", ")}` : null,
-                            (p.largura || p.altura || p.comprimento) ? `Dim: ${[p.largura, p.altura, p.comprimento].map(v => v || "0").join("x")}cm` : p.dimensao ? `Dim: ${p.dimensao}` : null,
-                            p.peso_bruto ? `Peso: ${p.peso_bruto}kg` : null,
-                            p.volume ? `Vol: ${p.volume}L` : null,
-                            p.multiplos_venda > 1 ? `Múltiplo: ${p.multiplos_venda} ${p.unidade_medida || "Un"}` : null
-                          ].filter(Boolean).join(" • ")}
+                      <div className="flex flex-row gap-4 items-center">
+                        <div
+                          className={`relative w-20 h-20 rounded-md overflow-hidden bg-gradient-to-br ${getGradient(
+                            index
+                          )} flex items-center justify-center text-4xl shrink-0`}
+                        >
+                          {p.imagem ? (
+                            <img
+                              src={p.imagem}
+                              alt={p.nome}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            p.emoji || "🪴"
+                          )}
                         </div>
-
-                        <div className="flex items-center justify-between mt-3">
-                          <p className="text-brand font-bold text-base">
-                            R$ {Number(p.valor).toFixed(2).replace(".", ",")}
+                        
+                        <div className="flex flex-col flex-1 h-full min-w-0">
+                          <h3 className="font-bold text-sm text-slate-800 uppercase line-clamp-2">
+                            {p.nome}
+                          </h3>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 uppercase truncate">
+                            {p.codigo || "S/ SKU"}
                           </p>
                           
-                          <Button
-                            onClick={() => handlePedir(p.id)}
-                            className="bg-gradient-brand hover:brightness-110 text-primary-foreground font-bold h-8 px-4 rounded-lg shadow-sm shrink-0"
-                            size="sm"
-                          >
-                            <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
-                            Pedir
-                          </Button>
+                          <div className="text-[10px] text-slate-500 mt-1 line-clamp-2">
+                            {[
+                              p.cores && p.cores.length > 0 ? `Var: ${p.cores.join(", ")}` : null,
+                              (p.largura || p.altura || p.comprimento) ? `Dim: ${[p.largura, p.altura, p.comprimento].map(v => v || "0").join("x")}cm` : p.dimensao ? `Dim: ${p.dimensao}` : null,
+                              p.peso_bruto ? `Peso: ${p.peso_bruto}kg` : null,
+                              p.volume ? `Vol: ${p.volume}L` : null,
+                              p.multiplos_venda > 1 ? `Múltiplo: ${p.multiplos_venda} ${p.unidade_medida || "Un"}` : null
+                            ].filter(Boolean).join(" • ")}
+                          </div>
                         </div>
                       </div>
+                      
+                      <div className="flex flex-col gap-1.5 pt-1">
+                        <div className="flex items-center justify-between text-[13px]">
+                          <span className="text-slate-600">Quantidade em estoque:</span>
+                          <span className={p.estoque < 10 ? "text-warning font-medium" : "text-slate-800 font-medium"}>
+                            {p.estoque} {p.estoque < 10 ? "(Baixo)" : ""}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[13px]">
+                          <span className="text-brand font-medium">Valor:</span>
+                          <span className="text-slate-800 font-bold">
+                            R$ {Number(p.valor).toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <Button
+                        className="w-full bg-gradient-brand hover:brightness-110 text-primary-foreground font-bold h-9 mt-1"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); handlePedir(p.id); }}
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-2" />
+                        Pedir
+                      </Button>
                     </Card>
                   ))}
                 </div>

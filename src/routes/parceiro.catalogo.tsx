@@ -207,16 +207,16 @@ function ParceiroCatalogo() {
                 <h2 className="text-xl font-display font-bold text-slate-800 border-b pb-2">
                   {cat}
                 </h2>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+                <div className="flex flex-col gap-3">
                   {produtosDaCategoria.map((p, index) => (
                     <Card
                       key={p.id}
-                      className="overflow-hidden shadow-sm hover:shadow-md transition-all border-0 ring-1 ring-slate-900/5 flex flex-col"
+                      className="overflow-hidden shadow-sm hover:shadow-md transition-all border-0 ring-1 ring-slate-900/5 flex flex-row p-3 gap-4 items-center bg-white"
                     >
                       <div
-                        className={`relative aspect-square overflow-hidden bg-gradient-to-br ${getGradient(
+                        className={`relative w-24 h-24 rounded-md overflow-hidden bg-gradient-to-br ${getGradient(
                           index
-                        )} grid place-items-center text-5xl`}
+                        )} flex items-center justify-center text-4xl shrink-0`}
                       >
                         {p.imagem ? (
                           <img
@@ -229,41 +229,41 @@ function ParceiroCatalogo() {
                           p.emoji || "🪴"
                         )}
                         {p.estoque < 10 && (
-                          <Badge className="absolute top-2 left-2 bg-warning/90 text-warning-foreground border-0 text-[10px]">
+                          <Badge className="absolute top-1 left-1 bg-warning/90 text-warning-foreground border-0 text-[9px] px-1.5 py-0 h-4">
                             Pouco estoque
                           </Badge>
                         )}
                       </div>
-                      <div className="p-3 flex flex-col flex-1">
-                        <p className="text-[10px] text-muted-foreground uppercase">
+                      
+                      <div className="flex flex-col flex-1 h-full min-w-0">
+                        <p className="text-[10px] text-muted-foreground uppercase truncate">
                           {p.codigo || "S/ SKU"}
                         </p>
-                        <h3 className="font-semibold text-sm mt-0.5 line-clamp-2">
+                        <h3 className="font-semibold text-sm text-slate-800 line-clamp-2 mt-0.5">
                           {p.nome}
                         </h3>
-                        <p className="text-brand font-bold text-lg mt-1 mb-2">
-                          R$ {Number(p.valor).toFixed(2).replace(".", ",")}
-                        </p>
-
-                        <div className="text-[10px] text-slate-500 space-y-0.5 mb-2">
-                          {p.cores && p.cores.length > 0 && <div>Variedade: {p.cores.join(", ")}</div>}
-                          {(p.largura || p.altura || p.comprimento) ? (
-                            <div>Dimensões: {[p.largura, p.altura, p.comprimento].map(v => v || "0").join(" x ")} cm</div>
-                          ) : p.dimensao ? (
-                            <div>Dimensões: {p.dimensao}</div>
-                          ) : null}
-                          {p.peso_bruto && <div>Peso Bruto: {p.peso_bruto} kg</div>}
-                          {p.volume && <div>Volume: {p.volume} L</div>}
-                          {p.multiplos_venda > 1 && <div>Múltiplos de: {p.multiplos_venda} {p.unidade_medida || "Un"}</div>}
+                        
+                        <div className="text-[10px] text-slate-500 mt-1 line-clamp-1">
+                          {[
+                            p.cores && p.cores.length > 0 ? `Var: ${p.cores.join(", ")}` : null,
+                            (p.largura || p.altura || p.comprimento) ? `Dim: ${[p.largura, p.altura, p.comprimento].map(v => v || "0").join("x")}cm` : p.dimensao ? `Dim: ${p.dimensao}` : null,
+                            p.peso_bruto ? `Peso: ${p.peso_bruto}kg` : null,
+                            p.volume ? `Vol: ${p.volume}L` : null,
+                            p.multiplos_venda > 1 ? `Múltiplo: ${p.multiplos_venda} ${p.unidade_medida || "Un"}` : null
+                          ].filter(Boolean).join(" • ")}
                         </div>
 
-                        <div className="mt-auto pt-2 grid gap-2">
+                        <div className="flex items-center justify-between mt-3">
+                          <p className="text-brand font-bold text-base">
+                            R$ {Number(p.valor).toFixed(2).replace(".", ",")}
+                          </p>
+                          
                           <Button
                             onClick={() => handlePedir(p.id)}
-                            className="w-full bg-gradient-brand hover:brightness-110 text-primary-foreground font-bold"
+                            className="bg-gradient-brand hover:brightness-110 text-primary-foreground font-bold h-8 px-4 rounded-lg shadow-sm shrink-0"
                             size="sm"
                           >
-                            <ShoppingCart className="h-4 w-4 mr-2" />
+                            <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
                             Pedir
                           </Button>
                         </div>

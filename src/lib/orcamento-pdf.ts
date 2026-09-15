@@ -736,17 +736,19 @@ export async function downloadVendaPdf(venda: any, itens?: any[], customClient?:
   const client = customClient || supabase;
   
   if (!finalItens || finalItens.length === 0) {
-    const { data } = await client
+    const { data, error } = await client
       .from("vendas_itens")
-      .select("*, produtos(nome, codigo, imagem, marca, unidade)")
+      .select("*, produtos(nome, codigo, imagem)")
       .eq("venda_id", venda.id);
+    if (error) console.error("Error fetching vendas_itens for PDF:", error);
     finalItens = data || [];
     
     if (finalItens.length === 0) {
-      const { data: davData } = await client
+      const { data: davData, error: davError } = await client
         .from("dav_items")
-        .select("*, produtos(nome, codigo, imagem, marca, unidade)")
+        .select("*, produtos(nome, codigo, imagem)")
         .eq("dav_id", venda.id);
+      if (davError) console.error("Error fetching dav_items for PDF:", davError);
       
       if (davData && davData.length > 0) {
         finalItens = davData.map((d: any) => ({
@@ -767,17 +769,19 @@ export async function printVendaPdf(venda: any, itens?: any[], customClient?: an
   const client = customClient || supabase;
   
   if (!finalItens || finalItens.length === 0) {
-    const { data } = await client
+    const { data, error } = await client
       .from("vendas_itens")
-      .select("*, produtos(nome, codigo, imagem, marca, unidade)")
+      .select("*, produtos(nome, codigo, imagem)")
       .eq("venda_id", venda.id);
+    if (error) console.error("Error fetching vendas_itens for PDF:", error);
     finalItens = data || [];
 
     if (finalItens.length === 0) {
-      const { data: davData } = await client
+      const { data: davData, error: davError } = await client
         .from("dav_items")
-        .select("*, produtos(nome, codigo, imagem, marca, unidade)")
+        .select("*, produtos(nome, codigo, imagem)")
         .eq("dav_id", venda.id);
+      if (davError) console.error("Error fetching dav_items for PDF:", davError);
       
       if (davData && davData.length > 0) {
         finalItens = davData.map((d: any) => ({
@@ -801,17 +805,19 @@ export async function shareVendaWhatsApp(venda: any, itens?: any[], customClient
   const client = customClient || supabase;
   
   if (!finalItens || finalItens.length === 0) {
-    const { data } = await client
+    const { data, error } = await client
       .from("vendas_itens")
-      .select("*, produtos(nome, codigo, imagem, marca, unidade)")
+      .select("*, produtos(nome, codigo, imagem)")
       .eq("venda_id", venda.id);
+    if (error) console.error("Error fetching vendas_itens for PDF:", error);
     finalItens = data || [];
 
     if (finalItens.length === 0) {
-      const { data: davData } = await client
+      const { data: davData, error: davError } = await client
         .from("dav_items")
-        .select("*, produtos(nome, codigo, imagem, marca, unidade)")
+        .select("*, produtos(nome, codigo, imagem)")
         .eq("dav_id", venda.id);
+      if (davError) console.error("Error fetching dav_items for PDF:", davError);
       
       if (davData && davData.length > 0) {
         finalItens = davData.map((d: any) => ({

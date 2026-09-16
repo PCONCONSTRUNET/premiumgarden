@@ -41,6 +41,7 @@ function VendasParceiro() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
   const [selectedVenda, setSelectedVenda] = useState<any>(null);
   const [vendaItens, setVendaItens] = useState<any[]>([]);
@@ -75,6 +76,17 @@ function VendasParceiro() {
     }
   };
 
+  const handleDownloadPdf = async (venda: any, itens?: any[]) => {
+    setDownloadingPdfId(venda.id);
+    try {
+      await downloadOrderPdf(venda, itens);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
+
   const openDetails = async (venda: any) => {
     setSelectedVenda(venda);
     setIsDetailsOpen(true);
@@ -85,7 +97,19 @@ function VendasParceiro() {
         .from("vendas_itens")
         .select("*, produto:produtos(nome, codigo, emoji, imagem)")
         .eq("venda_id", venda.id);
-      if (data) setVendaItens(data);
+      
+      if (!error && data && data.length > 0) {
+        setVendaItens(data);
+      } else {
+        const { data: davData, error: davError } = await supabase
+          .from("dav_items")
+          .select("*, produto:produtos(nome, codigo, emoji, imagem)")
+          .eq("dav_id", venda.id);
+        
+        if (!davError && davData) {
+          setVendaItens(davData);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -381,15 +405,20 @@ function VendasParceiro() {
 
                   <button
                     type="button"
+                    disabled={downloadingPdfId === v.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      openOrderPdf(v.id);
+                      handleDownloadPdf(v);
                     }}
-                    className="flex-1 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors active:scale-95 border border-slate-200 px-1"
-                    title="Visualizar e Imprimir PDF"
+                    className="flex-1 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors active:scale-95 border border-slate-200 px-1 disabled:opacity-50"
+                    title="Baixar PDF"
                   >
-                    <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="truncate">Ver PDF</span>
+                    {downloadingPdfId === v.id ? (
+                      <Loader2 className="w-3.5 h-3.5 text-slate-500 shrink-0 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    )}
+                    <span className="truncate">{downloadingPdfId === v.id ? "Baixando..." : "Baixar PDF"}</span>
                   </button>
 
                   <button
@@ -521,11 +550,16 @@ function VendasParceiro() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5"
-                    onClick={() => downloadOrderPdf(selectedVenda, vendaItens)}
+                    disabled={downloadingPdfId === selectedVenda.id}
+                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    onClick={() => handleDownloadPdf(selectedVenda, vendaItens)}
                   >
-                    <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span>Baixar PDF</span>
+                    {downloadingPdfId === selectedVenda.id ? (
+                      <Loader2 className="w-3.5 h-3.5 text-slate-500 shrink-0 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    )}
+                    <span>{downloadingPdfId === selectedVenda.id ? "Baixando..." : "Baixar PDF"}</span>
                   </Button>
                 </div>
 

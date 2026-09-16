@@ -47,6 +47,7 @@ function ParceiroDashboard() {
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
   const [selectedSaleForDetails, setSelectedSaleForDetails] = useState<any>(null);
   const [saleItems, setSaleItems] = useState<any[]>([]);
@@ -67,6 +68,17 @@ function ParceiroDashboard() {
     }
   };
 
+  const handleDownloadPdf = async (venda: any, itens?: any[]) => {
+    setDownloadingPdfId(venda.id);
+    try {
+      await downloadOrderPdf(venda, itens);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
+
   const openSaleDetails = async (venda: any) => {
     setSelectedSaleForDetails(venda);
     setIsSaleDetailsOpen(true);
@@ -79,8 +91,17 @@ function ParceiroDashboard() {
         .select("*, produto:produtos(nome, codigo, emoji, imagem)")
         .eq("venda_id", venda.id);
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         setSaleItems(data);
+      } else {
+        const { data: davData, error: davError } = await supabase
+          .from("dav_items")
+          .select("*, produto:produtos(nome, codigo, emoji, imagem)")
+          .eq("dav_id", venda.id);
+        
+        if (!davError && davData) {
+          setSaleItems(davData);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -655,15 +676,20 @@ function ParceiroDashboard() {
 
                     <button
                       type="button"
+                      disabled={downloadingPdfId === v.id}
                       onClick={(e) => {
                         e.stopPropagation();
-                        openOrderPdf(v.id);
+                        handleDownloadPdf(v);
                       }}
-                      className="flex-1 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-200"
-                      title="Visualizar e Imprimir PDF"
+                      className="flex-1 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-200 disabled:opacity-50"
+                      title="Baixar PDF"
                     >
-                      <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span>Ver PDF</span>
+                      {downloadingPdfId === v.id ? (
+                        <Loader2 className="w-3.5 h-3.5 text-slate-500 shrink-0 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      )}
+                      <span>{downloadingPdfId === v.id ? "Baixando..." : "Baixar PDF"}</span>
                     </button>
                   </div>
                 </div>
@@ -783,11 +809,16 @@ function ParceiroDashboard() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5"
-                    onClick={() => downloadOrderPdf(selectedSaleForDetails, saleItems)}
+                    disabled={downloadingPdfId === selectedSaleForDetails.id}
+                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    onClick={() => handleDownloadPdf(selectedSaleForDetails, saleItems)}
                   >
-                    <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span>Baixar PDF</span>
+                    {downloadingPdfId === selectedSaleForDetails.id ? (
+                      <Loader2 className="w-3.5 h-3.5 text-slate-500 shrink-0 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    )}
+                    <span>{downloadingPdfId === selectedSaleForDetails.id ? "Baixando..." : "Baixar PDF"}</span>
                   </Button>
                 </div>
               </>

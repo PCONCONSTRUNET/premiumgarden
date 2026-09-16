@@ -684,28 +684,50 @@ function ParceiroPDV() {
         }
       }
 
-      // 2. Cria o DAV como Rascunho (não vai para o admin)
-      const { data: vendaData, error: vendaError } = await supabase
-        .from("vendas")
-        .insert([{
-          tipo: "DAV",
-          status_aprovacao: "Rascunho",
-          status: "Rascunho",
-          subtotal: rawSubtotal,
-          valor_total: subtotal,
-          vendedor_id: vendedorInfo?.id,
-          cliente_id: finalClienteId,
-          desconto_valor: descontoAplicado,
-          desconto_percentual: descontoPercentual,
-          condicao_pagamento:
-            clientForm.pagamento === "Boleto a Prazo"
-              ? clientForm.condicaoBoleto || "Boleto a Prazo"
-              : clientForm.pagamento,
-        }])
-        .select()
-        .single();
+      // 2. Cria ou atualiza o DAV como Rascunho
+      let vendaData: any = null;
+      let vendaError: any = null;
+
+      const vendaPayload = {
+        tipo: "DAV",
+        status_aprovacao: "Rascunho",
+        status: "Rascunho",
+        subtotal: rawSubtotal,
+        valor_total: subtotal,
+        vendedor_id: vendedorInfo?.id,
+        cliente_id: finalClienteId,
+        desconto_valor: descontoAplicado,
+        desconto_percentual: descontoPercentual,
+        condicao_pagamento:
+          clientForm.pagamento === "Boleto a Prazo"
+            ? clientForm.condicaoBoleto || "Boleto a Prazo"
+            : clientForm.pagamento,
+      };
+
+      if (draft_id) {
+        const result = await supabase
+          .from("vendas")
+          .update(vendaPayload)
+          .eq("id", draft_id)
+          .select()
+          .single();
+        vendaData = result.data;
+        vendaError = result.error;
+      } else {
+        const result = await supabase
+          .from("vendas")
+          .insert([vendaPayload])
+          .select()
+          .single();
+        vendaData = result.data;
+        vendaError = result.error;
+      }
 
       if (vendaError) throw vendaError;
+
+      if (draft_id) {
+        await supabase.from("vendas_itens").delete().eq("venda_id", draft_id);
+      }
 
       // 3. Insere os itens
       const itensToInsert = cart.map((i) => ({
@@ -801,30 +823,50 @@ function ParceiroPDV() {
         }
       }
 
-      // 2. Cria a venda pendente
-      const { data: vendaData, error: vendaError } = await supabase
-        .from("vendas")
-        .insert([
-          {
-            tipo: "PDV",
-            status_aprovacao: "Pendente",
-            status: "Pendente",
-            subtotal: rawSubtotal,
-            valor_total: subtotal,
-            vendedor_id: vendedorInfo?.id,
-            cliente_id: finalClienteId,
-            desconto_valor: descontoAplicado,
-            desconto_percentual: descontoPercentual,
-            condicao_pagamento:
-              clientForm.pagamento === "Boleto a Prazo"
-                ? clientForm.condicaoBoleto || "Boleto a Prazo"
-                : clientForm.pagamento,
-          },
-        ])
-        .select()
-        .single();
+      // 2. Cria ou atualiza a venda pendente
+      let vendaData: any = null;
+      let vendaError: any = null;
+
+      const pedidoPayload = {
+        tipo: "PDV",
+        status_aprovacao: "Pendente",
+        status: "Pendente",
+        subtotal: rawSubtotal,
+        valor_total: subtotal,
+        vendedor_id: vendedorInfo?.id,
+        cliente_id: finalClienteId,
+        desconto_valor: descontoAplicado,
+        desconto_percentual: descontoPercentual,
+        condicao_pagamento:
+          clientForm.pagamento === "Boleto a Prazo"
+            ? clientForm.condicaoBoleto || "Boleto a Prazo"
+            : clientForm.pagamento,
+      };
+
+      if (draft_id) {
+        const result = await supabase
+          .from("vendas")
+          .update(pedidoPayload)
+          .eq("id", draft_id)
+          .select()
+          .single();
+        vendaData = result.data;
+        vendaError = result.error;
+      } else {
+        const result = await supabase
+          .from("vendas")
+          .insert([pedidoPayload])
+          .select()
+          .single();
+        vendaData = result.data;
+        vendaError = result.error;
+      }
 
       if (vendaError) throw vendaError;
+
+      if (draft_id) {
+        await supabase.from("vendas_itens").delete().eq("venda_id", draft_id);
+      }
 
       // Insere os itens
       const itensToInsert = cart.map((i) => ({

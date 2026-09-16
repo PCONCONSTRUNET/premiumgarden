@@ -637,7 +637,7 @@ function ParceiroPDV() {
 
       // 4. Limpa o carrinho e redireciona para Meus Carrinhos
       esvaziarCarrinho();
-      navigate({ to: "/parceiro/catalogo" });
+      navigate({ to: "/parceiro/carrinhos" });
     } catch (err: any) {
       alert("Erro ao salvar rascunho: " + err.message);
     } finally {

@@ -74,8 +74,8 @@ const navItems = [
   { to: "/parceiro/pdv", icon: Calculator, label: "Nova Venda" },
   { to: "/parceiro/vendas", icon: ClipboardList, label: "Vendas" },
   { to: "/parceiro/pagamentos", icon: Wallet, label: "Pagamentos" },
-  { to: "/catalogo", icon: Store, label: "Catálogo", external: true },
-  { to: "/parceiro/catalogo", icon: ShoppingCart, label: "Meus Carrinhos" },
+  { to: "/parceiro/catalogo", icon: Store, label: "Catálogo" },
+  { to: "/parceiro/carrinhos", icon: ShoppingCart, label: "Meus Carrinhos" },
   { to: "/parceiro/clientes", icon: Users, label: "Clientes" },
   { to: "/parceiro/configuracoes", icon: Settings, label: "Configurações" },
 ];
@@ -220,7 +220,7 @@ function ParceiroLayout() {
             <span className="text-[10px] font-medium">Dashboard</span>
           </Link>
           
-          <Link to="/parceiro/catalogo" className="flex flex-col items-center gap-1 opacity-70 hover:opacity-100 [&.active]:opacity-100 transition-opacity">
+          <Link to="/parceiro/carrinhos" className="flex flex-col items-center gap-1 opacity-70 hover:opacity-100 [&.active]:opacity-100 transition-opacity">
             <ShoppingCart className="w-6 h-6" />
             <span className="text-[10px] font-medium">Carrinho</span>
           </Link>

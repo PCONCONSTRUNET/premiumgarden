@@ -804,7 +804,6 @@ export async function generateOrderPdfDoc(
 }
 
 import { shareVendaWhatsApp, downloadVendaPdf } from "./orcamento-pdf";
-import { supabaseParceiro } from "./supabase";
 
 export async function shareOrderWhatsApp(rawOrder: OrderData, rawItems?: OrderItem[]): Promise<boolean> {
   await shareVendaWhatsApp(rawOrder, rawItems, supabaseParceiro);

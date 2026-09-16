@@ -1,4 +1,4 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card } from "@/components/ui/card";
@@ -41,7 +41,7 @@ function NovaCompra() {
   useEffect(() => {
     const fetchData = async () => {
       const { data: f } = await supabase.from("fornecedores").select("*").order("empresa");
-      const { data: p } = await supabase.from("produtos").select("*").order("nome");
+      const { data: p } = await supabase.from("produtos").select("id, nome, valor").order("nome");
       if (f) setFornecedores(f);
       if (p) setProdutos(p);
     };

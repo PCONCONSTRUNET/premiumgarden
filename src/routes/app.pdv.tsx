@@ -115,7 +115,7 @@ function PDV() {
 
   useEffect(() => {
     const fetchProdutos = async () => {
-      const { data } = await supabase.from("produtos").select("*").eq("status", "Ativo").order("nome");
+      const { data } = await supabase.from("produtos").select("id, nome, codigo, categoria, estoque, valor, status").eq("status", "Ativo").order("nome");
       if (data) {
         setProdutos(data);
 

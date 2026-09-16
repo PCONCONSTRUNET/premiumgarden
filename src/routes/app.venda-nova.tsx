@@ -192,7 +192,7 @@ function NovoPedido() {
     try {
       const [{ data: clients }, { data: products }, { data: config }, { data: vends }] = await Promise.all([
         supabase.from("clientes").select("*").order("nome"),
-        supabase.from("produtos").select("*").eq("status", "Ativo").order("nome"),
+        supabase.from("produtos").select("id, nome, codigo, categoria, estoque, valor, status").eq("status", "Ativo").order("nome"),
         supabase.from("configuracoes").select("*").limit(1).maybeSingle(),
         supabase.from("vendedores").select("id, nome, tipo_comissao, valor_comissao, status").order("nome"),
       ]);

@@ -164,11 +164,31 @@ function NovoProduto() {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("image/")) return toast.info("Selecione uma imagem.");
+      const loadingToast = toast.loading("Enviando imagem...");
       try {
-        const compressed = await compressImage(file);
-        setProduto((prev) => ({ ...prev, imagem: compressed }));
-      } catch (err) {
-        toast.error("Erro ao processar imagem.");
+        const compressedBase64 = await compressImage(file) as string;
+        
+        // Convert to Blob
+        const res = await fetch(compressedBase64);
+        const blob = await res.blob();
+        
+        const fileName = `produto_${Date.now()}_${Math.random().toString(36).substring(7)}.webp`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("produtos-imagens")
+          .upload(fileName, blob, { contentType: "image/webp" });
+          
+        if (uploadError) throw uploadError;
+        
+        const { data: publicUrlData } = supabase.storage
+          .from("produtos-imagens")
+          .getPublicUrl(fileName);
+          
+        setProduto((prev) => ({ ...prev, imagem: publicUrlData.publicUrl }));
+        toast.success("Imagem enviada com sucesso!", { id: loadingToast });
+      } catch (err: any) {
+        console.error(err);
+        toast.error("Erro ao enviar imagem.", { id: loadingToast });
       }
     }
   };

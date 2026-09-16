@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
-import logoImg from "@/assets/garden-prime-logo.png";
-import logoHorizontalImg from "@/assets/garden-prime-lado.png";
+import logoImg from "@/assets/premium-garden-logo.png";
+import logoHorizontalImg from "@/assets/premium-garden-logo.png"; // Using the same if no specific horizontal exists
 
 export function GardenPrimeLogo({
   className,
@@ -29,7 +29,7 @@ export function GardenPrimeLogo({
     <div className={cn("flex items-center gap-2.5", className)}>
       <img
         src={horizontal ? logoHorizontalImg : logoImg}
-        alt="GARDEN PRIME"
+        alt="PREMIUM GARDEN"
         className={cn("w-auto object-contain max-w-full", imgClassName || height)}
       />
     </div>

@@ -183,7 +183,7 @@ function VendedoresAdmin() {
     setLoadingPrices(true);
     setProdutosComPreco([]);
     try {
-      const { data: prods, error: pError } = await supabase.from("produtos").select("*").order("nome");
+      const { data: prods, error: pError } = await supabase.from("produtos").select("id, nome, valor").order("nome");
       if (pError) throw pError;
       
       const { data: precos, error: precosError } = await supabase.from("vendedor_precos").select("produto_id, valor_personalizado").eq("vendedor_id", vendedor.id);
@@ -253,13 +253,13 @@ function VendedoresAdmin() {
           fetchData();
         },
       )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "vendas" },
-        () => {
-          fetchData();
-        },
-      )
+      // .on(
+      //   "postgres_changes",
+      //   { event: "*", schema: "public", table: "vendas" },
+      //   () => {
+      //     fetchData();
+      //   },
+      // )
       .subscribe();
 
     return () => {

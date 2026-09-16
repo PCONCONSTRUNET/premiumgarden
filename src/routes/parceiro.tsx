@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, Link, useRouterState } from "@tanstack/react-router";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { GardenPrimeLogo } from "@/components/garden-prime-logo";
-import { Home, Calculator, LogOut, Package, Menu, X, Wallet, ClipboardList, Grid, ShoppingCart, Plus, MoreHorizontal, Settings, Users } from "lucide-react";
+import { Home, Calculator, LogOut, Package, Menu, X, Wallet, ClipboardList, Grid, ShoppingCart, Plus, MoreHorizontal, Settings, Users, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -74,6 +74,7 @@ const navItems = [
   { to: "/parceiro/pdv", icon: Calculator, label: "Nova Venda" },
   { to: "/parceiro/vendas", icon: ClipboardList, label: "Vendas" },
   { to: "/parceiro/pagamentos", icon: Wallet, label: "Pagamentos" },
+  { to: "/catalogo", icon: Store, label: "Catálogo", external: true },
   { to: "/parceiro/catalogo", icon: ShoppingCart, label: "Meus Carrinhos" },
   { to: "/parceiro/clientes", icon: Users, label: "Clientes" },
   { to: "/parceiro/configuracoes", icon: Settings, label: "Configurações" },
@@ -102,10 +103,12 @@ function ParceiroLayout() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {navItems.map(({ to, icon: Icon, label, external }) => (
             <Link
               key={to}
               to={to}
+              target={external ? "_blank" : undefined}
+              rel={external ? "noopener noreferrer" : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                 pathname.startsWith(to)
@@ -157,10 +160,12 @@ function ParceiroLayout() {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {navItems.map(({ to, icon: Icon, label, external }) => (
             <Link
               key={to}
               to={to}
+              target={external ? "_blank" : undefined}
+              rel={external ? "noopener noreferrer" : undefined}
               onClick={() => setDrawerOpen(false)}
               className={cn(
                 "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all",

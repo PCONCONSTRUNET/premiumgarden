@@ -1,4 +1,4 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PageHeader } from "@/components/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,7 +62,7 @@ function Estoque() {
   const fetchData = async () => {
     try {
       const [prodRes, movRes] = await Promise.all([
-        supabase.from("produtos").select("*").order("nome"),
+        supabase.from("produtos").select("id, nome, codigo, categoria, estoque, valor, status").order("nome"),
         supabase
           .from("movimentacoes_estoque")
           .select("*, produto:produtos(nome)")

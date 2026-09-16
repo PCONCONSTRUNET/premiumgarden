@@ -321,7 +321,7 @@ function NovoDAV() {
         return;
       }
 
-      const { data: produtosData } = await supabase.from("produtos").select("*").eq("status", "Ativo").order("nome");
+      const { data: produtosData } = await supabase.from("produtos").select("id, nome, codigo, categoria, estoque, valor, status").eq("status", "Ativo").order("nome");
       if (produtosData) {
         setProdutos(produtosData);
         const parsedItens: any[] = [];

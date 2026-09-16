@@ -260,7 +260,7 @@ function ParceiroPDV() {
         if (session) {
           const { data: vData, error } = await supabase
             .from("vendedores")
-            .select("id, status, nome, acrescimo_catalogo, acrescimo_catalogo_percentual, tipo_comissao, valor_comissao, avatar_url")
+            .select("id, status, nome, tipo_comissao, valor_comissao")
             .eq("user_id", session.user.id)
             .maybeSingle();
 

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/parceiro/clientes")({
-  head: () => ({ meta: [{ title: "Clientes — GARDEN PRIME" }] }),
+  head: () => ({ meta: [{ title: "Clientes — PREMIUM GARDEN" }] }),
   component: ParceiroClientes,
 });
 

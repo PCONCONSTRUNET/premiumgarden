@@ -41,7 +41,7 @@ import {
 import { WhatsAppIcon, shareOrderWhatsApp, openOrderPdf, downloadOrderPdf } from "@/lib/order-pdf";
 
 export const Route = createFileRoute("/parceiro/pdv")({
-  head: () => ({ meta: [{ title: "Nova Venda — GARDEN PRIME" }] }),
+  head: () => ({ meta: [{ title: "Nova Venda — PREMIUM GARDEN" }] }),
   component: ParceiroPDV,
 });
 

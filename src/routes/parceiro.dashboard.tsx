@@ -34,7 +34,7 @@ import {
 } from "@/lib/order-pdf";
 
 export const Route = createFileRoute("/parceiro/dashboard")({
-  head: () => ({ meta: [{ title: "Meu Painel — GARDEN PRIME" }] }),
+  head: () => ({ meta: [{ title: "Meu Painel — PREMIUM GARDEN" }] }),
   component: ParceiroDashboard,
 });
 

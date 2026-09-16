@@ -31,7 +31,7 @@ import {
 } from "@/lib/order-pdf";
 
 export const Route = createFileRoute("/parceiro/vendas")({
-  head: () => ({ meta: [{ title: "Minhas Vendas — GARDEN PRIME" }] }),
+  head: () => ({ meta: [{ title: "Minhas Vendas — PREMIUM GARDEN" }] }),
   component: VendasParceiro,
 });
 

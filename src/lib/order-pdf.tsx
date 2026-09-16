@@ -157,7 +157,7 @@ export function buildWhatsAppMessage(order: OrderData, items: OrderItem[]): stri
   const docType = isDAV ? "ORÇAMENTO" : "PEDIDO";
   const clienteNome = order.cliente?.nome || order.clientes?.nome || (order as any).cliente_nome || "Cliente";
 
-  let msg = `*${docType} - GARDEN PRIME*\n`;
+  let msg = `*${docType} - PREMIUM GARDEN*\n`;
   msg += `Nº: ${num}\n`;
   msg += `Data: ${new Date(order.created_at).toLocaleDateString("pt-BR")}\n`;
   msg += `Cliente: ${clienteNome}\n\n`;
@@ -521,7 +521,7 @@ export async function generateOrderPdfDoc(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
     doc.setTextColor(colorGold[0], colorGold[1], colorGold[2]);
-    doc.text("GARDEN PRIME", margin, y + 10);
+    doc.text("PREMIUM GARDEN", margin, y + 10);
     doc.setFontSize(10);
     doc.text("TERRA VEGETAL E VASOS", margin, y + 15);
   }

@@ -15,7 +15,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 
 export const Route = createFileRoute("/parceiro/pagamentos")({
-  head: () => ({ meta: [{ title: "Pagamentos — GARDEN PRIME" }] }),
+  head: () => ({ meta: [{ title: "Pagamentos — PREMIUM GARDEN" }] }),
   component: ParceiroPagamentos,
 });
 

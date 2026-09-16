@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/parceiro/carrinhos")({
-  head: () => ({ meta: [{ title: "Meus Carrinhos — GARDEN PRIME" }] }),
+  head: () => ({ meta: [{ title: "Meus Carrinhos — PREMIUM GARDEN" }] }),
   component: ParceiroCarrinhos,
 });
 

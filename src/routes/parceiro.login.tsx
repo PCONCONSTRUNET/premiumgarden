@@ -13,7 +13,7 @@ export const Route = createFileRoute("/parceiro/login")({
       await supabase.auth.signOut();
     }
   },
-  head: () => ({ meta: [{ title: "Login Parceiro — GARDEN PRIME" }] }),
+  head: () => ({ meta: [{ title: "Login Parceiro — PREMIUM GARDEN" }] }),
   component: LoginParceiro,
 });
 

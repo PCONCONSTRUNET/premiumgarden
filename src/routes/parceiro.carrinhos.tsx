@@ -108,12 +108,12 @@ function ParceiroCarrinhos() {
       // Busca os itens da venda
       const { data: itemsData } = await supabase
         .from("vendas_itens")
-        .select("*, produtos(id, nome, preco, imagem, codigo)")
+        .select("*, produtos(id, nome, valor, imagem, codigo)")
         .eq("venda_id", carrinho.id);
 
       if (itemsData && itemsData.length > 0) {
         const restoredCart = itemsData.map((item: any) => {
-          const u = Number(item.valor_unitario) || Number(item.produtos?.preco) || 0;
+          const u = Number(item.valor_unitario) || Number(item.produtos?.valor) || 0;
           const q = Number(item.quantidade) || 1;
           return {
             id: item.produtos?.id || item.produto_id,

@@ -41,6 +41,11 @@ import {
 import { WhatsAppIcon, shareOrderWhatsApp, openOrderPdf, downloadOrderPdf } from "@/lib/order-pdf";
 
 export const Route = createFileRoute("/parceiro/pdv")({
+  validateSearch: (search: Record<string, unknown>): { draft_id?: string } => {
+    return {
+      draft_id: typeof search.draft_id === "string" ? search.draft_id : undefined,
+    };
+  },
   head: () => ({ meta: [{ title: "Nova Venda — PREMIUM GARDEN" }] }),
   component: ParceiroPDV,
 });
@@ -98,8 +103,81 @@ function ParceiroPDV() {
   const [davGeradoNumero, setDavGeradoNumero] = useState<string | number | null>(null);
   const [sharingSuccess, setSharingSuccess] = useState(false);
   const [cnpjLoading, setCnpjLoading] = useState(false);
-  const [cnpjErro, setCnpjErro] = useState("");
   const [descontoPercentual, setDescontoPercentual] = useState<number>(0);
+
+  const { draft_id } = Route.useSearch();
+
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (!draft_id) return;
+      try {
+        setLoading(true);
+        // Busca a venda salva (Rascunho)
+        const { data: saleData, error: saleError } = await supabase
+          .from("vendas")
+          .select("*, clientes(*)")
+          .eq("id", draft_id)
+          .single();
+        
+        if (saleError) throw saleError;
+        
+        if (saleData) {
+          // Busca os itens da venda
+          const { data: itemsData, error: itemsError } = await supabase
+            .from("vendas_itens")
+            .select("*, produtos(id, nome, preco, imagem, codigo)")
+            .eq("venda_id", draft_id);
+            
+          if (itemsError) throw itemsError;
+          
+          if (itemsData) {
+            const restoredCart = itemsData.map((item: any) => ({
+              id: item.produtos?.id,
+              p: item.produtos?.nome,
+              preco: Number(item.valor_unitario) || Number(item.produtos?.preco),
+              q: Number(item.quantidade),
+              imagem: item.produtos?.imagem,
+              c: item.produtos?.codigo || item.produto_id
+            }));
+            setCart(restoredCart);
+          }
+
+          if (saleData.clientes) {
+            const cli = saleData.clientes;
+            setClientForm({
+              nome: cli.nome || "",
+              documento: cli.cpf_cnpj || "",
+              telefone: cli.telefone || "",
+              cep: cli.cep || "",
+              endereco: cli.endereco || "",
+              numero: cli.numero || "",
+              bairro: cli.bairro || "",
+              cidade: cli.cidade || "",
+              uf: cli.uf || "",
+              pagamento: saleData.condicao_pagamento || "Dinheiro / Pix",
+              condicaoBoleto: "",
+              frete: saleData.forma_entrega || "Retirada",
+              observacoes: saleData.observacoes || "",
+            });
+          }
+          
+          if (saleData.desconto_percentual) {
+            setDescontoPercentual(Number(saleData.desconto_percentual));
+          } else if (saleData.desconto_valor && Number(saleData.desconto_valor) > 0 && saleData.subtotal > 0) {
+            // Calcula o percentual se s houver valor
+            setDescontoPercentual((Number(saleData.desconto_valor) / Number(saleData.subtotal)) * 100);
+          }
+        }
+      } catch (e) {
+        console.error("Erro ao carregar rascunho:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadDraft();
+  }, [draft_id]);
+  const [cnpjErro, setCnpjErro] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [initError, setInitError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);

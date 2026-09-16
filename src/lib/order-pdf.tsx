@@ -222,6 +222,8 @@ export async function enrichOrderAndItems(
         order.condicao_pagamento = order.condicao_pagamento ?? v.metodo_pagamento ?? v.condicao_pagamento;
         order.total = order.total ?? v.valor_total;
         order.subtotal = order.subtotal ?? v.subtotal ?? v.valor_total;
+        order.desconto_valor = order.desconto_valor ?? v.desconto_valor;
+        order.desconto_percentual = order.desconto_percentual ?? v.desconto_percentual;
         order.created_at = order.created_at || v.created_at;
         if (v.vendedor) {
           order.vendedor_nome = order.vendedor_nome ?? (typeof v.vendedor === "object" ? v.vendedor?.nome : v.vendedor);
@@ -258,6 +260,8 @@ export async function enrichOrderAndItems(
           order.condicao_pagamento = order.condicao_pagamento ?? d.condicao_pagamento;
           order.total = order.total ?? d.total;
           order.subtotal = order.subtotal ?? d.subtotal;
+          order.desconto_valor = order.desconto_valor ?? d.desconto_valor;
+          order.desconto_percentual = order.desconto_percentual ?? d.desconto_percentual;
           order.created_at = order.created_at || d.created_at;
           order.vendedor_nome = order.vendedor_nome ?? d.vendedor;
           if (d.validade) (order as any).validade = (order as any).validade ?? d.validade;
@@ -725,6 +729,21 @@ export async function generateOrderPdfDoc(
   doc.text(vSub, totX + totW - 2, y + 5, { align: "right" });
   
   y += 8;
+
+  if (order.desconto_valor && Number(order.desconto_valor) > 0) {
+    doc.setFillColor(255, 245, 245);
+    doc.rect(totX, y, totW, 8, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(220, 38, 38);
+    const pctDesc = order.desconto_percentual ? ` (${order.desconto_percentual}%)` : "";
+    doc.text(`Descontos (-)${pctDesc}`, totX + 2, y + 5);
+    const vDesc = `R$ ${Number(order.desconto_valor).toFixed(2).replace(".", ",")}`;
+    doc.text(vDesc, totX + totW - 2, y + 5, { align: "right" });
+    
+    y += 8;
+  }
+
   doc.setFillColor(colorGold[0], colorGold[1], colorGold[2]);
   doc.rect(totX, y, totW, 8, "F");
   doc.setFont("helvetica", "bold");

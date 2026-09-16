@@ -507,7 +507,27 @@ function VendasParceiro() {
                     ))
                   )}
                 </div>
-                <div className="flex justify-between items-center p-4 bg-slate-100 rounded-xl">
+                
+                {selectedVenda?.desconto_valor && Number(selectedVenda.desconto_valor) > 0 && (
+                  <>
+                    <div className="flex justify-between items-center px-4 pt-4 text-sm">
+                      <span className="text-slate-500">Subtotal:</span>
+                      <span className="text-slate-600 font-medium">
+                        R$ {Number(selectedVenda.subtotal || selectedVenda.valor_total || 0).toFixed(2).replace(".", ",")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 pt-2 pb-2 text-sm text-red-500">
+                      <span>
+                        Descontos (-){selectedVenda.desconto_percentual ? ` (${selectedVenda.desconto_percentual}%)` : ""}
+                      </span>
+                      <span className="font-medium">
+                        R$ {Number(selectedVenda.desconto_valor).toFixed(2).replace(".", ",")}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex justify-between items-center p-4 bg-slate-100 rounded-xl mt-3">
                   <span className="font-semibold text-slate-700">Total do Pedido:</span>
                   <span className="text-xl font-bold font-display text-slate-900">
                     R${" "}

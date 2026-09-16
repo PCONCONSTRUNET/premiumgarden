@@ -765,7 +765,27 @@ function ParceiroDashboard() {
                     ))
                   )}
                 </div>
-                <div className="flex justify-between items-center p-4 bg-slate-100 rounded-xl">
+                
+                {selectedSaleForDetails?.desconto_valor && Number(selectedSaleForDetails.desconto_valor) > 0 && (
+                  <>
+                    <div className="flex justify-between items-center px-4 pt-4 text-sm">
+                      <span className="text-slate-500">Subtotal:</span>
+                      <span className="text-slate-600 font-medium">
+                        R$ {Number(selectedSaleForDetails.subtotal || selectedSaleForDetails.valor_total || 0).toFixed(2).replace(".", ",")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 pt-2 pb-2 text-sm text-red-500">
+                      <span>
+                        Descontos (-){selectedSaleForDetails.desconto_percentual ? ` (${selectedSaleForDetails.desconto_percentual}%)` : ""}
+                      </span>
+                      <span className="font-medium">
+                        R$ {Number(selectedSaleForDetails.desconto_valor).toFixed(2).replace(".", ",")}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex justify-between items-center p-4 bg-slate-100 rounded-xl mt-3">
                   <span className="font-semibold text-slate-700">Total do Pedido:</span>
                   <span className="text-xl font-bold font-display text-slate-900">
                     R${" "}

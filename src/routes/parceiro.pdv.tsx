@@ -55,12 +55,6 @@ function ParceiroPDV() {
   const [produtos, setProdutos] = useState<any[]>([]);
   const [cart, setCart] = useState<any[]>(() => {
     if (typeof window !== "undefined") {
-      // Se veio de um rascunho, começa com carrinho vazio (será preenchido pelo loadDraft)
-      const draftId = new URLSearchParams(window.location.search).get("draft_id") || localStorage.getItem("pdv_draft_id_parceiro");
-      if (draftId) {
-        localStorage.removeItem("pdv_cart_parceiro");
-        return [];
-      }
       const saved = localStorage.getItem("pdv_cart_parceiro");
       if (saved) return JSON.parse(saved);
     }
@@ -78,26 +72,6 @@ function ParceiroPDV() {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clientForm, setClientForm] = useState(() => {
     if (typeof window !== "undefined") {
-      // Se veio de um rascunho, começa com cliente vazio (será preenchido pelo loadDraft)
-      const draftId = new URLSearchParams(window.location.search).get("draft_id") || localStorage.getItem("pdv_draft_id_parceiro");
-      if (draftId) {
-        localStorage.removeItem("pdv_client_parceiro");
-        return {
-          nome: "",
-          documento: "",
-          telefone: "",
-          cep: "",
-          endereco: "",
-          numero: "",
-          bairro: "",
-          cidade: "",
-          uf: "",
-          pagamento: "Dinheiro / Pix",
-          condicaoBoleto: "",
-          frete: "Retirada",
-          observacoes: "",
-        };
-      }
       const saved = localStorage.getItem("pdv_client_parceiro");
       if (saved) return JSON.parse(saved);
     }

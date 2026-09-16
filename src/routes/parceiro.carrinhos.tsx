@@ -103,11 +103,68 @@ function ParceiroCarrinhos() {
     );
   };
 
-  const continuarCarrinho = (id: string) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("pdv_draft_id_parceiro", id);
+  const continuarCarrinho = async (carrinho: any) => {
+    try {
+      // Busca os itens da venda
+      const { data: itemsData } = await supabase
+        .from("vendas_itens")
+        .select("*, produtos(id, nome, preco, imagem, codigo)")
+        .eq("venda_id", carrinho.id);
+
+      if (itemsData && itemsData.length > 0) {
+        const restoredCart = itemsData.map((item: any) => {
+          const u = Number(item.valor_unitario) || Number(item.produtos?.preco) || 0;
+          const q = Number(item.quantidade) || 1;
+          return {
+            id: item.produtos?.id || item.produto_id,
+            p: item.produtos?.nome || "Produto Removido",
+            u: u,
+            q: q,
+            t: u * q,
+            imagem: item.produtos?.imagem,
+            c: item.produtos?.codigo || item.produto_id,
+          };
+        });
+        localStorage.setItem("pdv_cart_parceiro", JSON.stringify(restoredCart));
+      }
+
+      // Busca dados completos do cliente
+      if (carrinho.cliente_id) {
+        const { data: clientData } = await supabase
+          .from("clientes")
+          .select("*")
+          .eq("id", carrinho.cliente_id)
+          .single();
+
+        if (clientData) {
+          const clientForm = {
+            nome: clientData.nome || "",
+            documento: clientData.cpf_cnpj || "",
+            telefone: clientData.telefone || "",
+            cep: clientData.cep || "",
+            endereco: clientData.endereco || "",
+            numero: clientData.numero || "",
+            bairro: clientData.bairro || "",
+            cidade: clientData.cidade || "",
+            uf: clientData.uf || "",
+            pagamento: carrinho.condicao_pagamento || "Dinheiro / Pix",
+            condicaoBoleto: "",
+            frete: carrinho.forma_entrega || "Retirada",
+            observacoes: carrinho.observacoes || "",
+          };
+          localStorage.setItem("pdv_client_parceiro", JSON.stringify(clientForm));
+        }
+      }
+
+      // Salva o draft_id para que o PDV saiba que está editando um rascunho existente
+      localStorage.setItem("pdv_draft_id_parceiro", carrinho.id);
+
+      window.location.href = `/parceiro/pdv?draft_id=${carrinho.id}`;
+    } catch (err: any) {
+      console.error("Erro ao carregar carrinho:", err);
+      // Fallback: navega sem os dados pré-carregados
+      window.location.href = `/parceiro/pdv?draft_id=${carrinho.id}`;
     }
-    window.location.href = `/parceiro/pdv?draft_id=${id}`;
   };
 
   const filtered = carrinhos.filter((c) => {
@@ -230,7 +287,7 @@ function ParceiroCarrinhos() {
                   </p>
                 </div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); continuarCarrinho(c.id); }}
+                  onClick={(e) => { e.stopPropagation(); continuarCarrinho(c); }}
                   className="h-10 px-4 bg-[#12794C] hover:bg-emerald-800 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors active:scale-95 shadow-sm"
                 >
                   Continuar <ArrowRight className="w-4 h-4" />
@@ -312,7 +369,7 @@ function ParceiroCarrinhos() {
                 </p>
               </div>
               <button
-                onClick={() => continuarCarrinho(selectedCarrinho.id)}
+                onClick={() => continuarCarrinho(selectedCarrinho)}
                 className="h-12 px-6 bg-[#12794C] hover:bg-emerald-800 text-white text-base font-bold rounded-xl shadow-md active:scale-95 transition-transform flex items-center gap-2"
               >
                 Continuar Venda <ArrowRight className="w-5 h-5" />

@@ -803,51 +803,12 @@ export async function generateOrderPdfDoc(
   return { doc, blob, file, filename };
 }
 
+import { shareVendaWhatsApp, downloadVendaPdf } from "./orcamento-pdf";
+import { supabaseParceiro } from "./supabase";
 
 export async function shareOrderWhatsApp(rawOrder: OrderData, rawItems?: OrderItem[]): Promise<boolean> {
-  try {
-    const [enriched, logos] = await Promise.all([
-      enrichOrderAndItems(rawOrder, rawItems),
-      preloadLogos(),
-    ]);
-
-    const { file } = await generateOrderPdfDoc(enriched.order, enriched.items, logos);
-    const msg = buildWhatsAppMessage(enriched.order, enriched.items);
-
-    const isDAV = isOrderDav(enriched.order);
-    const num = getOrderNumber(enriched.order);
-    const title = `${isDAV ? "Orçamento" : "Pedido"} #${num} - Garden Prime`;
-
-    // 2. Tenta compartilhar via Web Share API com o arquivo PDF anexado
-    if (typeof navigator !== "undefined" && navigator.canShare) {
-      const shareDataWithFile = {
-        title,
-        text: msg,
-        files: [file],
-      };
-
-      if (navigator.canShare(shareDataWithFile)) {
-        try {
-          await navigator.share(shareDataWithFile);
-          return true;
-        } catch (shareErr: any) {
-          if (shareErr.name === "AbortError") {
-            return false;
-          }
-          console.warn("Falha no navigator.share com arquivo, tentando texto:", shareErr);
-        }
-      }
-    }
-
-    // 3. Fallback: Abre o WhatsApp (wa.me) com a mensagem completa e link do PDF
-    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank");
-    return true;
-  } catch (err: any) {
-    console.error("Erro ao compartilhar pedido no WhatsApp:", err);
-    alert("Não foi possível gerar o compartilhamento: " + (err.message || err));
-    return false;
-  }
+  await shareVendaWhatsApp(rawOrder, rawItems, supabaseParceiro);
+  return true;
 }
 
 /**
@@ -862,17 +823,5 @@ export function openOrderPdf(orderId: string): void {
  * Faz download direto do arquivo PDF gerado no dispositivo
  */
 export async function downloadOrderPdf(rawOrder: OrderData, rawItems?: OrderItem[]): Promise<void> {
-  try {
-    const [enriched, logos] = await Promise.all([
-      enrichOrderAndItems(rawOrder, rawItems),
-      preloadLogos(),
-    ]);
-    const { doc, filename } = await generateOrderPdfDoc(enriched.order, enriched.items, logos);
-    doc.save(filename);
-  } catch (err: any) {
-    console.error("Erro ao baixar PDF:", err);
-    // Fallback: abre a rota de visualização
-    openOrderPdf(rawOrder.id);
-  }
+  await downloadVendaPdf(rawOrder, rawItems, supabaseParceiro);
 }
-

@@ -508,7 +508,7 @@ function VendasParceiro() {
                   )}
                 </div>
                 
-                {selectedVenda?.desconto_valor && Number(selectedVenda.desconto_valor) > 0 && (
+                {Number(selectedVenda?.desconto_valor) > 0 && (
                   <>
                     <div className="flex justify-between items-center px-4 pt-4 text-sm">
                       <span className="text-slate-500">Subtotal:</span>

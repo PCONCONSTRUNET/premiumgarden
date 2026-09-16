@@ -1001,32 +1001,7 @@ function Pedidos() {
                       cli?.cep ? `CEP: ${cli.cep}` : null,
                     ].filter(Boolean).join(", ");
 
-                    await downloadOrcamentoPDF({
-                      id: selectedVenda.id,
-                      numero: selectedVenda.numero_venda || selectedVenda.numero,
-                      tipo: selectedVenda.tipo,
-                      created_at: selectedVenda.created_at,
-                      cliente_nome: cli?.nome,
-                      cliente_cnpj: cli?.cpf_cnpj,
-                      cliente_telefone: cli?.telefone,
-                      cliente_endereco: endPartes || null,
-                      condicao_pagamento: selectedVenda.condicao_pagamento || selectedVenda.forma_pagamento,
-                      observacoes_pagamento: selectedVenda.observacoes_pagamento,
-                      observacoes: selectedVenda.observacoes,
-                      valor_total: selectedVenda.valor_total,
-                      desconto_valor: selectedVenda.desconto_valor,
-                      desconto_percentual: selectedVenda.desconto_percentual,
-                      itens: (itens || []).map((it: any) => ({
-                        codigo: it.produtos?.codigo,
-                        nome: it.produtos?.nome || "Produto",
-                        quantidade: it.quantidade,
-                        valor_unitario: it.valor_unitario,
-                        subtotal: it.subtotal,
-                        imagem: it.produtos?.imagem || null,
-                        marca: it.produtos?.marca || null,
-                        unidade: it.produtos?.unidade || null,
-                      })),
-                    });
+                    await downloadVendaPdf(selectedVenda, vendaItens);
                   }}
                 >
                   <FileDown className="mr-2 h-4 w-4 text-primary" /> Baixar PDF
@@ -1259,34 +1234,50 @@ function Pedidos() {
                 {/* Totais */}
                 <div className="flex justify-end pt-4">
                   <div className="w-64 space-y-2 text-sm">
-                    <div className="flex justify-between border-b pb-1">
-                      <span className="text-gray-500">Subtotal:</span>
-                      <span>{currency.format((Number(selectedVenda.valor_total) || 0) + (Number(selectedVenda.desconto_valor) || 0))}</span>
-                    </div>
-                    {Number(selectedVenda.desconto_valor) > 0 && (
-                      <div className="flex justify-between border-b pb-1 text-red-600">
-                        <span>Desconto:</span>
-                        <span>-{currency.format(Number(selectedVenda.desconto_valor))}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-base font-bold pt-1">
-                      <span>Total:</span>
-                      <span className="text-blue-600">{currency.format(Number(selectedVenda.valor_total))}</span>
-                    </div>
-                    {valorJaFaturado > 0 && (
-                      <div className="mt-2 pt-2 border-t space-y-1">
-                        <div className="flex justify-between text-sm font-semibold text-emerald-600">
-                          <span>Valor Pago:</span>
-                          <span>{currency.format(valorJaFaturado)}</span>
-                        </div>
-                        {Number(selectedVenda.valor_total) - valorJaFaturado > 0.01 && (
-                          <div className="flex justify-between text-sm font-semibold text-amber-600">
-                            <span>Restante / Pendente:</span>
-                            <span>{currency.format(Number(selectedVenda.valor_total) - valorJaFaturado)}</span>
+                    {(() => {
+                      const sumItens = (vendaItens || []).reduce((acc: number, it: any) => acc + Number(it.subtotal || it.valor_total || 0), 0);
+                      const orderTotal = Number(selectedVenda.valor_total || 0);
+                      const freteVal = Number(selectedVenda.frete_valor || 0);
+                      let computedDescVal = Number(selectedVenda.desconto_valor || 0);
+                      let subtotal = Number(selectedVenda.subtotal || 0);
+                      if (subtotal === 0) subtotal = sumItens > 0 ? sumItens : 0;
+                      if (computedDescVal === 0 && subtotal > 0 && orderTotal > 0 && subtotal > orderTotal) {
+                        computedDescVal = subtotal - orderTotal + freteVal;
+                      }
+                      
+                      return (
+                        <>
+                          <div className="flex justify-between border-b pb-1">
+                            <span className="text-gray-500">Subtotal:</span>
+                            <span>{currency.format(subtotal > 0 ? subtotal : orderTotal + computedDescVal)}</span>
                           </div>
-                        )}
-                      </div>
-                    )}
+                          {computedDescVal > 0 && (
+                            <div className="flex justify-between border-b pb-1 text-red-600">
+                              <span>Desconto:</span>
+                              <span>-{currency.format(computedDescVal)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-base font-bold pt-1">
+                            <span>Total:</span>
+                            <span className="text-blue-600">{currency.format(orderTotal)}</span>
+                          </div>
+                          {valorJaFaturado > 0 && (
+                            <div className="mt-2 pt-2 border-t space-y-1">
+                              <div className="flex justify-between text-sm font-semibold text-emerald-600">
+                                <span>Valor Pago:</span>
+                                <span>{currency.format(valorJaFaturado)}</span>
+                              </div>
+                              {orderTotal - valorJaFaturado > 0.01 && (
+                                <div className="flex justify-between text-sm font-semibold text-amber-600">
+                                  <span>Restante / Pendente:</span>
+                                  <span>{currency.format(orderTotal - valorJaFaturado)}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 

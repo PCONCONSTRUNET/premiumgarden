@@ -677,12 +677,15 @@ export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData 
   const sumItens = mappedItens.reduce((acc: number, it: any) => acc + Number(it.subtotal || 0), 0);
   const rawSub = Number(venda.subtotal || 0);
   const orderTotal = Number(venda.valor_total ?? venda.total ?? 0);
-  const descVal = Number(venda.desconto_valor || 0);
+  let descVal = Number(venda.desconto_valor || 0);
   const freteVal = Number(venda.frete_valor || 0);
 
   let subtotal = rawSub > 0 ? rawSub : sumItens > 0 ? sumItens : 0;
   if (subtotal === 0 && orderTotal > 0) {
     subtotal = orderTotal + descVal - freteVal;
+  }
+  if (descVal === 0 && subtotal > 0 && orderTotal > 0 && subtotal > orderTotal) {
+    descVal = subtotal - orderTotal + freteVal;
   }
 
     let clienteEndereco = venda.cliente_endereco || null;

@@ -760,22 +760,44 @@ function VendasParceiros() {
                   )}
                 </div>
                 <div className="flex flex-col gap-1 p-3.5 sm:p-4 bg-slate-100 rounded-lg">
-                  {Number(selectedSaleForDetails?.desconto_valor) > 0 && (
-                    <div className="flex justify-between items-center text-red-600 text-xs sm:text-sm">
-                      <span className="font-medium">
-                        Desconto {Number(selectedSaleForDetails?.desconto_percentual) > 0 ? `(${selectedSaleForDetails.desconto_percentual}%)` : ''}:
-                      </span>
-                      <span className="font-bold shrink-0">
-                        - R$ {Number(selectedSaleForDetails?.desconto_valor).toFixed(2).replace(".", ",")}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-200/60">
-                    <span className="font-semibold text-slate-700 text-sm sm:text-base">Total do Pedido:</span>
-                    <span className="text-lg sm:text-xl font-bold font-display text-slate-900 shrink-0">
-                      R$ {Number(selectedSaleForDetails?.valor_total || 0).toFixed(2).replace(".", ",")}
-                    </span>
-                  </div>
+                  {(() => {
+                    const sumItens = (saleDetailsItems || []).reduce((acc: number, it: any) => acc + Number(it.subtotal || it.valor_total || 0), 0);
+                    const orderTotal = Number(selectedSaleForDetails?.valor_total || 0);
+                    const freteVal = Number(selectedSaleForDetails?.frete_valor || 0);
+                    let computedDescVal = Number(selectedSaleForDetails?.desconto_valor || 0);
+                    let subtotal = Number(selectedSaleForDetails?.subtotal || 0);
+                    if (subtotal === 0) subtotal = sumItens > 0 ? sumItens : 0;
+                    if (computedDescVal === 0 && subtotal > 0 && orderTotal > 0 && subtotal > orderTotal) {
+                      computedDescVal = subtotal - orderTotal + freteVal;
+                    }
+                    
+                    return (
+                      <>
+                        <div className="flex justify-between items-center text-slate-500 text-xs sm:text-sm">
+                          <span className="font-medium">Subtotal:</span>
+                          <span className="font-bold shrink-0">
+                            R$ {Number(subtotal > 0 ? subtotal : orderTotal + computedDescVal).toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                        {computedDescVal > 0 && (
+                          <div className="flex justify-between items-center text-red-600 text-xs sm:text-sm">
+                            <span className="font-medium">
+                              Desconto {Number(selectedSaleForDetails?.desconto_percentual) > 0 ? `(${selectedSaleForDetails.desconto_percentual}%)` : ''}:
+                            </span>
+                            <span className="font-bold shrink-0">
+                              - R$ {Number(computedDescVal).toFixed(2).replace(".", ",")}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-200/60">
+                          <span className="font-semibold text-slate-700 text-sm sm:text-base">Total do Pedido:</span>
+                          <span className="text-lg sm:text-xl font-bold font-display text-slate-900 shrink-0">
+                            R$ {Number(orderTotal).toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}

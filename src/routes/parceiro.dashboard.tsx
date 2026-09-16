@@ -766,7 +766,7 @@ function ParceiroDashboard() {
                   )}
                 </div>
                 
-                {selectedSaleForDetails?.desconto_valor && Number(selectedSaleForDetails.desconto_valor) > 0 && (
+                {Number(selectedSaleForDetails?.desconto_valor) > 0 && (
                   <>
                     <div className="flex justify-between items-center px-4 pt-4 text-sm">
                       <span className="text-slate-500">Subtotal:</span>

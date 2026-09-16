@@ -106,12 +106,17 @@ function ParceiroPDV() {
   const [descontoPercentual, setDescontoPercentual] = useState<number>(0);
 
   const routeSearch = Route.useSearch() as any;
-  const draft_id = routeSearch?.draft_id || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("draft_id") : undefined);
+  const url_draft_id = routeSearch?.draft_id || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("draft_id") : undefined);
+  const ls_draft_id = typeof window !== "undefined" ? localStorage.getItem("pdv_draft_id_parceiro") : null;
+  const draft_id = url_draft_id || ls_draft_id;
 
   useEffect(() => {
     const loadDraft = async () => {
       if (!draft_id) return;
       try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("pdv_draft_id_parceiro");
+        }
         setLoading(true);
         // Busca a venda salva (Rascunho)
         const { data: saleData, error: saleError } = await supabase
@@ -149,22 +154,25 @@ function ParceiroPDV() {
           }
 
           if (saleData.clientes) {
-            const cli = saleData.clientes;
-            setClientForm({
-              nome: cli.nome || "",
-              documento: cli.cpf_cnpj || "",
-              telefone: cli.telefone || "",
-              cep: cli.cep || "",
-              endereco: cli.endereco || "",
-              numero: cli.numero || "",
-              bairro: cli.bairro || "",
-              cidade: cli.cidade || "",
-              uf: cli.uf || "",
-              pagamento: saleData.condicao_pagamento || "Dinheiro / Pix",
-              condicaoBoleto: "",
-              frete: saleData.forma_entrega || "Retirada",
-              observacoes: saleData.observacoes || "",
-            });
+            const cliRaw = saleData.clientes;
+            const cli = Array.isArray(cliRaw) ? cliRaw[0] : cliRaw;
+            if (cli) {
+              setClientForm({
+                nome: cli.nome || "",
+                documento: cli.cpf_cnpj || "",
+                telefone: cli.telefone || "",
+                cep: cli.cep || "",
+                endereco: cli.endereco || "",
+                numero: cli.numero || "",
+                bairro: cli.bairro || "",
+                cidade: cli.cidade || "",
+                uf: cli.uf || "",
+                pagamento: saleData.condicao_pagamento || "Dinheiro / Pix",
+                condicaoBoleto: "",
+                frete: saleData.forma_entrega || "Retirada",
+                observacoes: saleData.observacoes || "",
+              });
+            }
           }
           
           if (saleData.desconto_percentual) {

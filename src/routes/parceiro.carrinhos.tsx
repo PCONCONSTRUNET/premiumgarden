@@ -104,6 +104,9 @@ function ParceiroCarrinhos() {
   };
 
   const continuarCarrinho = (id: string) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pdv_draft_id_parceiro", id);
+    }
     window.location.href = `/parceiro/pdv?draft_id=${id}`;
   };
 

@@ -1866,8 +1866,7 @@ function NovoPedido() {
                   onChange={(event) => {
                     const value = formatCpfCnpj(event.target.value);
                     setNovoCliente({ ...novoCliente, cpf_cnpj: value });
-                    if (value.replace(/\D/g, "").length === 14) buscarCnpj(value);
-                  }}
+                    }}
                 />
                 <Button
                   type="button"

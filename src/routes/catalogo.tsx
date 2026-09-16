@@ -664,10 +664,7 @@ function PublicCatalogo() {
                     onChange={(e) => {
                       const val = formatCpfCnpj(e.target.value);
                       setEmpresaData({ ...empresaData, cnpj: val });
-                      if (val.replace(/\D/g, "").length === 14) {
-                        buscarCnpj(val);
-                      }
-                    }}
+                      }}
                     placeholder="00.000.000/0000-00"
                   />
                   <Button 

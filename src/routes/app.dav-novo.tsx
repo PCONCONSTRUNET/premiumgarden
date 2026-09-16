@@ -511,10 +511,7 @@ function NovoDAV() {
                   onChange={(e) => {
                     const formatted = formatCpfCnpj(e.target.value);
                     setCliente({ ...cliente, cnpj: formatted });
-                    if (formatted.replace(/\D/g, "").length === 14) {
-                      buscarCnpj(formatted, setCliente, lastFetchedCnpjCliente);
-                    }
-                  }}
+                    }}
                   placeholder="00.000.000/0000-00"
                 />
                 <Button 
@@ -610,10 +607,7 @@ function NovoDAV() {
                   onChange={(e) => {
                     const formatted = formatCpfCnpj(e.target.value);
                     setEmissor({ ...emissor, cnpj: formatted });
-                    if (formatted.replace(/\D/g, "").length === 14) {
-                      buscarCnpj(formatted, setEmissor, lastFetchedCnpjEmissor);
-                    }
-                  }}
+                    }}
                   placeholder="00.000.000/0000-00"
                 />
                 <Button 

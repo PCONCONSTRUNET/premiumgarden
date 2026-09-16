@@ -1,7 +1,3 @@
-import { downloadVendaPdf, shareVendaWhatsApp } from "@/lib/orcamento-pdf";
-import { WhatsAppIcon } from "@/components/WhatsAppIcon";
-import { toast } from "sonner";
-import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
@@ -16,10 +12,29 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Wallet, Clock, CheckCircle2, TrendingUp, XCircle, FileText, Trash2, Ban, Edit2, Plus, Minus, Save, PlusCircle } from "lucide-react";
+import {
+  Wallet,
+  Clock,
+  CheckCircle2,
+  TrendingUp,
+  XCircle,
+  FileText,
+  Download,
+  Loader2,
+  Trash2,
+  Ban,
+} from "lucide-react";
+import {
+  WhatsAppIcon,
+  shareOrderWhatsApp,
+  openOrderPdf,
+  downloadOrderPdf,
+  getOrderNumber,
+  isOrderDav,
+} from "@/lib/order-pdf";
 
 export const Route = createFileRoute("/parceiro/dashboard")({
-  head: () => ({ meta: [{ title: "Meu Painel — Premium Garden" }] }),
+  head: () => ({ meta: [{ title: "Meu Painel — GARDEN PRIME" }] }),
   component: ParceiroDashboard,
 });
 
@@ -27,10 +42,11 @@ function ParceiroDashboard() {
   const [vendedorId, setVendedorId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [status, setStatus] = useState("");
-  const [tipoComissao, setTipoComissao] = useState("porcentagem");
-  const [valorComissao, setValorComissao] = useState(0);
+  const [tipoComissao, setTipoComissao] = useState<string>("porcentagem");
+  const [valorComissao, setValorComissao] = useState<number>(0);
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sharingId, setSharingId] = useState<string | null>(null);
 
   const [selectedSaleForDetails, setSelectedSaleForDetails] = useState<any>(null);
   const [saleItems, setSaleItems] = useState<any[]>([]);
@@ -41,53 +57,31 @@ function ParceiroDashboard() {
   const [editClientData, setEditClientData] = useState({ nome: "", cpf_cnpj: "", telefone: "" });
   const [savingClient, setSavingClient] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState(false);
-  const [cancelingOrder, setCancelingOrder] = useState(false);
 
-  // Estados de Edição de Itens do Pedido
-  const [isEditingItems, setIsEditingItems] = useState(false);
-  const [editItemsList, setEditItemsList] = useState<any[]>([]);
-  const [deletedItemIds, setDeletedItemIds] = useState<string[]>([]);
-  const [savingItems, setSavingItems] = useState(false);
-  const [showAddProduct, setShowAddProduct] = useState(false);
-  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
-  const [productSearch, setProductSearch] = useState("");
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [editDescontoState, setEditDescontoState] = useState(0);
+  const handleShare = async (venda: any, itens?: any[]) => {
+    setSharingId(venda.id);
+    try {
+      await shareOrderWhatsApp(venda, itens);
+    } finally {
+      setSharingId(null);
+    }
+  };
 
   const openSaleDetails = async (venda: any) => {
     setSelectedSaleForDetails(venda);
     setIsSaleDetailsOpen(true);
     setLoadingSaleDetails(true);
     setSaleItems([]);
-    setIsEditingItems(false);
-    setDeletedItemIds([]);
-    setShowAddProduct(false);
 
     try {
-      let items: any[] = [];
       const { data, error } = await supabase
         .from("vendas_itens")
-        .select("*, produto:produtos(nome, imagem, codigo, valor, estoque)")
+        .select("*, produto:produtos(nome, codigo, emoji, imagem)")
         .eq("venda_id", venda.id);
 
-      if (!error && data && data.length > 0) {
-        items = data;
-      } else {
-        const { data: davData } = await supabase
-          .from("dav_items")
-          .select("*, produto:produtos(nome, imagem, codigo, valor, estoque)")
-          .eq("dav_id", venda.id);
-
-        if (davData && davData.length > 0) {
-          items = davData.map((d: any) => ({
-            ...d,
-            quantidade: d.quantidade ?? d.qtd,
-            valor_unitario: d.valor_unitario ?? d.preco_unitario,
-            subtotal: d.subtotal ?? d.total,
-          }));
-        }
+      if (!error && data) {
+        setSaleItems(data);
       }
-      setSaleItems(items);
     } catch (e) {
       console.error(e);
     } finally {
@@ -95,244 +89,50 @@ function ParceiroDashboard() {
     }
   };
 
-  const iniciarEdicaoItens = () => {
-    const subtotalInicial = saleItems.reduce((acc, item) => acc + (Number(item.quantidade) || 1) * (Number(item.valor_unitario) || 0), 0);
-    const descP = Number(selectedSaleForDetails?.desconto_percentual) || 0;
-    const descV = Number(selectedSaleForDetails?.desconto_valor) || 0;
-    setEditDescontoState(descP > 0 ? (subtotalInicial * descP) / 100 : descV);
-
-    setEditItemsList(
-      saleItems.map((item) => ({
-        ...item,
-        quantidade: Number(item.quantidade) || 1,
-        valor_unitario: Number(item.valor_unitario) || 0,
-        subtotal: (Number(item.quantidade) || 1) * (Number(item.valor_unitario) || 0),
-      }))
-    );
-    setDeletedItemIds([]);
-    setIsEditingItems(true);
-    setShowAddProduct(false);
-  };
-
-  const cancelarEdicaoItens = () => {
-    setIsEditingItems(false);
-    setEditItemsList([]);
-    setDeletedItemIds([]);
-    setShowAddProduct(false);
-  };
-
-  const handleUpdateQuantidade = (index: number, novaQtd: number) => {
-    if (novaQtd <= 0) return;
-    setEditItemsList((prev) => {
-      const copy = [...prev];
-      const item = copy[index];
-      const qtd = Number(novaQtd);
-      copy[index] = {
-        ...item,
-        quantidade: qtd,
-        subtotal: qtd * Number(item.valor_unitario || 0),
-      };
-      return copy;
-    });
-  };
-
-  const handleRemoverItem = (index: number) => {
-    if (editItemsList.length <= 1) {
-      toast.error("O pedido deve conter pelo menos 1 produto. Se deseja cancelar o pedido, utilize a opção Cancelar Orçamento.");
+  const handleDeleteSale = async (venda: any) => {
+    const isDav = isOrderDav(venda);
+    const label = isDav ? "orçamento" : "pedido";
+    if (!confirm(`Tem certeza que deseja excluir este ${label}? Esta ação não pode ser desfeita.`))
       return;
-    }
-    const itemToRemove = editItemsList[index];
-    if (!itemToRemove.isNew && itemToRemove.id) {
-      setDeletedItemIds((prev) => [...prev, itemToRemove.id]);
-    }
-    setEditItemsList((prev) => prev.filter((_, i) => i !== index));
-    toast.info("Produto removido do pedido.");
-  };
 
-  const abrirBuscarProdutos = async () => {
-    setShowAddProduct(true);
-    if (availableProducts.length === 0) {
-      setLoadingProducts(true);
-      try {
-        const { data, error } = await supabase
-          .from("produtos")
-          .select("id, nome, valor, imagem, codigo, estoque")
-          .eq("status", "Ativo")
-          .order("nome");
-        if (!error && data) {
-          setAvailableProducts(data);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoadingProducts(false);
-      }
-    }
-  };
-
-  const handleAdicionarProduto = (prod: any) => {
-    const unitPrice = Number(prod.valor) || 0;
-    const newItem = {
-      id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      isNew: true,
-      venda_id: selectedSaleForDetails.id,
-      produto_id: prod.id,
-      quantidade: 1,
-      valor_unitario: unitPrice,
-      subtotal: unitPrice,
-      produto: {
-        nome: prod.nome,
-        imagem: prod.imagem,
-        codigo: prod.codigo,
-      },
-    };
-    setEditItemsList((prev) => [...prev, newItem]);
-    setShowAddProduct(false);
-    setProductSearch("");
-    toast.success(`${prod.nome} adicionado ao pedido!`);
-  };
-
-  // Cálculos dinâmicos em modo de edição
-  const editSubtotal = editItemsList.reduce(
-    (acc, item) => acc + (Number(item.quantidade) * Number(item.valor_unitario)),
-    0
-  );
-  const editDesconto = Math.min(editSubtotal, editDescontoState || 0);
-  const editTotal = Math.max(0, editSubtotal - editDesconto);
-
-  const handleSalvarEdicaoItens = async () => {
-    if (!selectedSaleForDetails) return;
-    if (editItemsList.length === 0) {
-      toast.error("O pedido precisa conter pelo menos 1 item.");
-      return;
-    }
-
-    setSavingItems(true);
+    setDeletingOrder(true);
     try {
-      // 1. Deletar itens excluídos
-      if (deletedItemIds.length > 0) {
-        await supabase.from("vendas_itens").delete().in("id", deletedItemIds);
-        try {
-          await supabase.from("dav_items").delete().in("id", deletedItemIds);
-        } catch {}
-      }
+      // Exclui os itens primeiro para integridade referencial
+      await supabase.from("vendas_itens").delete().eq("venda_id", venda.id);
+      // Exclui a venda
+      const { error } = await supabase.from("vendas").delete().eq("id", venda.id);
+      if (error) throw error;
+      setVendas((prev) => prev.filter((v) => v.id !== venda.id));
+      setIsSaleDetailsOpen(false);
+    } catch (err: any) {
+      alert(`Erro ao excluir ${label}: ` + err.message);
+    } finally {
+      setDeletingOrder(false);
+    }
+  };
 
-      // 2. Atualizar itens existentes
-      for (const item of editItemsList.filter((i) => !i.isNew)) {
-        const itemSubtotal = Number(item.quantidade) * Number(item.valor_unitario);
-        await supabase
-          .from("vendas_itens")
-          .update({
-            quantidade: Number(item.quantidade),
-            subtotal: itemSubtotal,
-            valor_unitario: Number(item.valor_unitario),
-          })
-          .eq("id", item.id);
-      }
+  const handleCancelDav = async (venda: any) => {
+    if (!confirm("Tem certeza que deseja cancelar este orçamento?")) return;
 
-      // 3. Inserir novos itens adicionados
-      const novos = editItemsList
-        .filter((i) => i.isNew)
-        .map((item) => ({
-          venda_id: selectedSaleForDetails.id,
-          produto_id: item.produto_id,
-          quantidade: Number(item.quantidade),
-          valor_unitario: Number(item.valor_unitario),
-          subtotal: Number(item.quantidade) * Number(item.valor_unitario),
-        }));
-
-      if (novos.length > 0) {
-        const { error: insErr } = await supabase.from("vendas_itens").insert(novos);
-        if (insErr) throw insErr;
-      }
-
-      // 4. Calcular totais e comissão
-      const finalSubtotal = editSubtotal;
-      const finalDesconto = editDesconto;
-      const finalTotal = editTotal;
-
-      let finalComissao = Number(selectedSaleForDetails.valor_comissao) || 0;
-      if (tipoComissao && valorComissao !== undefined) {
-        finalComissao = tipoComissao === "fixo" ? valorComissao : (finalTotal * valorComissao) / 100;
-      }
-
-      // 5. Atualizar tabela de vendas
-      const { error: vErr } = await supabase
+    try {
+      const { error } = await supabase
         .from("vendas")
-        .update({
-          valor_total: finalTotal,
-          subtotal: finalSubtotal,
-          desconto_valor: finalDesconto,
-          desconto_percentual: 0,
-          valor_comissao: finalComissao,
-        })
-        .eq("id", selectedSaleForDetails.id);
+        .update({ status: "Cancelado", status_aprovacao: "Cancelado" })
+        .eq("id", venda.id);
+      if (error) throw error;
 
-      if (vErr) throw vErr;
-
-      // Sincronizar davs se existir
-      try {
-        await supabase
-          .from("davs")
-          .update({
-            valor_total: finalTotal,
-            subtotal: finalSubtotal,
-            desconto_valor: finalDesconto,
-          })
-          .eq("id", selectedSaleForDetails.id);
-      } catch {}
-
-      // Sincronizar contas_receber se houver pendente
-      try {
-        await supabase
-          .from("contas_receber")
-          .update({ valor: finalTotal })
-          .eq("venda_id", selectedSaleForDetails.id)
-          .neq("status", "Recebido");
-      } catch {}
-
-      // 6. Recarregar itens atualizados
-      const { data: refreshedItems } = await supabase
-        .from("vendas_itens")
-        .select("*, produto:produtos(nome, imagem, codigo, valor, estoque)")
-        .eq("venda_id", selectedSaleForDetails.id);
-
-      setSaleItems(refreshedItems || []);
-
-      // 7. Atualizar a venda selecionada no modal
-      setSelectedSaleForDetails((prev: any) => ({
-        ...prev,
-        valor_total: finalTotal,
-        subtotal: finalSubtotal,
-        desconto_valor: finalDesconto,
-        valor_comissao: finalComissao,
-      }));
-
-      // 8. Atualizar lista global de vendas no dashboard
       setVendas((prev) =>
         prev.map((v) =>
-          v.id === selectedSaleForDetails.id
-            ? {
-                ...v,
-                valor_total: finalTotal,
-                total: finalTotal,
-                subtotal: finalSubtotal,
-                desconto_valor: finalDesconto,
-                desconto_percentual: 0,
-                valor_comissao: finalComissao,
-              }
-            : v
-        )
+          v.id === venda.id ? { ...v, status: "Cancelado", status_aprovacao: "Cancelado" } : v,
+        ),
       );
-
-      setIsEditingItems(false);
-      setDeletedItemIds([]);
-      toast.success("Pedido atualizado com sucesso!");
+      if (selectedSaleForDetails?.id === venda.id) {
+        setSelectedSaleForDetails((prev: any) =>
+          prev ? { ...prev, status: "Cancelado", status_aprovacao: "Cancelado" } : null,
+        );
+      }
     } catch (err: any) {
-      console.error("Erro ao salvar alterações do pedido:", err);
-      toast.error("Erro ao salvar alterações: " + (err.message || "Erro desconhecido"));
-    } finally {
-      setSavingItems(false);
+      alert("Erro ao cancelar orçamento: " + err.message);
     }
   };
 
@@ -355,13 +155,11 @@ function ParceiroDashboard() {
           setVendedorId(vData.id);
           setNome(vData.nome);
           setStatus(vData.status || "Ativo");
-          setTipoComissao(vData.tipo_comissao || "porcentagem");
-          setValorComissao(vData.valor_comissao || 0);
 
           // Busca as vendas dele ignorando os Orçamentos (DAV)
           const { data: vendasData } = await supabase
             .from("vendas")
-            .select("*, cliente:clientes(nome, cpf_cnpj, telefone, endereco, numero, bairro, cidade, uf, cep)")
+            .select("*, cliente:clientes(*)")
             .eq("vendedor_id", vData.id)
             .neq("tipo", "DAV")
             .order("created_at", { ascending: false });
@@ -418,6 +216,10 @@ function ParceiroDashboard() {
               setVendedorId(retryData.id);
               setNome(retryData.nome);
               setStatus(retryData.status || "Aguardando Aprovação");
+              setTipoComissao(retryData.tipo_comissao || "porcentagem");
+              setValorComissao(Number(retryData.valor_comissao || 0));
+              setTipoComissao(retryData.tipo_comissao || "porcentagem");
+              setValorComissao(Number(retryData.valor_comissao || 0));
             } else {
               // Se falhou mesmo assim, vamos preencher o formulário manual com os metadados
               setNome(newNome);
@@ -515,7 +317,7 @@ function ParceiroDashboard() {
       // Recarrega a página para puxar os dados atualizados
       window.location.reload();
     } catch (err: any) {
-      toast.error("Erro ao concluir o cadastro: " + err.message);
+      alert("Erro ao concluir o cadastro: " + err.message);
       setLoading(false);
     }
   };
@@ -602,13 +404,13 @@ function ParceiroDashboard() {
         {
           tipo: "venda",
           titulo: `Pedido reenviado pelo parceiro: ${nome.split(" ")[0]}`,
-          mensagem: `O parceiro reenviou o pedido #${selectedSaleForDetails.id.substring(0, 6)} para aprovação.`,
+          mensagem: `O parceiro reenviou o pedido #${selectedSaleForDetails.numero_venda} para aprovação.`,
         },
       ]);
-      toast.success("Pedido enviado para o dono com sucesso!");
+      alert("Pedido enviado para o dono com sucesso!");
       setIsSaleDetailsOpen(false);
     } catch (err: any) {
-      toast.error("Erro ao enviar pedido: " + err.message);
+      alert("Erro ao enviar pedido: " + err.message);
     } finally {
       setLoadingSaleDetails(false);
     }
@@ -637,7 +439,7 @@ function ParceiroDashboard() {
         .eq("id", selectedSaleForDetails.cliente_id);
 
       if (error) throw error;
-      
+
       // Atualiza estado local
       setSelectedSaleForDetails((prev: any) => ({
         ...prev,
@@ -646,14 +448,20 @@ function ParceiroDashboard() {
           nome: editClientData.nome,
           cpf_cnpj: editClientData.cpf_cnpj,
           telefone: editClientData.telefone,
-        }
+        },
       }));
-      setVendas((prev) => prev.map(v => v.id === selectedSaleForDetails.id ? { ...v, cliente: { ...v.cliente, ...editClientData } } : v));
-      
-      toast.info("Informações do cliente atualizadas!");
+      setVendas((prev) =>
+        prev.map((v) =>
+          v.id === selectedSaleForDetails.id
+            ? { ...v, cliente: { ...v.cliente, ...editClientData } }
+            : v,
+        ),
+      );
+
+      alert("Informações do cliente atualizadas!");
       setIsEditingClient(false);
     } catch (err: any) {
-      toast.error("Erro ao atualizar cliente: " + err.message);
+      alert("Erro ao atualizar cliente: " + err.message);
     } finally {
       setSavingClient(false);
     }
@@ -662,17 +470,14 @@ function ParceiroDashboard() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold font-display text-slate-800">
-            Olá, {nome.split(" ")[0]}! 👋
-          </h1>
-          {(valorComissao > 0) && (
-            <div className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-full border border-emerald-200">
-              Contrato: {tipoComissao === "fixo" ? `R$ ${valorComissao.toFixed(2).replace(".", ",")}` : `${valorComissao}%`}
-            </div>
-          )}
+        <h1 className="text-2xl font-bold font-display text-slate-800">
+          Olá, {nome.split(" ")[0]}! 👋
+        </h1>
+                <p className="text-sm text-muted-foreground mt-1">Aqui está o resumo das suas vendas.</p>
+        <div className="inline-flex items-center gap-1.5 mt-2 bg-brand/10 text-brand px-3 py-1.5 rounded-lg border border-brand/20">
+          <span className="text-xs font-semibold uppercase tracking-wider">Sua Comissão:</span>
+          <span className="text-sm font-black">{tipoComissao === 'porcentagem' ? `${valorComissao}%` : `R$ ${valorComissao.toFixed(2).replace('.', ',')}`}</span>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">Aqui está o resumo das suas vendas.</p>
       </div>
 
       <div className="bg-brand/5 border border-brand/20 p-4 rounded-xl flex items-center justify-between gap-4">
@@ -689,7 +494,7 @@ function ParceiroDashboard() {
             const primeiroNome = nome.split(" ")[0].replace(/[^a-zA-ZÀ-ÿ]/g, "");
             const link = `${window.location.origin}/catalogo?v=${primeiroNome}`;
             navigator.clipboard.writeText(link);
-            toast.info("Link do catálogo copiado!\n\n" + link);
+            alert("Link do catálogo copiado!\n\n" + link);
           }}
         >
           Copiar Link
@@ -755,372 +560,156 @@ function ParceiroDashboard() {
               Nenhuma venda registrada ainda.
             </p>
           ) : (
-            vendas.slice(0, 10).map((v) => (
-              <div
-                key={v.id}
-                className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer active:scale-[0.98] transition-transform"
-                onClick={() => openSaleDetails(v)}
-              >
-                <div>
-                  <p className="font-semibold text-sm text-slate-700 mb-0.5">
-                    {v.cliente?.nome || "Venda Balcão"}
-                  </p>
-                  <p className="font-bold text-slate-900">
-                    R$ {Number(v.valor_total).toFixed(2).replace(".", ",")}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(v.created_at).toLocaleDateString()}
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
+            vendas.slice(0, 10).map((v) => {
+              const isDav = isOrderDav(v);
+              const num = getOrderNumber(v);
+              const isSharing = sharingId === v.id;
+
+              return (
+                <div
+                  key={v.id}
+                  className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-3 cursor-pointer active:scale-[0.99] transition-all hover:border-brand/30"
+                  onClick={() => openSaleDetails(v)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-bold text-slate-800 text-base">
+                        R$ {Number(v.valor_total).toFixed(2).replace(".", ",")}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        <span className="font-semibold text-slate-700">
+                          {isDav ? "Orçamento" : "Pedido"} #{num}
+                        </span>{" "}
+                        • {new Date(v.created_at).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className="text-right flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-1.5">
+                        {v.status_aprovacao === "Aprovada" ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-success bg-success/10 px-2 py-1 rounded-md">
+                            <CheckCircle2 className="h-3 w-3" /> Aprovada
+                          </span>
+                        ) : v.status_aprovacao === "Rejeitada" || v.status === "Cancelado" ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-destructive bg-destructive/10 px-2 py-1 rounded-md">
+                            {v.status === "Cancelado" ? "Cancelado" : "Rejeitada"}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-md">
+                            <Clock className="h-3 w-3" /> Pendente
+                          </span>
+                        )}
+
+                        {/* Ações Rápidas */}
+                        {isDav && v.status !== "Cancelado" && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCancelDav(v);
+                            }}
+                            className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded transition-colors"
+                            title="Cancelar orçamento"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSale(v);
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                          title={isDav ? "Excluir orçamento" : "Excluir pedido"}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      {v.status_aprovacao === "Aprovada" && v.valor_comissao > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          + R$ {Number(v.valor_comissao).toFixed(2)} comissão
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ações rápidas no card */}
+                  <div className="border-t border-slate-100 pt-2 flex items-center gap-2">
+                    <button
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2 text-xs font-semibold gap-1 border-slate-200 text-slate-700 hover:bg-slate-100 rounded-md"
-                      onClick={() => downloadVendaPdf(v, undefined, supabase)}
-                      title="Baixar PDF"
+                      disabled={isSharing}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShare(v);
+                      }}
+                      className="flex-1 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors border border-emerald-200/60"
+                      title="Enviar arquivo PDF e resumo no WhatsApp"
                     >
-                      <FileText className="h-3.5 w-3.5 text-red-500" />
-                      PDF
-                    </Button>
-                    <Button
+                      {isSharing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                      ) : (
+                        <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      )}
+                      <span>WhatsApp</span>
+                    </button>
+
+                    <button
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2 text-xs font-semibold gap-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-md"
-                      onClick={() => shareVendaWhatsApp(v, undefined, supabase)}
-                      title="Enviar no WhatsApp com PDF"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openOrderPdf(v.id);
+                      }}
+                      className="flex-1 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors border border-slate-200"
+                      title="Visualizar e Imprimir PDF"
                     >
-                      <WhatsAppIcon className="h-3.5 w-3.5 text-emerald-600" />
-                      WhatsApp
-                    </Button>
+                      <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span>Ver PDF</span>
+                    </button>
                   </div>
                 </div>
-                <div className="text-right">
-                  {v.status_aprovacao === "Aprovada" ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-success bg-success/10 px-2 py-1 rounded-md">
-                      <CheckCircle2 className="h-3 w-3" /> Aprovada
-                    </span>
-                  ) : v.status_aprovacao === "Rejeitada" ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-destructive bg-destructive/10 px-2 py-1 rounded-md">
-                      Rejeitada
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded-md">
-                      <Clock className="h-3 w-3" /> Pendente
-                    </span>
-                  )}
-                  {v.status_aprovacao === "Aprovada" && v.valor_comissao > 0 && (
-                    <p className="text-xs font-semibold text-emerald-600 mt-1.5 flex items-center justify-end gap-1">
-                      <span className="text-emerald-500/70">+</span> R$ {Number(v.valor_comissao).toFixed(2).replace(".", ",")} <span className="font-normal opacity-70 text-[10px]">comissão</span>
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
 
       <Dialog open={isSaleDetailsOpen} onOpenChange={setIsSaleDetailsOpen}>
-        <DialogContent className="sm:max-w-[540px] w-[95vw] max-h-[92dvh] flex flex-col p-0 overflow-hidden rounded-2xl">
-          <DialogHeader className="p-4 sm:p-5 pb-3 border-b border-slate-100 shrink-0 pr-12 text-left bg-white">
-            <DialogTitle className="text-lg font-bold text-slate-900">Ficha do Pedido</DialogTitle>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>
+              {isOrderDav(selectedSaleForDetails || {}) ? "Ficha do Orçamento" : "Ficha do Pedido"}
+            </DialogTitle>
             <DialogDescription asChild>
-              <div className="mt-1">
-                <p className="text-xs text-slate-500 font-medium">
-                  Pedido #{selectedSaleForDetails?.id.substring(0, 6)} •{" "}
-                  {new Date(selectedSaleForDetails?.created_at).toLocaleDateString()}
-                </p>
+              <div>
+                {isOrderDav(selectedSaleForDetails || {}) ? "Orçamento" : "Pedido"} #
+                {getOrderNumber(selectedSaleForDetails || {})} •{" "}
+                {selectedSaleForDetails &&
+                  new Date(selectedSaleForDetails?.created_at).toLocaleDateString("pt-BR")}
                 {selectedSaleForDetails?.cliente?.nome && (
-                  <div className="mt-2.5 text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-left">
-                    <p className="font-semibold text-slate-900 flex items-center gap-1.5 truncate">
+                  <div className="mt-3 text-sm text-slate-700 bg-slate-100 p-3 rounded-xl border border-slate-200 text-left">
+                    <p className="font-semibold text-slate-900 flex items-center gap-2">
                       👤 {selectedSaleForDetails.cliente.nome}
                     </p>
                     {selectedSaleForDetails.cliente.cpf_cnpj && (
-                      <p className="mt-0.5 text-slate-600">📄 {selectedSaleForDetails.cliente.cpf_cnpj}</p>
+                      <p className="mt-1">📄 {selectedSaleForDetails.cliente.cpf_cnpj}</p>
                     )}
                     {selectedSaleForDetails.cliente.telefone && (
-                      <p className="mt-0.5 text-slate-600">📞 {selectedSaleForDetails.cliente.telefone}</p>
+                      <p className="mt-1">📞 {selectedSaleForDetails.cliente.telefone}</p>
                     )}
                   </div>
                 )}
               </div>
             </DialogDescription>
           </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-4">
+          <div className="py-2">
             {loadingSaleDetails ? (
-              <div className="text-center py-6 text-muted-foreground">Carregando itens...</div>
-            ) : isEditingItems ? (
-              /* MODO DE EDIÇÃO DE ITENS */
-              <div className="space-y-4 animate-in fade-in-50 duration-200">
-                <div className="flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2 rounded-lg text-xs">
-                  <span className="font-semibold flex items-center gap-1.5">
-                    <Edit2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    Edite as quantidades ou remova itens
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs text-amber-900 hover:bg-amber-100 shrink-0"
-                    onClick={cancelarEdicaoItens}
-                    disabled={savingItems}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-
-                <div className="max-h-[320px] overflow-y-auto divide-y border rounded-lg bg-white shadow-2xs">
-                  {editItemsList.map((item, index) => {
-                    const prodNome = item.produto?.nome || item.produtos?.nome || "Produto";
-                    const prodImg = item.produto?.imagem || item.produtos?.imagem;
-                    const prodEmoji = item.produto?.emoji || item.produtos?.emoji || "📦";
-                    const unitPrice = Number(item.valor_unitario) || 0;
-                    const itemSubtotal = Number(item.quantidade) * unitPrice;
-
-                    return (
-                      <div key={item.id || index} className="p-2.5 sm:p-3 bg-slate-50/50 flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-md bg-slate-200 text-lg">
-                              {prodImg ? (
-                                <img src={prodImg} alt={prodNome} className="h-full w-full object-cover" />
-                              ) : (
-                                prodEmoji
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate" title={prodNome}>
-                                {prodNome}
-                              </p>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className="text-[10px] text-slate-500">R$</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  value={item.valor_unitario}
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value);
-                                    setEditItemsList(prev => {
-                                      const copy = [...prev];
-                                      copy[index].valor_unitario = val;
-                                      copy[index].subtotal = Number(copy[index].quantidade) * val;
-                                      return copy;
-                                    });
-                                  }}
-                                  disabled={savingItems}
-                                  className="w-20 text-xs px-1.5 py-0.5 border border-slate-200 rounded text-slate-700 bg-white focus:outline-hidden focus:border-brand/50"
-                                />
-                                <span className="text-[10px] text-slate-500">/ un</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-red-500 hover:bg-red-100 hover:text-red-700 shrink-0"
-                            title="Excluir item"
-                            onClick={() => handleRemoverItem(index)}
-                            disabled={savingItems}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-
-                        {/* Controles de Quantidade e Subtotal */}
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 gap-2">
-                          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs shrink-0">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
-                              onClick={() => handleUpdateQuantidade(index, Number(item.quantidade) - 1)}
-                              disabled={Number(item.quantidade) <= 1 || savingItems}
-                            >
-                              <Minus className="w-3 h-3" />
-                            </Button>
-                            <input
-                              type="number"
-                              min="1"
-                              step="any"
-                              value={item.quantidade}
-                              onChange={(e) => handleUpdateQuantidade(index, Number(e.target.value))}
-                              disabled={savingItems}
-                              className="w-12 text-center text-xs font-bold text-slate-800 bg-transparent focus:outline-hidden"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 text-slate-600 hover:bg-slate-100"
-                              onClick={() => handleUpdateQuantidade(index, Number(item.quantidade) + 1)}
-                              disabled={savingItems}
-                            >
-                              <Plus className="w-3 h-3" />
-                            </Button>
-                          </div>
-
-                          <div className="text-right shrink-0">
-                            <span className="text-[10px] text-slate-400 mr-1.5">Subtotal:</span>
-                            <span className="font-bold text-xs sm:text-sm text-brand whitespace-nowrap">
-                              R$ {itemSubtotal.toFixed(2).replace(".", ",")}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Adicionar Produto ao Pedido */}
-                {!showAddProduct ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={abrirBuscarProdutos}
-                    className="w-full border-dashed border-brand/40 text-brand hover:bg-brand/5 text-xs font-semibold gap-1.5 h-9 whitespace-normal"
-                    disabled={savingItems}
-                  >
-                    <PlusCircle className="w-4 h-4 shrink-0" />
-                    Adicionar Outro Produto ao Pedido
-                  </Button>
-                ) : (
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700">Selecione um produto</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-[10px] text-slate-500"
-                        onClick={() => setShowAddProduct(false)}
-                      >
-                        Fechar
-                      </Button>
-                    </div>
-                    <Input
-                      placeholder="Buscar por nome ou código..."
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      className="h-8 text-xs bg-white"
-                      autoFocus
-                    />
-                    <div className="max-h-36 overflow-y-auto divide-y divide-slate-100 bg-white rounded-lg border border-slate-200">
-                      {loadingProducts ? (
-                        <div className="p-3 text-center text-xs text-slate-400">Carregando catálogo...</div>
-                      ) : (
-                        availableProducts
-                          .filter(
-                            (p) =>
-                              !productSearch ||
-                              p.nome?.toLowerCase().includes(productSearch.toLowerCase()) ||
-                              p.codigo?.toLowerCase().includes(productSearch.toLowerCase())
-                          )
-                          .slice(0, 10)
-                          .map((p) => (
-                            <div key={p.id} className="flex items-center justify-between p-2 hover:bg-slate-50 text-xs gap-2">
-                              <div className="truncate mr-2 min-w-0 flex-1">
-                                <p className="font-semibold text-slate-800 truncate">{p.nome}</p>
-                                <p className="text-slate-500 text-[10px]">
-                                  R$ {Number(p.valor).toFixed(2).replace(".", ",")}
-                                </p>
-                              </div>
-                              <Button
-                                type="button"
-                                size="sm"
-                                className="h-6 px-2 text-[10px] bg-brand text-white hover:bg-brand/90 shrink-0"
-                                onClick={() => handleAdicionarProduto(p)}
-                              >
-                                Adicionar
-                              </Button>
-                            </div>
-                          ))
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Box de Totais Recalculados */}
-                <div className="flex flex-col gap-1 p-3.5 bg-slate-100 rounded-lg border border-slate-200">
-                  <div className="flex justify-between items-center text-xs text-slate-600">
-                    <span>Novo Subtotal:</span>
-                    <span className="font-semibold shrink-0">R$ {editSubtotal.toFixed(2).replace(".", ",")}</span>
-                  </div>
-                  {editDescontoState >= 0 && (
-                    <div className="flex justify-between items-center text-xs text-red-600">
-                      <span>Desconto:</span>
-                      <div className="flex items-center gap-1 font-bold">
-                        <span>- R$</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={editDescontoState || ""}
-                          onChange={(e) => setEditDescontoState(Number(e.target.value) || 0)}
-                          disabled={savingItems}
-                          className="w-20 text-right text-xs px-1.5 py-0.5 border border-red-200 rounded text-red-700 bg-red-50 focus:outline-hidden focus:border-red-400"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-slate-200">
-                    <span className="font-bold text-sm text-slate-800">Novo Total do Pedido:</span>
-                    <span className="text-lg font-extrabold text-emerald-600 font-display shrink-0">
-                      R$ {editTotal.toFixed(2).replace(".", ",")}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 text-right mt-0.5">Valores recalculados em tempo real</p>
-                </div>
-
-                {/* Botões de Ação do Modo Edição */}
-                <div className="grid grid-cols-2 gap-2 pt-1 w-full">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full font-semibold border-slate-300 text-slate-700 h-10 text-xs sm:text-sm whitespace-normal"
-                    onClick={cancelarEdicaoItens}
-                    disabled={savingItems}
-                  >
-                    Descartar
-                  </Button>
-                  <Button
-                    type="button"
-                    className="w-full font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 shadow-sm h-10 text-xs sm:text-sm whitespace-normal"
-                    onClick={handleSalvarEdicaoItens}
-                    disabled={savingItems}
-                  >
-                    <Save className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{savingItems ? "Salvando..." : "Salvar Alterações"}</span>
-                  </Button>
-                </div>
+              <div className="text-center py-6 text-muted-foreground flex flex-col items-center gap-2">
+                <Loader2 className="w-6 h-6 animate-spin text-brand" />
+                <span>Carregando itens...</span>
               </div>
             ) : (
-              /* MODO VISUALIZAÇÃO PADRÃO */
               <div className="space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Itens ({saleItems.length})
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={iniciarEdicaoItens}
-                    className="h-7 px-2.5 text-xs font-semibold gap-1 text-brand border-brand/30 hover:bg-brand/10 rounded-md shadow-2xs shrink-0 whitespace-nowrap"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                    Editar Itens
-                  </Button>
-                </div>
-
-                <div className="max-h-[300px] overflow-y-auto divide-y border rounded-lg bg-white">
+                <div className="max-h-[260px] overflow-y-auto divide-y border rounded-xl">
                   {saleItems.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
                       Nenhum item encontrado.
@@ -1129,185 +718,141 @@ function ParceiroDashboard() {
                     saleItems.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between p-2.5 sm:p-3 bg-slate-50/50 gap-2 sm:gap-3"
+                        className="flex items-center justify-between p-3 bg-slate-50/50"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-slate-200 text-xl">
-                            {item.produto?.imagem ? (
-                              <img src={item.produto.imagem} alt={item.produto?.nome} className="h-full w-full object-cover" />
-                            ) : (
-                              "📦"
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-xs sm:text-sm text-slate-800 truncate" title={item.produto?.nome || "Produto"}>
+                        <div className="flex items-center gap-3">
+                          <div className="text-2xl">{item.produto?.emoji || "📦"}</div>
+                          <div>
+                            <p className="font-semibold text-sm text-slate-800">
                               {item.produto?.nome || "Produto Excluído"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {item.quantidade}x R$ {Number(item.valor_unitario).toFixed(2).replace(".", ",")}
+                              {item.quantidade}x R${" "}
+                              {Number(item.valor_unitario).toFixed(2).replace(".", ",")}
                             </p>
                           </div>
                         </div>
-                        <p className="font-bold text-xs sm:text-sm text-brand shrink-0 text-right whitespace-nowrap pl-1">
+                        <p className="font-bold text-brand">
                           R$ {Number(item.subtotal).toFixed(2).replace(".", ",")}
                         </p>
                       </div>
                     ))
                   )}
                 </div>
-
-                <div className="flex flex-col gap-1 p-3.5 sm:p-4 bg-slate-100 rounded-lg">
-                  {Number(selectedSaleForDetails?.desconto_valor) > 0 && (
-                    <div className="flex justify-between items-center text-red-600 text-xs sm:text-sm">
-                      <span className="font-medium">
-                        Desconto {Number(selectedSaleForDetails?.desconto_percentual) > 0 ? `(${selectedSaleForDetails.desconto_percentual}%)` : ''}:
-                      </span>
-                      <span className="font-bold shrink-0">
-                        - R$ {Number(selectedSaleForDetails?.desconto_valor).toFixed(2).replace(".", ",")}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-200/60">
-                    <span className="font-semibold text-slate-700 text-sm sm:text-base">Total do Pedido:</span>
-                    <span className="text-lg sm:text-xl font-bold font-display text-slate-900 shrink-0">
-                      R$ {Number(selectedSaleForDetails?.valor_total || 0).toFixed(2).replace(".", ",")}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Ações da Venda */}
-                <div className="pt-2 flex flex-col gap-2 w-full">
-                  <div className="grid grid-cols-2 gap-2 w-full">
-                    <Button
-                      className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-md flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 h-10 whitespace-normal"
-                      onClick={() => downloadVendaPdf(selectedSaleForDetails, saleItems, supabase)}
-                    >
-                      <FileText className="h-4 w-4 text-red-400 shrink-0" />
-                      <span className="truncate">Baixar PDF</span>
-                    </Button>
-                    <Button
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md flex items-center justify-center gap-1.5 text-xs sm:text-sm px-2 h-10 whitespace-normal"
-                      onClick={() => shareVendaWhatsApp(selectedSaleForDetails, saleItems, supabase)}
-                    >
-                      <WhatsAppIcon className="h-4 w-4 text-white shrink-0" />
-                      <span className="truncate">WhatsApp (PDF)</span>
-                    </Button>
-                  </div>
-
-                  {/* Botão de Editar Itens também no menu principal de ações */}
-                  <Button
-                    variant="outline"
-                    className="w-full border-brand/40 text-brand hover:bg-brand/10 font-semibold flex items-center justify-center gap-2 text-xs sm:text-sm h-10 px-3 whitespace-normal"
-                    onClick={iniciarEdicaoItens}
-                  >
-                    <Edit2 className="w-4 h-4 shrink-0" />
-                    <span>Editar Itens do Pedido</span>
-                  </Button>
-
-                  {selectedSaleForDetails?.status_aprovacao === "Pendente" && (
-                    <>
-                      <Button
-                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold h-10 text-xs sm:text-sm whitespace-normal"
-                        onClick={handleEnviarPedido}
-                      >
-                        🚀 Enviar pedido para o dono
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full border-slate-300 text-slate-800 font-semibold h-10 text-xs sm:text-sm whitespace-normal"
-                        onClick={openEditClient}
-                      >
-                        ✏️ Editar Informações do Cliente
-                      </Button>
-                    </>
-                  )}
-
-                  {/* Cancelar Orçamento */}
-                  {(selectedSaleForDetails?.tipo === "DAV" || selectedSaleForDetails?.status_aprovacao === "Pendente") && (
-                    <Button
-                      variant="outline"
-                      className="w-full border-amber-200 text-amber-700 hover:bg-amber-50 font-semibold flex items-center justify-center gap-2 h-10 text-xs sm:text-sm whitespace-normal"
-                      disabled={cancelingOrder}
-                      onClick={async () => {
-                        if (!confirm("Deseja realmente cancelar este orçamento?")) return;
-                        setCancelingOrder(true);
-                        try {
-                          await supabase
-                            .from("vendas")
-                            .update({ status: "Cancelado", status_aprovacao: "Recusado" })
-                            .eq("id", selectedSaleForDetails.id);
-                          await supabase
-                            .from("davs")
-                            .update({ status: "Cancelado" })
-                            .eq("id", selectedSaleForDetails.id);
-                          toast.success("Orçamento cancelado com sucesso!");
-                          setVendas((prev) =>
-                            prev.map((v) =>
-                              v.id === selectedSaleForDetails.id
-                                ? { ...v, status: "Cancelado", status_aprovacao: "Recusado" }
-                                : v
-                            )
-                          );
-                          setIsSaleDetailsOpen(false);
-                        } catch (err: any) {
-                          toast.error("Erro ao cancelar orçamento: " + err.message);
-                        } finally {
-                          setCancelingOrder(false);
-                        }
-                      }}
-                    >
-                      <Ban className="h-4 w-4 shrink-0" />
-                      {cancelingOrder ? "Cancelando..." : "Cancelar Orçamento"}
-                    </Button>
-                  )}
-
-                  {/* Excluir Pedido */}
-                  <Button
-                    variant="outline"
-                    className="w-full border-red-200 text-red-600 hover:bg-red-50 font-semibold flex items-center justify-center gap-2 h-10 text-xs sm:text-sm whitespace-normal"
-                    disabled={deletingOrder}
-                    onClick={async () => {
-                      if (!confirm("Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.")) return;
-                      setDeletingOrder(true);
-                      try {
-                        await supabase.from("contas_receber").delete().eq("venda_id", selectedSaleForDetails.id);
-                        try {
-                          await supabase.from("contas_pagar").delete().eq("venda_id", selectedSaleForDetails.id);
-                        } catch {}
-                        try {
-                          await supabase.from("historico_faturamento").delete().eq("venda_id", selectedSaleForDetails.id);
-                        } catch {}
-                        await supabase.from("vendas_itens").delete().eq("venda_id", selectedSaleForDetails.id);
-                        try {
-                          await supabase.from("dav_items").delete().eq("dav_id", selectedSaleForDetails.id);
-                          await supabase.from("davs").delete().eq("id", selectedSaleForDetails.id);
-                        } catch {}
-                        const { error } = await supabase.from("vendas").delete().eq("id", selectedSaleForDetails.id);
-                        if (error) throw error;
-                        toast.success("Pedido excluído com sucesso!");
-                        setVendas((prev) => prev.filter((v) => v.id !== selectedSaleForDetails.id));
-                        setIsSaleDetailsOpen(false);
-                      } catch (err: any) {
-                        toast.error("Erro ao excluir pedido: " + err.message);
-                      } finally {
-                        setDeletingOrder(false);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 shrink-0" />
-                    {deletingOrder ? "Excluindo..." : "Excluir Pedido"}
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="w-full border-slate-200 text-slate-600 h-10 text-xs sm:text-sm mt-1 whitespace-normal"
-                    onClick={() => setIsSaleDetailsOpen(false)}
-                  >
-                    Fechar
-                  </Button>
+                <div className="flex justify-between items-center p-4 bg-slate-100 rounded-xl">
+                  <span className="font-semibold text-slate-700">Total do Pedido:</span>
+                  <span className="text-xl font-bold font-display text-slate-900">
+                    R${" "}
+                    {Number(selectedSaleForDetails?.valor_total || 0)
+                      .toFixed(2)
+                      .replace(".", ",")}
+                  </span>
                 </div>
               </div>
             )}
+          </div>
+          <div className="pt-2 flex flex-col gap-2.5 w-full">
+            {/* Botão principal de WhatsApp com PDF */}
+            {selectedSaleForDetails && (
+              <>
+                <Button
+                  className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2"
+                  onClick={() => handleShare(selectedSaleForDetails, saleItems)}
+                  disabled={sharingId === selectedSaleForDetails.id}
+                >
+                  {sharingId === selectedSaleForDetails.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <WhatsAppIcon className="w-4 h-4 shrink-0" />
+                  )}
+                  <span>Enviar PDF no WhatsApp</span>
+                </Button>
+
+                {/* Botões secundários: Ver / Imprimir PDF e Baixar PDF */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5"
+                    onClick={() => openOrderPdf(selectedSaleForDetails.id)}
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>Ver / Imprimir PDF</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5"
+                    onClick={() => downloadOrderPdf(selectedSaleForDetails, saleItems)}
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>Baixar PDF</span>
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {selectedSaleForDetails?.status_aprovacao === "Pendente" && (
+              <>
+                <Button
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl"
+                  onClick={handleEnviarPedido}
+                >
+                  🚀 Enviar pedido para o dono
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full border-slate-300 text-slate-800 font-semibold rounded-xl"
+                  onClick={openEditClient}
+                >
+                  ✏️ Editar Informações do Cliente
+                </Button>
+              </>
+            )}
+            {/* Ações de Cancelar Orçamento e Excluir */}
+            {isOrderDav(selectedSaleForDetails || {}) ? (
+              <div className="space-y-2">
+                {selectedSaleForDetails?.status !== "Cancelado" && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-300 text-amber-800 hover:bg-amber-50 font-semibold rounded-xl flex items-center justify-center gap-1.5"
+                    onClick={() => handleCancelDav(selectedSaleForDetails)}
+                  >
+                    <Ban className="h-4 w-4 text-amber-600" />
+                    <span>Cancelar Orçamento</span>
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 font-semibold rounded-xl flex items-center justify-center gap-1.5 text-xs"
+                  disabled={deletingOrder}
+                  onClick={() => handleDeleteSale(selectedSaleForDetails)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>
+                    {deletingOrder ? "Excluindo..." : "Excluir Orçamento Definitivamente"}
+                  </span>
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full border-red-200 text-red-600 hover:bg-red-50 font-semibold rounded-xl flex items-center justify-center gap-1.5"
+                disabled={deletingOrder}
+                onClick={() => handleDeleteSale(selectedSaleForDetails)}
+              >
+                <Trash2 className="h-4 w-4 text-red-500" />
+                <span>{deletingOrder ? "Excluindo..." : "Excluir Pedido"}</span>
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className="w-full border-slate-200 text-slate-600 rounded-xl"
+              onClick={() => setIsSaleDetailsOpen(false)}
+            >
+              Fechar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1321,28 +866,30 @@ function ParceiroDashboard() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Nome</label>
-              <Input 
-                value={editClientData.nome} 
-                onChange={(e) => setEditClientData(p => ({ ...p, nome: e.target.value }))}
+              <Input
+                value={editClientData.nome}
+                onChange={(e) => setEditClientData((p) => ({ ...p, nome: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">CPF/CNPJ</label>
-              <Input 
-                value={editClientData.cpf_cnpj} 
-                onChange={(e) => setEditClientData(p => ({ ...p, cpf_cnpj: formatCpfCnpj(e.target.value) }))}
+              <Input
+                value={editClientData.cpf_cnpj}
+                onChange={(e) => setEditClientData((p) => ({ ...p, cpf_cnpj: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Telefone</label>
-              <Input 
-                value={editClientData.telefone} 
-                onChange={(e) => setEditClientData(p => ({ ...p, telefone: formatPhone(e.target.value) }))}
+              <Input
+                value={editClientData.telefone}
+                onChange={(e) => setEditClientData((p) => ({ ...p, telefone: e.target.value }))}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditingClient(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setIsEditingClient(false)}>
+              Cancelar
+            </Button>
             <Button onClick={handleSalvarCliente} disabled={savingClient}>
               {savingClient ? "Salvando..." : "Salvar Alterações"}
             </Button>

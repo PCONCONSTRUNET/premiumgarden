@@ -4,15 +4,16 @@ import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { SenalandiaLogo } from "@/components/senalandia-logo";
-import premiumGardenLogo from "@/assets/premium-garden-logo.png";
-import premiumGardenCapa from "@/assets/premium-garden-capa.png";
+import { GardenPrimeLogo } from "@/components/garden-prime-logo";
+import { Eye, EyeOff } from "lucide-react";
 
 export const Route = createFileRoute("/parceiro/login")({
   beforeLoad: async () => {
-    // Não faz signOut aqui para não destruir sessão do admin ERP
+    if (typeof window !== "undefined") {
+      await supabase.auth.signOut();
+    }
   },
-  head: () => ({ meta: [{ title: "Login Parceiro — Premium Garden" }] }),
+  head: () => ({ meta: [{ title: "Login Parceiro — GARDEN PRIME" }] }),
   component: LoginParceiro,
 });
 
@@ -24,6 +25,7 @@ function LoginParceiro() {
   const [error, setError] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Verifica se o parceiro foi bloqueado via sessionStorage
   useEffect(() => {
@@ -39,31 +41,14 @@ function LoginParceiro() {
     setError("");
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (signInError) throw signInError;
 
-      // Verifica se o usuário logando é um administrador
-      const envAdmin = import.meta.env.VITE_ADMIN_EMAIL || "";
-      const adminEmail = `${envAdmin},senalandia2@gmail.com,premiumgarden@gmail.com`;
-      const ADMIN_EMAILS = adminEmail
-        .split(",")
-        .map((e: string) => e.trim().toLowerCase())
-        .filter(Boolean);
-
-      if (data.session?.user.email && ADMIN_EMAILS.includes(data.session.user.email.toLowerCase())) {
-        // Desloga do cliente parceiro, loga no cliente principal e manda pro painel admin
-        await supabase.auth.signOut();
-        const { supabase: mainSupabase } = await import("@/lib/supabase");
-        await mainSupabase.auth.signInWithPassword({ email, password });
-        window.location.href = "/app/dashboard";
-        return;
-      }
-
-      // Sucesso para parceiros reais! Redireciona para onde o usuário tentou ir (ou dashboard)
+      // Sucesso! Redireciona para onde o usuário tentou ir (ou dashboard)
       const redirectUrl = sessionStorage.getItem("parceiro_redirect");
       if (redirectUrl) {
         sessionStorage.removeItem("parceiro_redirect");
@@ -72,7 +57,15 @@ function LoginParceiro() {
         navigate({ to: "/parceiro/dashboard" });
       }
     } catch (err: any) {
-      setError("Credenciais inválidas. Tente novamente.");
+      if (err.message === "Email not confirmed") {
+        setError(
+          "Por favor, confirme seu e-mail (verifique a caixa de entrada) antes de fazer login.",
+        );
+      } else if (err.message === "Invalid login credentials") {
+        setError("E-mail ou senha incorretos.");
+      } else {
+        setError(err.message || "Ocorreu um erro ao fazer login. Tente novamente.");
+      }
     } finally {
       setLoading(false);
     }
@@ -95,22 +88,10 @@ function LoginParceiro() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-neutral-900">
-      {/* Background Image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${premiumGardenCapa})` }}
-      />
-      {/* Dark overlay for better contrast */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-      
-      {/* Thin green accent line at top */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-brand shadow-elevated z-20" />
-
-      <div className="relative z-10 w-full max-w-sm px-4">
-        <Card className="w-full shadow-xl border-0 ring-1 ring-slate-900/5">
-        <div className="pt-8 pb-2 flex justify-center">
-          <img src={premiumGardenLogo} alt="Premium Garden" className="h-24 w-auto object-contain" />
+    <div className="flex min-h-[80vh] items-center justify-center">
+      <Card className="w-full max-w-sm shadow-xl border-0 ring-1 ring-slate-900/5">
+        <div className="pt-8 pb-4 flex justify-center">
+          <GardenPrimeLogo size="small" />
         </div>
         <CardContent className="p-6">
           <div className="text-center mb-6">
@@ -142,14 +123,24 @@ function LoginParceiro() {
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Senha</label>
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="h-12"
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="h-12 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
               </div>
 
               {error && (
@@ -186,8 +177,7 @@ function LoginParceiro() {
             </Link>
           </div>
         </CardContent>
-        </Card>
-      </div>
+      </Card>
     </div>
   );
 }

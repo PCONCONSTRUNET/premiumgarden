@@ -20,6 +20,8 @@ import { Route as ParceiroPdvRouteImport } from './routes/parceiro.pdv'
 import { Route as ParceiroPagamentosRouteImport } from './routes/parceiro.pagamentos'
 import { Route as ParceiroLoginRouteImport } from './routes/parceiro.login'
 import { Route as ParceiroDashboardRouteImport } from './routes/parceiro.dashboard'
+import { Route as ParceiroConfiguracoesRouteImport } from './routes/parceiro.configuracoes'
+import { Route as ParceiroClientesRouteImport } from './routes/parceiro.clientes'
 import { Route as ParceiroCatalogoRouteImport } from './routes/parceiro.catalogo'
 import { Route as ParceiroCadastroRouteImport } from './routes/parceiro.cadastro'
 import { Route as OrcamentoIdRouteImport } from './routes/orcamento.$id'
@@ -111,6 +113,16 @@ const ParceiroLoginRoute = ParceiroLoginRouteImport.update({
 const ParceiroDashboardRoute = ParceiroDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroConfiguracoesRoute = ParceiroConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => ParceiroRoute,
+} as any)
+const ParceiroClientesRoute = ParceiroClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
   getParentRoute: () => ParceiroRoute,
 } as any)
 const ParceiroCatalogoRoute = ParceiroCatalogoRouteImport.update({
@@ -341,6 +353,8 @@ export interface FileRoutesByFullPath {
   '/orcamento/$id': typeof OrcamentoIdRoute
   '/parceiro/cadastro': typeof ParceiroCadastroRoute
   '/parceiro/catalogo': typeof ParceiroCatalogoRoute
+  '/parceiro/clientes': typeof ParceiroClientesRoute
+  '/parceiro/configuracoes': typeof ParceiroConfiguracoesRoute
   '/parceiro/dashboard': typeof ParceiroDashboardRoute
   '/parceiro/login': typeof ParceiroLoginRoute
   '/parceiro/pagamentos': typeof ParceiroPagamentosRoute
@@ -389,6 +403,8 @@ export interface FileRoutesByTo {
   '/orcamento/$id': typeof OrcamentoIdRoute
   '/parceiro/cadastro': typeof ParceiroCadastroRoute
   '/parceiro/catalogo': typeof ParceiroCatalogoRoute
+  '/parceiro/clientes': typeof ParceiroClientesRoute
+  '/parceiro/configuracoes': typeof ParceiroConfiguracoesRoute
   '/parceiro/dashboard': typeof ParceiroDashboardRoute
   '/parceiro/login': typeof ParceiroLoginRoute
   '/parceiro/pagamentos': typeof ParceiroPagamentosRoute
@@ -440,6 +456,8 @@ export interface FileRoutesById {
   '/orcamento/$id': typeof OrcamentoIdRoute
   '/parceiro/cadastro': typeof ParceiroCadastroRoute
   '/parceiro/catalogo': typeof ParceiroCatalogoRoute
+  '/parceiro/clientes': typeof ParceiroClientesRoute
+  '/parceiro/configuracoes': typeof ParceiroConfiguracoesRoute
   '/parceiro/dashboard': typeof ParceiroDashboardRoute
   '/parceiro/login': typeof ParceiroLoginRoute
   '/parceiro/pagamentos': typeof ParceiroPagamentosRoute
@@ -492,6 +510,8 @@ export interface FileRouteTypes {
     | '/orcamento/$id'
     | '/parceiro/cadastro'
     | '/parceiro/catalogo'
+    | '/parceiro/clientes'
+    | '/parceiro/configuracoes'
     | '/parceiro/dashboard'
     | '/parceiro/login'
     | '/parceiro/pagamentos'
@@ -540,6 +560,8 @@ export interface FileRouteTypes {
     | '/orcamento/$id'
     | '/parceiro/cadastro'
     | '/parceiro/catalogo'
+    | '/parceiro/clientes'
+    | '/parceiro/configuracoes'
     | '/parceiro/dashboard'
     | '/parceiro/login'
     | '/parceiro/pagamentos'
@@ -590,6 +612,8 @@ export interface FileRouteTypes {
     | '/orcamento/$id'
     | '/parceiro/cadastro'
     | '/parceiro/catalogo'
+    | '/parceiro/clientes'
+    | '/parceiro/configuracoes'
     | '/parceiro/dashboard'
     | '/parceiro/login'
     | '/parceiro/pagamentos'
@@ -685,6 +709,20 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/parceiro/dashboard'
       preLoaderRoute: typeof ParceiroDashboardRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/configuracoes': {
+      id: '/parceiro/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/parceiro/configuracoes'
+      preLoaderRoute: typeof ParceiroConfiguracoesRouteImport
+      parentRoute: typeof ParceiroRoute
+    }
+    '/parceiro/clientes': {
+      id: '/parceiro/clientes'
+      path: '/clientes'
+      fullPath: '/parceiro/clientes'
+      preLoaderRoute: typeof ParceiroClientesRouteImport
       parentRoute: typeof ParceiroRoute
     }
     '/parceiro/catalogo': {
@@ -1028,6 +1066,8 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 interface ParceiroRouteChildren {
   ParceiroCadastroRoute: typeof ParceiroCadastroRoute
   ParceiroCatalogoRoute: typeof ParceiroCatalogoRoute
+  ParceiroClientesRoute: typeof ParceiroClientesRoute
+  ParceiroConfiguracoesRoute: typeof ParceiroConfiguracoesRoute
   ParceiroDashboardRoute: typeof ParceiroDashboardRoute
   ParceiroLoginRoute: typeof ParceiroLoginRoute
   ParceiroPagamentosRoute: typeof ParceiroPagamentosRoute
@@ -1039,6 +1079,8 @@ interface ParceiroRouteChildren {
 const ParceiroRouteChildren: ParceiroRouteChildren = {
   ParceiroCadastroRoute: ParceiroCadastroRoute,
   ParceiroCatalogoRoute: ParceiroCatalogoRoute,
+  ParceiroClientesRoute: ParceiroClientesRoute,
+  ParceiroConfiguracoesRoute: ParceiroConfiguracoesRoute,
   ParceiroDashboardRoute: ParceiroDashboardRoute,
   ParceiroLoginRoute: ParceiroLoginRoute,
   ParceiroPagamentosRoute: ParceiroPagamentosRoute,

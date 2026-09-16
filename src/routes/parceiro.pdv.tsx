@@ -1,15 +1,35 @@
-import { toast } from "sonner";
-import { formatCpfCnpj, formatPhone } from "@/lib/utils";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { WhatsAppIcon } from "@/components/WhatsAppIcon";
-import { shareOrcamentoPDF, downloadOrcamentoPDF } from "@/lib/orcamento-pdf";
 import { Input } from "@/components/ui/input";
-import { Search, Trash2, ShoppingCart, CheckCircle2, MessageCircle, Download } from "lucide-react";
-import { CnpjLoader } from "@/components/cnpj-loader";
+import { GardenPrimeLogo } from "@/components/garden-prime-logo";
+import {
+  Search,
+  Trash2,
+  ShoppingCart,
+  CheckCircle2,
+  Loader2,
+  Camera,
+  Mic,
+  Star,
+  Flame,
+  Bell,
+  Barcode,
+  Clock,
+  Grid,
+  RefreshCw,
+  Plus,
+  Minus,
+  X,
+  ArrowRight,
+  ChevronRight,
+  FileText,
+  Download,
+  User,
+} from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
@@ -18,182 +38,399 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-
-import { getCachedProdutos, setCachedProdutos } from "@/lib/parceiro-cache";
+import { WhatsAppIcon, shareOrderWhatsApp, openOrderPdf, downloadOrderPdf } from "@/lib/order-pdf";
 
 export const Route = createFileRoute("/parceiro/pdv")({
-  head: () => ({ meta: [{ title: "Nova Venda — Premium Garden" }] }),
+  head: () => ({ meta: [{ title: "Nova Venda — GARDEN PRIME" }] }),
   component: ParceiroPDV,
 });
 
 function ParceiroPDV() {
   const navigate = useNavigate();
-  const [produtos, setProdutos] = useState<any[]>(() => getCachedProdutos() || []);
-  const [cart, setCart] = useState<any[]>([]);
+  const [produtos, setProdutos] = useState<any[]>([]);
+  const [cart, setCart] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("pdv_cart_parceiro");
+      if (saved) return JSON.parse(saved);
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pdv_cart_parceiro", JSON.stringify(cart));
+    }
+  }, [cart]);
+
   const [loading, setLoading] = useState(false);
-  const [loadingCnpj, setLoadingCnpj] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
-  const [clientForm, setClientForm] = useState({
-    nome: "",
-    documento: "",
-    telefone: "",
-    cep: "",
-    endereco: "",
-    numero: "",
-    bairro: "",
-    cidade: "",
-    uf: "",
-    pagamento: "À vista - Pix",
-    frete: "Retirada",
-    observacoes: "",
-    descontoPercentual: 0,
-    condicaoPagamento: "",
+  const [clientForm, setClientForm] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("pdv_client_parceiro");
+      if (saved) return JSON.parse(saved);
+    }
+    return {
+      nome: "",
+      documento: "",
+      telefone: "",
+      cep: "",
+      endereco: "",
+      numero: "",
+      bairro: "",
+      cidade: "",
+      uf: "",
+      pagamento: "Dinheiro / Pix",
+      condicaoBoleto: "",
+      frete: "Retirada",
+      observacoes: "",
+    };
   });
-  const [vendedorInfo, setVendedorInfo] = useState<{ id: string; nome: string; tipo_comissao?: string; valor_comissao?: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("pdv_client_parceiro", JSON.stringify(clientForm));
+    }
+  }, [clientForm]);
+  const [vendedorInfo, setVendedorInfo] = useState<{ id: string; nome: string; tipo_comissao?: string; valor_comissao?: number; vendas_hoje?: number; avatar_url?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [davGeradoId, setDavGeradoId] = useState<string | null>(null);
   const [davGeradoNumero, setDavGeradoNumero] = useState<string | number | null>(null);
-  // Draft quantities: stores raw string while user is typing
-  const [draftQtys, setDraftQtys] = useState<Record<string, string>>({});
+  const [sharingSuccess, setSharingSuccess] = useState(false);
+  const [cnpjLoading, setCnpjLoading] = useState(false);
+  const [cnpjErro, setCnpjErro] = useState("");
+  const [descontoPercentual, setDescontoPercentual] = useState<number>(0);
+  const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [initError, setInitError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [pendingQty, setPendingQty] = useState<Record<string, string>>({});
+
+  const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
+  const [activeSuggestionField, setActiveSuggestionField] = useState<"nome" | "documento" | null>(null);
+
+  const searchClients = async (query: string) => {
+    if (query.length < 2) {
+      setClientSuggestions([]);
+      return;
+    }
+    const { data } = await supabase
+      .from("clientes")
+      .select("*")
+      .or(`nome.ilike.%${query}%,cpf_cnpj.ilike.%${query}%`)
+      .limit(5);
+    
+    if (data) {
+      setClientSuggestions(data);
+    }
+  };
+
+  const selectClient = (client: any) => {
+    setClientForm((prev: any) => ({
+      ...prev,
+      nome: client.nome || "",
+      documento: client.cpf_cnpj || "",
+      telefone: client.telefone || "",
+      cep: client.cep || "",
+      endereco: client.endereco || "",
+      numero: client.numero || "",
+      bairro: client.bairro || "",
+      cidade: client.cidade || "",
+      uf: client.uf || "",
+    }));
+    setActiveSuggestionField(null);
+  };
+
+  const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [newClientForm, setNewClientForm] = useState({ nome: "", cpf_cnpj: "", telefone: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", uf: "", status: "Ativo" });
+  const [savingNewClient, setSavingNewClient] = useState(false);
+  const [newClientCnpjLoading, setNewClientCnpjLoading] = useState(false);
+  const [newClientCnpjErro, setNewClientCnpjErro] = useState("");
+
+  const buscarCnpjNovoCliente = async () => {
+    const cnpjLimpo = newClientForm.cpf_cnpj.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) { setNewClientCnpjErro("Digite um CNPJ válido com 14 dígitos."); return; }
+    setNewClientCnpjErro("");
+    setNewClientCnpjLoading(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      if (!res.ok) { setNewClientCnpjErro("CNPJ não encontrado na Receita Federal."); return; }
+      const data = await res.json();
+      
+      const tel = data.ddd_telefone_1
+        ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3")
+        : newClientForm.telefone;
+      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
+      const tipoLogradouro = data.descricao_tipo_de_logradouro
+        ? data.descricao_tipo_de_logradouro + " "
+        : "";
+      const cidade = data.municipio
+        ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase()
+        : newClientForm.cidade;
+        
+      setNewClientForm((prev: any) => ({
+        ...prev,
+        nome: data.razao_social || prev.nome,
+        telefone: tel,
+        cep: cepFmt,
+        endereco: tipoLogradouro + (data.logradouro || ""),
+        numero: data.numero || prev.numero,
+        bairro: data.bairro || prev.bairro,
+        cidade,
+        uf: data.uf || prev.uf,
+      }));
+    } catch {
+      setNewClientCnpjErro("Erro ao consultar o CNPJ. Tente novamente.");
+    } finally {
+      setNewClientCnpjLoading(false);
+    }
+  };
+
+  const handleSaveNewClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientForm.nome.trim()) { alert("Preencha o nome do cliente."); return; }
+    setSavingNewClient(true);
+    try {
+      const { data, error } = await supabase.from("clientes").insert([{
+        nome: newClientForm.nome,
+        cpf_cnpj: newClientForm.cpf_cnpj || null,
+        telefone: newClientForm.telefone || null,
+        cep: newClientForm.cep || null,
+        endereco: newClientForm.endereco || null,
+        numero: newClientForm.numero || null,
+        bairro: newClientForm.bairro || null,
+        cidade: newClientForm.cidade || null,
+        uf: newClientForm.uf || null,
+        status: "Ativo"
+      }]).select().single();
+      if (error) throw error;
+      
+      if (vendedorInfo?.id) {
+        const savedStr = localStorage.getItem(`novos_clientes_${vendedorInfo.id}`);
+        let savedIds = [];
+        try { savedIds = savedStr ? JSON.parse(savedStr) : []; } catch(e){}
+        savedIds.push(data.id);
+        localStorage.setItem(`novos_clientes_${vendedorInfo.id}`, JSON.stringify([...new Set(savedIds)]));
+      }
+      
+      setClientForm((prev: any) => ({
+        ...prev,
+        nome: data.nome || "",
+        documento: data.cpf_cnpj || "",
+        telefone: data.telefone || "",
+        cep: data.cep || "",
+        endereco: data.endereco || "",
+        numero: data.numero || "",
+        bairro: data.bairro || "",
+        cidade: data.cidade || "",
+        uf: data.uf || "",
+      }));
+      
+      setIsNewClientModalOpen(false);
+      setNewClientForm({ nome: "", cpf_cnpj: "", telefone: "", cep: "", endereco: "", numero: "", bairro: "", cidade: "", uf: "", status: "Ativo" });
+    } catch (err: any) {
+      alert("Erro ao cadastrar cliente: " + err.message);
+    } finally {
+      setSavingNewClient(false);
+    }
+  };
+
+  const dynamicCategories = Array.from(new Set(produtos.map((p) => p.categoria))).filter(
+    Boolean,
+  ) as string[];
+  const categorias = dynamicCategories;
+
+  const toggleCategory = (cat: string) => {
+    setSelectedCategory(cat);
+  };
+
+  const getCartQuantity = (id: string) => {
+    const item = cart.find((i) => i.id === id);
+    return item ? item.q : 0;
+  };
 
   useEffect(() => {
     const init = async () => {
-      let currentVendedorId = null;
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) {
-        const { data: vData } = await supabase
-          .from("vendedores")
-          .select("id, status, nome, tipo_comissao, valor_comissao")
-          .eq("user_id", session.user.id)
-          .single();
-        if (vData) {
-          currentVendedorId = vData.id;
-          setVendedorInfo({ 
-            id: vData.id, 
-            nome: vData.nome,
-            tipo_comissao: vData.tipo_comissao,
-            valor_comissao: Number(vData.valor_comissao) || 0
-          });
-          if (vData.status === "Aguardando Aprovação") {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        let aplicaAcrescimo = false;
+        let acrescimoPercentual = 20;
+        let vendedorId = null;
+        if (session) {
+          const { data: vData, error } = await supabase
+            .from("vendedores")
+            .select("id, status, nome, acrescimo_catalogo, acrescimo_catalogo_percentual, tipo_comissao, valor_comissao, avatar_url")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+
+          if (error || !vData) {
+            console.error("Vendedor não encontrado ou erro:", error);
+            setVendedorInfo({ id: "error", nome: "Erro ao carregar perfil" });
+            alert("Não foi possível carregar seu perfil de parceiro. Você será redirecionado.");
             navigate({ to: "/parceiro/dashboard" });
             return;
           }
+
+          if (vData) {
+            vendedorId = vData.id;
+            
+            // Fetch today's sales
+            const hoje = new Date().toISOString().split('T')[0];
+            const { data: vendasHoje } = await supabase
+              .from('vendas')
+              .select('valor_total')
+              .eq('vendedor_id', vData.id)
+              .neq('tipo', 'DAV')
+              .gte('created_at', `${hoje}T00:00:00.000Z`);
+              
+            let totalVendasHoje = 0;
+            if (vendasHoje) {
+              totalVendasHoje = vendasHoje.reduce((acc, v) => acc + (Number(v.valor_total) || 0), 0);
+            }
+            
+            setVendedorInfo({ id: vData.id, nome: vData.nome, tipo_comissao: vData.tipo_comissao, valor_comissao: vData.valor_comissao, vendas_hoje: totalVendasHoje, avatar_url: vData.avatar_url });
+            aplicaAcrescimo = vData.acrescimo_catalogo;
+            if (
+              vData.acrescimo_catalogo_percentual !== null &&
+              vData.acrescimo_catalogo_percentual !== undefined
+            ) {
+              acrescimoPercentual = Number(vData.acrescimo_catalogo_percentual);
+            }
+            if (vData.status === "Aguardando Aprovação") {
+              navigate({ to: "/parceiro/dashboard" });
+              return;
+            }
+          }
+        } else {
+          navigate({ to: "/parceiro/login" });
+          return;
         }
-      }
 
-      const { data } = await supabase.from("produtos").select("*").eq("status", "Ativo").order("nome");
-      if (data) {
-        let finalProducts = [...data];
-
-        // Se tem vendedor logado, busca a tabela de preços personalizada dele
-        if (currentVendedorId) {
+        let customPricesMap: Record<string, number> = {};
+        if (vendedorId) {
           const { data: precos } = await supabase
-            .from("vendedor_precos")
-            .select("produto_id, valor_personalizado")
-            .eq("vendedor_id", currentVendedorId);
-          
-          if (precos && precos.length > 0) {
-            finalProducts = finalProducts.map(p => {
-              const custom = precos.find((c: any) => c.produto_id === p.id);
-              if (custom && custom.valor_personalizado != null) {
-                return { ...p, valor: custom.valor_personalizado };
-              }
-              return p;
+            .from("parceiro_precos")
+            .select("produto_id, preco_personalizado")
+            .eq("vendedor_id", vendedorId);
+          if (precos) {
+            precos.forEach((p) => {
+              customPricesMap[p.produto_id] = Number(p.preco_personalizado);
             });
           }
         }
 
-        setProdutos(finalProducts);
-        setCachedProdutos(finalProducts);
-
-        // Verifica se veio um produto mágico pela URL (formato antigo)
-        const params = new URLSearchParams(window.location.search);
-
-        const eParam = params.get("e");
-        const cnjParam = params.get("cnpj");
-        const cepParam = params.get("cep");
-        const endParam = params.get("end");
-        const numParam = params.get("num");
-        const bairroParam = params.get("bairro");
-        const cidParam = params.get("cid");
-        const ufParam = params.get("uf");
-        const telParam = params.get("tel");
-
-        if (eParam || cnjParam) {
-          setClientForm((prev) => ({
-            ...prev,
-            nome: eParam || "",
-            documento: cnjParam || "",
-            cep: cepParam || "",
-            endereco: endParam || "",
-            numero: numParam || "",
-            bairro: bairroParam || "",
-            cidade: cidParam || "",
-            uf: ufParam || "",
-            telefone: telParam || "",
-          }));
-        }
-
-        const produtoIdMagic = params.get("produto");
-        if (produtoIdMagic) {
-          const magicProduct = data.find((p) => p.id === produtoIdMagic);
-          if (magicProduct) {
-            setCart([
-              {
-                id: magicProduct.id,
-                p: magicProduct.nome,
-                q: 1,
-                u: Number(magicProduct.valor),
-                t: Number(magicProduct.valor),
-                emoji: magicProduct.emoji,
-                imagem: magicProduct.imagem,
-              },
-            ]);
-            // Limpa a URL para não adicionar de novo num refresh
-            window.history.replaceState({}, "", "/parceiro/pdv");
-          }
-        }
-
-        // Novo formato do Carrinho via Catálogo
-        const cartMagic = params.get("c");
-        if (cartMagic) {
-          const parsedCart: any[] = [];
-          const items = cartMagic.split(",");
-          items.forEach((item) => {
-            const [id, qStr] = item.split(":");
-            const qty = parseInt(qStr) || 1;
-            const prod = data.find((p) => p.id === id);
-            if (prod) {
-              parsedCart.push({
-                id: prod.id,
-                p: prod.nome,
-                q: qty,
-                u: Number(prod.valor),
-                t: qty * Number(prod.valor),
-                emoji: prod.emoji,
-                imagem: prod.imagem,
-              });
+        const { data } = await supabase
+          .from("produtos")
+          .select("*")
+          .eq("status", "Ativo")
+          .order("nome");
+        if (data) {
+          const multiplier = 1 + acrescimoPercentual / 100;
+          const produtosComPreco = data.map((p: any) => {
+            let finalPrice = aplicaAcrescimo ? p.valor * multiplier : p.valor;
+            if (customPricesMap[p.id] !== undefined) {
+              finalPrice = customPricesMap[p.id];
             }
+            return {
+              ...p,
+              valor: finalPrice,
+            };
           });
-          if (parsedCart.length > 0) {
-            setCart(parsedCart);
-            window.history.replaceState({}, "", "/parceiro/pdv");
+          setProdutos(produtosComPreco);
+
+          // Verifica se veio um produto mágico pela URL (formato antigo)
+          const dataForMagic = produtosComPreco;
+          const params = new URLSearchParams(window.location.search);
+
+          const eParam = params.get("e");
+          const cnjParam = params.get("cnpj");
+          const cepParam = params.get("cep");
+          const endParam = params.get("end");
+          const numParam = params.get("num");
+          const bairroParam = params.get("bairro");
+          const cidParam = params.get("cid");
+          const ufParam = params.get("uf");
+          const telParam = params.get("tel");
+
+          if (eParam || cnjParam) {
+            setClientForm((prev: any) => ({
+              ...prev,
+              nome: eParam || "",
+              documento: cnjParam || "",
+              cep: cepParam || "",
+              endereco: endParam || "",
+              numero: numParam || "",
+              bairro: bairroParam || "",
+              cidade: cidParam || "",
+              uf: ufParam || "",
+              telefone: telParam || "",
+            }));
+          }
+
+          const produtoIdMagic = params.get("produto");
+          if (produtoIdMagic) {
+            const magicProduct = dataForMagic.find((p: any) => p.id === produtoIdMagic);
+            if (magicProduct) {
+              setCart([
+                {
+                  id: magicProduct.id,
+                  p: magicProduct.nome,
+                  q: 1,
+                  u: Number(magicProduct.valor),
+                  t: Number(magicProduct.valor),
+                  emoji: magicProduct.emoji,
+                  imagem: magicProduct.imagem,
+                },
+              ]);
+              // Limpa a URL para não adicionar de novo num refresh
+              window.history.replaceState({}, "", "/parceiro/pdv");
+            }
+          }
+
+          // Novo formato do Carrinho via Catálogo
+          const cartMagic = params.get("c");
+          if (cartMagic) {
+            const parsedCart: any[] = [];
+            const items = cartMagic.split(",");
+            items.forEach((item) => {
+              const [id, qStr] = item.split(":");
+              const qty = parseInt(qStr) || 1;
+              const prod = dataForMagic.find((p: any) => p.id === id);
+              if (prod) {
+                parsedCart.push({
+                  id: prod.id,
+                  p: prod.nome,
+                  q: qty,
+                  u: Number(prod.valor),
+                  t: qty * Number(prod.valor),
+                  emoji: prod.emoji,
+                  imagem: prod.imagem,
+                });
+              }
+            });
+            if (parsedCart.length > 0) {
+              setCart(parsedCart);
+              window.history.replaceState({}, "", "/parceiro/pdv");
+            }
           }
         }
+      } catch (err: any) {
+        console.error("Erro na inicialização do PDV:", err);
+        setInitError(err.message || "Ocorreu um erro ao carregar o PDV.");
+      } finally {
+        setIsInitializing(false);
       }
     };
     init();
   }, []);
 
-  const addToCart = (produto: any) => {
+  const addToCart = (produto: any, qty: number = 1) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === produto.id);
       if (existing) {
         return prev.map((i) =>
-          i.id === produto.id ? { ...i, q: i.q + 1, t: (i.q + 1) * i.u } : i,
+          i.id === produto.id ? { ...i, q: i.q + qty, t: (i.q + qty) * i.u } : i,
         );
       }
       return [
@@ -201,9 +438,9 @@ function ParceiroPDV() {
         {
           id: produto.id,
           p: produto.nome,
-          q: 1,
+          q: qty,
           u: Number(produto.valor),
-          t: Number(produto.valor),
+          t: Number(produto.valor) * qty,
           emoji: produto.emoji,
           imagem: produto.imagem,
         },
@@ -215,20 +452,26 @@ function ParceiroPDV() {
     setCart((prev) => {
       const updated = prev.map((i) => {
         if (i.id === id) {
-          const newQ = i.q + delta;
+          const currentQ = typeof i.q === "number" ? i.q : 0;
+          const newQ = currentQ + delta;
+          if (newQ <= 0) return null;
           return { ...i, q: newQ, t: newQ * i.u };
         }
         return i;
       });
-      return updated.filter((i) => i.q > 0);
+      return updated.filter((i) => i !== null) as typeof prev;
     });
   };
 
-  const setQuantity = (id: string, newQ: number) => {
+  const setQuantity = (id: string, val: string) => {
     setCart((prev) =>
       prev.map((i) => {
         if (i.id === id) {
-          if (newQ <= 0) return i;
+          if (val === "") {
+            return { ...i, q: "", t: 0 };
+          }
+          const newQ = parseInt(val);
+          if (isNaN(newQ) || newQ < 0) return i;
           return { ...i, q: newQ, t: newQ * i.u };
         }
         return i;
@@ -252,65 +495,65 @@ function ParceiroPDV() {
     setCart((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const subtotal = cart.reduce((s, i) => s + i.t, 0);
-  const valorDesconto = (subtotal * (clientForm.descontoPercentual || 0)) / 100;
-  const totalComDesconto = subtotal - valorDesconto;
+  const rawSubtotal = cart.reduce((s, i) => s + i.t, 0);
+  const subtotal =
+    descontoPercentual > 0 ? rawSubtotal * (1 - descontoPercentual / 100) : rawSubtotal;
+  const descontoAplicado = rawSubtotal - subtotal;
+
+  const buscarCnpj = async () => {
+    const cnpjLimpo = clientForm.documento.replace(/\D/g, "");
+    if (cnpjLimpo.length !== 14) {
+      setCnpjErro("Digite um CNPJ válido com 14 dígitos.");
+      return;
+    }
+    setCnpjErro("");
+    setCnpjLoading(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
+      if (!res.ok) {
+        setCnpjErro("CNPJ não encontrado na Receita Federal.");
+        return;
+      }
+      const data = await res.json();
+      const tel = data.ddd_telefone_1
+        ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3")
+        : clientForm.telefone;
+      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
+      const tipoLogradouro = data.descricao_tipo_de_logradouro
+        ? data.descricao_tipo_de_logradouro + " "
+        : "";
+      const cidade = data.municipio
+        ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase()
+        : clientForm.cidade;
+      setClientForm((prev: any) => ({
+        ...prev,
+        nome: data.razao_social || prev.nome,
+        telefone: tel,
+        cep: cepFmt,
+        endereco: tipoLogradouro + (data.logradouro || ""),
+        numero: data.numero || prev.numero,
+        bairro: data.bairro || prev.bairro,
+        cidade,
+        uf: data.uf || prev.uf,
+      }));
+    } catch {
+      setCnpjErro("Erro ao consultar o CNPJ. Tente novamente.");
+    } finally {
+      setCnpjLoading(false);
+    }
+  };
 
   const handleOpenClientModal = () => {
     if (cart.length === 0 || !vendedorInfo) return;
     setIsClientModalOpen(true);
   };
 
-  const buscarCnpj = async (doc: string) => {
-    const cnpjLimpo = doc.replace(/\D/g, "");
-    if (cnpjLimpo.length !== 14) return;
-    
-    const start = Date.now();
-    setLoadingCnpj(true);
-    try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`);
-      if (!res.ok) {
-        toast.error("CNPJ não encontrado na Receita Federal.");
-        return;
-      }
-      const data = await res.json();
-      
-      const tel = data.ddd_telefone_1 ? data.ddd_telefone_1.replace(/(\d{2})(\d{4,5})(\d{4})/, "($1) $2-$3") : "";
-      const cepFmt = data.cep ? data.cep.replace(/\D/g, "").replace(/(\d{5})(\d{3})/, "$1-$2") : "";
-      const tipoLogradouro = data.descricao_tipo_de_logradouro ? data.descricao_tipo_de_logradouro + " " : "";
-      const cidade = data.municipio ? data.municipio.charAt(0) + data.municipio.slice(1).toLowerCase() : "";
-      
-      setClientForm((prev) => ({
-        ...prev,
-        nome: data.razao_social || prev.nome,
-        telefone: tel || prev.telefone,
-        cep: cepFmt || prev.cep,
-        endereco: tipoLogradouro + (data.logradouro || ""),
-        numero: data.numero || prev.numero,
-        bairro: data.bairro || prev.bairro,
-        cidade: cidade || prev.cidade,
-        uf: data.uf || prev.uf,
-      }));
-      toast.success("Dados preenchidos via Receita Federal!");
-    } catch (error) {
-      console.error("Erro na busca do CNPJ:", error);
-    } finally {
-      const elapsed = Date.now() - start;
-      const remaining = Math.max(0, 2000 - elapsed);
-      await new Promise((r) => setTimeout(r, remaining));
-      setLoadingCnpj(false);
-    }
-  };
-
-  const submitOrder = async (e: React.FormEvent) => {
+  const salvarRascunho = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!clientForm.nome) {
-      toast.error("Por favor, preencha o nome do cliente.");
-      return;
-    }
+    if (loading) return;
 
-    if (cart.length === 0) {
-      toast.error("Adicione pelo menos um produto ao carrinho antes de finalizar.");
+    if (!clientForm.nome) {
+      alert("Por favor, preencha o nome do cliente para salvar.");
       return;
     }
 
@@ -321,7 +564,103 @@ function ParceiroPDV() {
       // 1. Cria ou busca o cliente
       let finalClienteId = null;
 
-      // Se o cliente digitou um documento, tenta buscar primeiro para não duplicar
+      if (clientForm.documento && clientForm.documento.trim() !== "") {
+        const { data: existingClient } = await supabase
+          .from("clientes")
+          .select("id")
+          .eq("cpf_cnpj", clientForm.documento.trim())
+          .maybeSingle();
+        if (existingClient) finalClienteId = existingClient.id;
+      }
+
+      if (!finalClienteId) {
+        const payload: any = { nome: clientForm.nome };
+        if (clientForm.documento?.trim()) payload.cpf_cnpj = clientForm.documento.trim();
+        if (clientForm.telefone?.trim()) payload.telefone = clientForm.telefone.trim();
+        if (clientForm.cep?.trim()) payload.cep = clientForm.cep.trim();
+        if (clientForm.endereco?.trim()) payload.endereco = clientForm.endereco.trim();
+        if (clientForm.numero?.trim()) payload.numero = clientForm.numero.trim();
+        if (clientForm.bairro?.trim()) payload.bairro = clientForm.bairro.trim();
+        if (clientForm.cidade?.trim()) payload.cidade = clientForm.cidade.trim();
+        if (clientForm.uf?.trim()) payload.uf = clientForm.uf.trim();
+        payload.status = "Ativo";
+
+        const { data: clienteData, error: clienteError } = await supabase
+          .from("clientes")
+          .insert([payload])
+          .select()
+          .maybeSingle();
+
+        if (clienteData) {
+          finalClienteId = clienteData.id;
+        } else if (clienteError) {
+          alert("Não foi possível salvar o cliente: " + clienteError.message);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Cria o DAV como Rascunho (não vai para o admin)
+      const { data: vendaData, error: vendaError } = await supabase
+        .from("vendas")
+        .insert([{
+          tipo: "DAV",
+          status_aprovacao: "Rascunho",
+          status: "Rascunho",
+          subtotal: rawSubtotal,
+          valor_total: subtotal,
+          vendedor_id: vendedorInfo?.id,
+          cliente_id: finalClienteId,
+          desconto_valor: descontoAplicado,
+          desconto_percentual: descontoPercentual,
+          condicao_pagamento:
+            clientForm.pagamento === "Boleto a Prazo"
+              ? clientForm.condicaoBoleto || "Boleto a Prazo"
+              : clientForm.pagamento,
+        }])
+        .select()
+        .single();
+
+      if (vendaError) throw vendaError;
+
+      // 3. Insere os itens
+      const itensToInsert = cart.map((i) => ({
+        venda_id: vendaData.id,
+        produto_id: i.id,
+        quantidade: i.q,
+        valor_unitario: i.u,
+        subtotal: i.t,
+      }));
+
+      const { error: itensError } = await supabase.from("vendas_itens").insert(itensToInsert);
+      if (itensError) throw itensError;
+
+      // 4. Limpa o carrinho e redireciona para Meus Carrinhos
+      esvaziarCarrinho();
+      navigate({ to: "/parceiro/catalogo" });
+    } catch (err: any) {
+      alert("Erro ao salvar rascunho: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitOrder = async (e: React.FormEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (loading) return;
+
+    if (!clientForm.nome) {
+      alert("Por favor, preencha o nome do cliente.");
+      return;
+    }
+
+    setIsClientModalOpen(false);
+    setLoading(true);
+
+    try {
+      // 1. Cria ou busca o cliente
+      let finalClienteId = null;
+
       if (clientForm.documento && clientForm.documento.trim() !== "") {
         const { data: existingClient } = await supabase
           .from("clientes")
@@ -334,7 +673,6 @@ function ParceiroPDV() {
         }
       }
 
-      // Se não encontrou o cliente, tenta criar um novo
       if (!finalClienteId) {
         const payload: any = { nome: clientForm.nome };
         if (clientForm.documento && clientForm.documento.trim() !== "") {
@@ -373,63 +711,32 @@ function ParceiroPDV() {
           finalClienteId = clienteData.id;
         } else if (clienteError) {
           console.error("Erro ao criar cliente pelo parceiro:", clienteError);
-          toast.error("Não foi possível salvar o cliente: " + clienteError.message);
+          alert("Não foi possível salvar o cliente: " + clienteError.message);
           setLoading(false);
           return;
         }
       }
 
-      // 2. Busca próximo número sequencial da venda
-      let nextNumero: number | null = null;
-      try {
-        const { data: maxVenda } = await supabase
-          .from("vendas")
-          .select("numero")
-          .not("numero", "is", null)
-          .order("numero", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (maxVenda?.numero) {
-          nextNumero = Number(maxVenda.numero) + 1;
-        } else {
-          nextNumero = 1;
-        }
-      } catch (e) {
-        console.warn("Não foi possível obter próximo número sequencial:", e);
-      }
-
-      // Calcula a comissão estimada para exibir como pendente
-      let valorComissaoVenda = 0;
-      if (vendedorInfo) {
-        if (vendedorInfo.tipo_comissao === "Fixo" || vendedorInfo.tipo_comissao === "fixo") {
-          valorComissaoVenda = vendedorInfo.valor_comissao || 0;
-        } else {
-          valorComissaoVenda = (totalComDesconto * (vendedorInfo.valor_comissao || 0)) / 100;
-        }
-      }
-
-      // Cria a venda pendente
-      const vendaPayload: Record<string, any> = {
-        tipo: "PDV",
-        status_aprovacao: "Pendente",
-        status: "Pendente",
-        valor_total: totalComDesconto,
-        desconto_percentual: clientForm.descontoPercentual,
-        desconto_valor: valorDesconto,
-        condicao_pagamento: clientForm.pagamento,
-        observacoes: clientForm.observacoes || null,
-        vendedor_id: vendedorInfo?.id,
-        cliente_id: finalClienteId,
-        valor_comissao: valorComissaoVenda,
-      };
-
-      if (nextNumero) {
-        vendaPayload.numero = nextNumero;
-      }
-
+      // 2. Cria a venda pendente
       const { data: vendaData, error: vendaError } = await supabase
         .from("vendas")
-        .insert([vendaPayload])
+        .insert([
+          {
+            tipo: "PDV",
+            status_aprovacao: "Pendente",
+            status: "Pendente",
+            subtotal: rawSubtotal,
+            valor_total: subtotal,
+            vendedor_id: vendedorInfo?.id,
+            cliente_id: finalClienteId,
+            desconto_valor: descontoAplicado,
+            desconto_percentual: descontoPercentual,
+            condicao_pagamento:
+              clientForm.pagamento === "Boleto a Prazo"
+                ? clientForm.condicaoBoleto || "Boleto a Prazo"
+                : clientForm.pagamento,
+          },
+        ])
         .select()
         .single();
 
@@ -445,295 +752,517 @@ function ParceiroPDV() {
       }));
 
       const { error: itensError } = await supabase.from("vendas_itens").insert(itensToInsert);
-      if (itensError) {
-        // Rollback da venda se falhar os itens
-        await supabase.from("vendas").delete().eq("id", vendaData.id);
-        console.error("Erro ao inserir itens da venda:", itensError);
-        throw new Error("Falha ao salvar os produtos no banco. A venda foi cancelada: " + itensError.message);
-      }
+      if (itensError) throw itensError;
 
-      // Guarda os identificadores oficiais do pedido para compartilhar no WhatsApp e baixar PDF
-      const finalNumero = vendaData.numero || nextNumero || vendaData.id.substring(0, 8).toUpperCase();
       setDavGeradoId(vendaData.id);
-      setDavGeradoNumero(finalNumero);
+      setDavGeradoNumero(vendaData.numero_venda);
 
       // 4. Dispara a notificação para o dono
       await supabase.from("notificacoes").insert([
         {
           tipo: "venda",
           titulo: `Novo pedido pendente`,
-          mensagem: `Um parceiro enviou um novo pedido (Cliente: ${clientForm.nome}) no valor de ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalComDesconto)} para aprovação.`,
+          mensagem: `Um parceiro enviou um novo pedido (Cliente: ${clientForm.nome}) no valor de ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(subtotal)} para aprovação.`,
         },
       ]);
 
       setIsSuccessModalOpen(true);
     } catch (err: any) {
-      toast.error("Erro ao enviar venda: " + err.message);
+      alert("Erro ao enviar venda: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const esvaziarCarrinho = () => {
+    setCart([]);
+    setClientForm({
+      nome: "",
+      documento: "",
+      telefone: "",
+      cep: "",
+      endereco: "",
+      numero: "",
+      bairro: "",
+      cidade: "",
+      uf: "",
+      pagamento: "Dinheiro / Pix",
+      condicaoBoleto: "",
+      frete: "Retirada",
+      observacoes: "",
+    });
+  };
+
   const closeSuccessModal = () => {
     setIsSuccessModalOpen(false);
-    setCart([]);
+    esvaziarCarrinho();
     navigate({ to: "/parceiro/dashboard" });
   };
 
   const handleShareWhatsApp = async () => {
     if (!davGeradoId) return;
+    setSharingSuccess(true);
+    try {
+      const orderObj = {
+        id: davGeradoId,
+        numero_venda: davGeradoNumero || undefined,
+        tipo: "PDV",
+        created_at: new Date().toISOString(),
+        subtotal: rawSubtotal,
+        valor_total: subtotal,
+        desconto_valor: descontoAplicado,
+        desconto_percentual: descontoPercentual,
+        cliente: {
+          nome: clientForm.nome,
+          cpf_cnpj: clientForm.documento,
+          telefone: clientForm.telefone,
+          endereco: `${clientForm.endereco || ""}${clientForm.numero ? `, ${clientForm.numero}` : ""}`,
+        },
+        condicao_pagamento:
+          clientForm.pagamento === "Boleto a Prazo"
+            ? clientForm.condicaoBoleto || "Boleto a Prazo"
+            : clientForm.pagamento,
+        vendedor_nome: vendedorInfo?.nome,
+      };
 
-    await shareOrcamentoPDF({
-      id: davGeradoId,
-      numero: davGeradoNumero,
-      tipo: "DAV",
-      cliente_nome: clientForm.nome,
-      cliente_cnpj: clientForm.documento,
-      cliente_telefone: clientForm.telefone,
-      cliente_endereco: [clientForm.endereco, clientForm.cidade, clientForm.uf].filter(Boolean).join(", "),
-      condicao_pagamento: clientForm.pagamento,
-      valor_total: totalComDesconto,
-      subtotal: subtotal,
-      desconto_valor: valorDesconto,
-      itens: cart.map((item) => ({
-        codigo: item.cod,
-        nome: item.p,
-        quantidade: item.q,
-        valor_unitario: item.u,
-        subtotal: item.t,
-        imagem: item.imagem || null,
-      })),
-    });
+      const itemsList = cart.map((i) => ({
+        produto_nome: i.p,
+        codigo: i.c,
+        quantidade: i.q,
+        valor_unitario: i.u,
+        subtotal: i.t,
+      }));
+
+      await shareOrderWhatsApp(orderObj, itemsList);
+    } finally {
+      setSharingSuccess(false);
+    }
   };
+
+  if (isInitializing) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 space-y-4">
+        <Loader2 className="w-12 h-12 animate-spin text-brand" />
+        <p className="text-slate-600 font-medium animate-pulse">Iniciando PDV...</p>
+      </div>
+    );
+  }
+
+  if (initError)
+    return <div className="text-center py-10 text-red-600 font-bold">Erro: {initError}</div>;
 
   if (!vendedorInfo)
     return <div className="text-center py-10">Verificando perfil de vendedor...</div>;
 
+  // Filter products by search and category
+  const filteredProducts = produtos.filter((p) => {
+    const matchesSearch =
+      p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.codigo && p.codigo.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (selectedCategory === "Todos") return matchesSearch;
+
+    const prodCat = (p.categoria || "").toLowerCase();
+    const selCat = selectedCategory.toLowerCase();
+
+    let matchesCategory = prodCat === selCat;
+
+    // Fuzzy matching para as categorias fixas no plural
+    if (selCat === "vasos" && prodCat.includes("vaso")) matchesCategory = true;
+    if (selCat === "pratos" && prodCat.includes("prato")) matchesCategory = true;
+    if (selCat === "cuias" && prodCat.includes("cuia")) matchesCategory = true;
+    if (selCat === "floreiras" && prodCat.includes("floreira")) matchesCategory = true;
+
+    return matchesSearch && matchesCategory;
+  });
+
   return (
-    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {loadingCnpj && <CnpjLoader />}
-      <div className="mb-2">
-        <h1 className="text-2xl font-bold font-display text-slate-800">Nova Venda</h1>
-        <p className="text-sm text-muted-foreground">Registre o pedido do seu cliente.</p>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar produto…"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="h-12 pl-10 rounded-xl bg-white shadow-sm border-0 ring-1 ring-slate-900/5"
-        />
-      </div>
-
-      <div className="flex overflow-x-auto pb-2 gap-2 snap-x">
-        {produtos
-          .filter((p) => p.nome.toLowerCase().includes(searchTerm.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(searchTerm.toLowerCase())))
-          .map((p) => (
-            <button
-              key={p.id}
-              onClick={() => addToCart(p)}
-              className="flex-shrink-0 snap-center w-28 bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex flex-col items-center gap-2 active:scale-95 transition-transform"
-            >
-              <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-md bg-accent text-3xl">
-                {p.imagem ? (
-                  <img src={p.imagem} alt={p.nome} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="opacity-50">{p.emoji || "🪴"}</span>
-                )}
-              </div>
-              <div className="text-center">
-                <p className="text-xs font-semibold text-slate-800 leading-tight">
-                  {p.nome}
-                </p>
-                <p className="text-[10px] font-bold text-brand mt-1">
-                  R$ {Number(p.valor).toFixed(2)}
-                </p>
-              </div>
-            </button>
-          ))}
-      </div>
-
-      <Card className="shadow-sm border-0 ring-1 ring-slate-900/5 overflow-hidden">
-        <div className="bg-slate-50 border-b p-3 flex justify-between items-center">
-          <h2 className="font-semibold text-sm flex items-center gap-2">
-            <ShoppingCart className="h-4 w-4" /> Carrinho
-          </h2>
-          <span className="text-xs font-bold text-muted-foreground">{cart.length} itens</span>
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-48 bg-slate-50 min-h-screen">
+      {/* Top Header */}
+      <div className="bg-gradient-brand px-4 pt-10 pb-12 lg:sticky lg:top-0 z-10 rounded-b-3xl shadow-md relative text-white">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <GardenPrimeLogo horizontal size="small" className="brightness-0 invert" />
+          </div>
+          <Bell className="w-5 h-5" />
         </div>
-        <CardContent className="p-0">
-          <div className="max-h-[40vh] overflow-y-auto divide-y">
-            {cart.length === 0 ? (
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                Selecione produtos acima.
-              </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 bg-slate-200 rounded-full overflow-hidden shrink-0 border-2 border-white/20">
+              <img src={vendedorInfo?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${vendedorInfo?.nome}&backgroundColor=e2e8f0`} alt="Avatar" className="w-full h-full object-cover" />
+            </div>
+            <div>
+              <p className="font-bold text-base leading-tight">{vendedorInfo.nome.split(" ")[0]}</p>
+              <p className="text-xs text-white/90 font-medium">Vendas de hoje: R$ {(vendedorInfo.vendas_hoje || 0).toFixed(2).replace(".", ",")}</p>
+              <p className="text-xs text-white/90 font-medium">
+                 Comissão: {vendedorInfo.tipo_comissao === "Fixo" ? `R$ ${vendedorInfo.valor_comissao?.toFixed(2)}` : `${vendedorInfo.valor_comissao}%`}
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white h-8 px-3 text-xs"
+            onClick={() => setIsNewClientModalOpen(true)}
+          >
+            Cadastrar cliente
+          </Button>
+        </div>
+        
+        {/* Search bar overlapping */}
+        <div className="absolute -bottom-6 left-4 right-4 z-20">
+          <div className="relative flex items-center bg-white rounded-2xl shadow-lg border border-slate-100">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <Input
+              placeholder="Buscar produto ou código..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-14 pl-12 pr-20 rounded-2xl bg-transparent border-0 shadow-none text-slate-800 focus-visible:ring-0 text-base"
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
+               <Mic className="w-5 h-5 text-brand" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 pt-10 pb-2">
+        <div className="flex justify-between items-center bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-brand">Cliente</p>
+            {clientForm.nome ? (
+              <>
+                <h2 className="text-sm font-bold text-slate-800 leading-tight line-clamp-1">
+                  {clientForm.nome}
+                </h2>
+                {clientForm.documento && (
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                    CNPJ: {clientForm.documento}
+                  </p>
+                )}
+              </>
             ) : (
-              cart.map((i) => (
-                <div key={i.id} className="flex items-center gap-3 p-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-accent text-2xl">
-                    {i.imagem ? (
-                      <img src={i.imagem} alt={i.p} className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="opacity-50">{i.emoji || "🪴"}</span>
-                    )}
+              <h2 className="text-sm font-bold text-slate-400 leading-tight">Nenhum cliente</h2>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsClientModalOpen(true)}
+            className="h-8 px-3 rounded-lg text-xs font-bold text-brand hover:bg-brand/10"
+          >
+            <RefreshCw className="w-3 h-3 mr-1.5" />
+            {clientForm.nome ? "Trocar" : "Selecionar"}
+          </Button>
+        </div>
+      </div>
+
+
+
+      <div className="p-4 space-y-6">
+        {/* Categories Tabs */}
+        <div>
+          <h3 className="font-bold text-lg text-slate-900 mb-3">Categorias</h3>
+          <div className="flex overflow-x-auto gap-2 pb-2 no-scrollbar bg-slate-50 py-1">
+            <button
+              onClick={() => toggleCategory("Todos")}
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-colors ${selectedCategory === "Todos" ? "bg-emerald-700 text-white shadow-md" : "bg-white text-slate-600 border border-slate-200"}`}
+            >
+              Todos
+            </button>
+            {categorias.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => toggleCategory(cat)}
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-colors ${selectedCategory === cat ? "bg-emerald-700 text-white shadow-md" : "bg-white text-slate-600 border border-slate-200"}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Vertical Product List */}
+        <div className="space-y-3">
+          {filteredProducts.map((p) => {
+            const qtd = getCartQuantity(p.id);
+            return (
+              <div
+                key={p.id}
+                className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex items-stretch gap-3"
+              >
+                <div className="h-20 w-20 bg-slate-50 rounded-xl shrink-0 flex items-center justify-center overflow-hidden">
+                  {p.imagem ? (
+                    <img
+                      src={p.imagem}
+                      alt={p.nome}
+                      className="h-full w-full object-cover mix-blend-multiply"
+                    />
+                  ) : (
+                    <span className="text-3xl opacity-50">{p.emoji || "🪴"}</span>
+                  )}
+                </div>
+                
+                <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
+                  <div>
+                    <p className="text-[13px] font-bold text-slate-900 leading-tight mb-1 line-clamp-2">{p.nome}</p>
+                    <p className="text-[11px] text-slate-600 mb-0.5">Código: {p.codigo || "N/A"}</p>
+                    <p className="text-[11px] text-slate-600">Estoque: {p.estoque || 0} und</p>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{i.p}</p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium mt-0.5">
-                      R$
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={i.u}
-                        onChange={(e) => setUnitPrice(i.id, parseFloat(e.target.value) || 0)}
-                        className="w-16 bg-transparent border-b border-dashed border-slate-300 outline-none focus:border-brand p-0 m-0 text-slate-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      un
-                    </div>
-                    <p className="text-xs text-brand font-bold mt-0.5">Total: R$ {i.t.toFixed(2)}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-slate-100 rounded-lg p-1">
+                  <p className="text-sm font-black text-slate-900 mt-1">
+                    R$ {Number(p.valor).toFixed(2).replace(".", ",")}
+                  </p>
+                </div>
+                
+                <div className="flex flex-col justify-between shrink-0 w-[90px]">
+                  <div className="flex items-center bg-emerald-700 rounded-lg overflow-hidden h-[30px] mb-2">
                     <button
-                      onClick={() => updateQuantity(i.id, -1)}
-                      className="h-6 w-6 grid place-items-center bg-white rounded shadow-sm text-lg leading-none font-medium"
+                      onClick={() => {
+                        if (qtd === 0) return;
+                        updateQuantity(p.id, -1);
+                      }}
+                      className="w-7 h-full text-white flex items-center justify-center hover:bg-emerald-800"
                     >
-                      −
+                      <Minus className="w-3.5 h-3.5" />
                     </button>
                     <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={draftQtys[i.id] !== undefined ? draftQtys[i.id] : String(i.q)}
-                      onFocus={(e) => {
-                        setDraftQtys((prev) => ({ ...prev, [i.id]: String(i.q) }));
-                        e.target.select();
-                      }}
+                      type="number"
+                      min="0"
+                      className="w-full text-center text-sm font-bold text-slate-900 bg-white h-full outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      value={qtd > 0 ? qtd : (pendingQty[p.id] ?? "1")}
                       onChange={(e) => {
-                        // Allow freely typing — only digits
-                        const raw = e.target.value.replace(/[^0-9]/g, "");
-                        setDraftQtys((prev) => ({ ...prev, [i.id]: raw }));
+                        const valStr = e.target.value;
+                        if (qtd > 0) {
+                          setQuantity(p.id, valStr);
+                          if (valStr === "" || parseInt(valStr) <= 0) removeFromCart(p.id);
+                        } else {
+                          setPendingQty((prev) => ({ ...prev, [p.id]: valStr }));
+                        }
                       }}
                       onBlur={(e) => {
-                        const n = parseInt(draftQtys[i.id] ?? "") || 1;
-                        setQuantity(i.id, Math.max(1, n));
-                        setDraftQtys((prev) => { const d = { ...prev }; delete d[i.id]; return d; });
+                        if (qtd > 0 && (e.target.value === "" || parseInt(e.target.value) <= 0))
+                          removeFromCart(p.id);
                       }}
-                      className="w-8 text-center text-xs font-bold bg-transparent border-0 outline-none p-0 focus:ring-0"
                     />
                     <button
-                      onClick={() => updateQuantity(i.id, 1)}
-                      className="h-6 w-6 grid place-items-center bg-white rounded shadow-sm text-lg leading-none font-medium"
+                      onClick={() => {
+                        if (qtd === 0) {
+                          const pending = parseInt(pendingQty[p.id] ?? "1");
+                          addToCart(p, isNaN(pending) || pending <= 0 ? 1 : pending + 1);
+                        } else {
+                          updateQuantity(p.id, 1);
+                        }
+                      }}
+                      className="w-7 h-full text-white flex items-center justify-center hover:bg-emerald-800"
                     >
-                      +
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <button
-                    onClick={() => removeFromCart(i.id)}
-                    className="p-1.5 text-destructive bg-destructive/10 rounded-md"
+                    onClick={() => {
+                      if (qtd === 0) {
+                        const pending = parseInt(pendingQty[p.id] ?? "1");
+                        addToCart(p, isNaN(pending) || pending <= 0 ? 1 : pending);
+                        setPendingQty((prev) => { const n = { ...prev }; delete n[p.id]; return n; });
+                      }
+                    }}
+                    className="bg-emerald-700 text-white text-[13px] font-bold w-full h-[30px] rounded-lg shadow-sm hover:bg-emerald-800 active:scale-95 transition-transform flex items-center justify-center"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {qtd > 0 ? "Adicionado" : "Adicionar"}
                   </button>
                 </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {cart.length > 0 && (
-        <div className="sticky bottom-24 pt-2">
-          <Button
-            onClick={handleOpenClientModal}
-            disabled={loading}
-            className="w-full h-14 bg-gradient-brand text-primary-foreground text-lg font-bold shadow-lg shadow-brand/25 flex justify-between px-6"
-          >
-            <span>Enviar Pedido</span>
-            <span className="flex flex-col text-right">
-              {valorDesconto > 0 && <span className="text-xs line-through opacity-70">R$ {subtotal.toFixed(2).replace(".", ",")}</span>}
-              <span>R$ {totalComDesconto.toFixed(2).replace(".", ",")}</span>
-            </span>
-          </Button>
+              </div>
+            );
+          })}
         </div>
-      )}
+      </div>
+
+      {/* Resumo Flutuante (Floating Summary) */}
+      <div className="fixed bottom-[100px] lg:bottom-10 left-0 right-0 px-4 z-40 pointer-events-none pb-safe max-w-4xl lg:max-w-md mx-auto w-full">
+        <div className="pointer-events-auto">
+            <div className="animate-in slide-in-from-bottom-5 fade-in duration-300">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <div className="bg-white/95 backdrop-blur-xl rounded-[32px] shadow-2xl border border-black/20 p-3 pl-6 pr-3 flex items-center justify-between cursor-pointer ring-1 ring-black/10">
+                    <div>
+                      <p className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                        Resumo do Pedido
+                        {vendedorInfo && (
+                          <span className="text-[10px] font-bold bg-[#12794C]/10 text-[#12794C] px-2 py-0.5 rounded-full border border-[#12794C]/20">
+                            Comissão: {vendedorInfo.tipo_comissao === "Fixo" ? `R$ ${vendedorInfo.valor_comissao?.toFixed(2)}` : `${vendedorInfo.valor_comissao}%`}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        {cart.length} itens | Total <span className="font-bold text-slate-900">R$ {subtotal.toFixed(2).replace(".", ",")}</span>
+                      </p>
+                    </div>
+                    <button className="bg-[#12794C] text-white px-6 py-3 rounded-full font-bold text-sm flex items-center gap-1 shadow-md active:scale-95 transition-transform pointer-events-none">
+                      Finalizar <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl p-0 flex flex-col pointer-events-auto">
+                  <SheetHeader className="p-4 border-b text-left">
+                    <div className="flex justify-between items-center">
+                      <SheetTitle className="flex items-center gap-2 text-lg">
+                        <ShoppingCart className="w-5 h-5" /> Seu Carrinho
+                      </SheetTitle>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={esvaziarCarrinho}
+                        className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 h-8 text-xs"
+                      >
+                        Esvaziar
+                      </Button>
+                    </div>
+                  </SheetHeader>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {cart.map((i) => (
+                      <div key={i.id} className="flex gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm relative">
+                        <button
+                          onClick={() => removeFromCart(i.id)}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-white border shadow-sm rounded-full flex items-center justify-center text-rose-500 hover:bg-rose-50 z-10"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <div className="w-16 h-16 bg-slate-50 rounded-xl flex items-center justify-center text-2xl shrink-0 overflow-hidden">
+                          {i.imagem ? <img src={i.imagem} alt={i.p} className="w-full h-full object-cover" /> : i.emoji}
+                        </div>
+                        <div className="flex-1 flex flex-col justify-between py-0.5">
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 leading-tight line-clamp-2">{i.p}</p>
+                            <p className="text-[10px] text-slate-500 mt-1">R$ {i.u.toFixed(2).replace(".", ",")} un</p>
+                          </div>
+                          <div className="flex items-center justify-between mt-2">
+                            <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+                              <button onClick={() => updateQuantity(i.id, -1)} className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm"><Minus className="w-3 h-3" /></button>
+                              <span className="text-xs font-bold w-4 text-center">{i.q}</span>
+                              <button onClick={() => updateQuantity(i.id, 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded-md shadow-sm"><Plus className="w-3 h-3" /></button>
+                            </div>
+                            <p className="text-sm font-black text-slate-900">R$ {i.t.toFixed(2).replace(".", ",")}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-4 border-t bg-slate-50 rounded-t-[32px] -mt-4 relative z-10 shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
+                    <div className="flex justify-between items-center mb-4 px-2">
+                      <span className="text-sm font-semibold text-slate-600">Subtotal</span>
+                      <span className="font-bold text-lg text-slate-800">R$ {rawSubtotal.toFixed(2).replace(".", ",")}</span>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+                        handleOpenClientModal();
+                      }}
+                      className="w-full h-14 bg-gradient-brand text-white font-bold text-base shadow-lg shadow-brand/25 rounded-2xl"
+                    >
+                      Avançar para Pagamento
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+        </div>
+      </div>
 
       {/* Modal de Sucesso */}
       <Dialog open={isSuccessModalOpen} onOpenChange={closeSuccessModal}>
-        <DialogContent className="w-[90vw] sm:max-w-[425px] rounded-3xl p-0 overflow-hidden border-0 shadow-2xl gap-0">
-          <div className="bg-gradient-to-br from-emerald-400 to-emerald-600 p-8 text-center relative overflow-hidden">
-             {/* decorative background shapes */}
-            <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/10 blur-2xl"></div>
-            <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 rounded-full bg-black/10 blur-xl"></div>
-            
-            <div className="relative z-10 w-20 h-20 bg-white shadow-xl text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-emerald-100">
-              <CheckCircle2 className="w-10 h-10" />
+        <DialogContent className="w-[90vw] sm:max-w-[425px] rounded-2xl text-center">
+          <div className="flex flex-col items-center justify-center space-y-4 py-4">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8" />
             </div>
-            <DialogTitle className="text-2xl font-bold text-white relative z-10">Pedido Enviado!</DialogTitle>
-          </div>
-          
-          <div className="px-6 pt-6 pb-6 bg-white flex flex-col items-center">
-            <DialogDescription className="text-center text-base text-slate-600 mb-6">
+            <DialogTitle className="text-2xl">Pedido Enviado!</DialogTitle>
+            <DialogDescription className="text-center text-base">
               A venda foi registrada com sucesso e está aguardando a aprovação da loja para liberar
               sua comissão.
             </DialogDescription>
-            <div className="flex flex-col gap-3 w-full">
-              {davGeradoId && (
-                <>
+          </div>
+          <div className="pt-2 flex flex-col gap-2.5 w-full">
+            {davGeradoId && (
+              <>
+                <Button
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-12 text-sm sm:text-base font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
+                  onClick={handleShareWhatsApp}
+                  disabled={sharingSuccess}
+                >
+                  {sharingSuccess ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-white" />
+                  ) : (
+                    <WhatsAppIcon className="w-5 h-5 shrink-0" />
+                  )}
+                  <span>Enviar PDF no WhatsApp</span>
+                </Button>
+
+                <div className="grid grid-cols-2 gap-2">
                   <Button
-                    className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white h-12 text-base font-bold shadow-md rounded-xl transition-all hover:-translate-y-0.5"
-                    onClick={handleShareWhatsApp}
-                  >
-                    <WhatsAppIcon className="w-5 h-5 mr-2" />
-                    Enviar PDF no WhatsApp (modo arquivo)
-                  </Button>
-                  <Button
+                    type="button"
                     variant="outline"
-                    className="w-full border-emerald-200 text-emerald-800 hover:bg-emerald-50 h-11 text-sm font-semibold rounded-xl"
-                    onClick={async () => {
-                      await downloadOrcamentoPDF({
+                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5"
+                    onClick={() => openOrderPdf(davGeradoId)}
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>Ver / Imprimir PDF</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5"
+                    onClick={() => {
+                      const orderObj = {
                         id: davGeradoId,
-                        numero: davGeradoNumero,
-                        tipo: "DAV",
-                        cliente_nome: clientForm.nome,
-                        cliente_cnpj: clientForm.documento,
-                        cliente_telefone: clientForm.telefone,
-                        cliente_endereco: [clientForm.endereco, clientForm.cidade, clientForm.uf].filter(Boolean).join(", "),
-                        condicao_pagamento: clientForm.pagamento,
-                        valor_total: totalComDesconto,
-                        subtotal: subtotal,
-                        desconto_valor: valorDesconto,
-                        itens: cart.map((item) => ({
-                          codigo: item.cod,
-                          nome: item.p,
-                          quantidade: item.q,
-                          valor_unitario: item.u,
-                          subtotal: item.t,
-                          imagem: item.imagem || null,
-                        })),
-                      });
+                        numero_venda: davGeradoNumero || undefined,
+                        tipo: "PDV",
+                        created_at: new Date().toISOString(),
+                        subtotal: rawSubtotal,
+                        valor_total: subtotal,
+                        desconto_valor: descontoAplicado,
+                        desconto_percentual: descontoPercentual,
+                        cliente: {
+                          nome: clientForm.nome,
+                          cpf_cnpj: clientForm.documento,
+                          telefone: clientForm.telefone,
+                          endereco: `${clientForm.endereco || ""}${clientForm.numero ? `, ${clientForm.numero}` : ""}`,
+                        },
+                        condicao_pagamento:
+                          clientForm.pagamento === "Boleto a Prazo"
+                            ? clientForm.condicaoBoleto || "Boleto a Prazo"
+                            : clientForm.pagamento,
+                        vendedor_nome: vendedorInfo?.nome,
+                      };
+                      const itemsList = cart.map((i) => ({
+                        produto_nome: i.p,
+                        codigo: i.c,
+                        quantidade: i.q,
+                        valor_unitario: i.u,
+                        subtotal: i.t,
+                      }));
+                      downloadOrderPdf(orderObj, itemsList);
                     }}
                   >
-                    <Download className="w-4 h-4 mr-2" />
-                    Baixar arquivo PDF
+                    <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>Baixar PDF</span>
                   </Button>
-                </>
-              )}
-              <Button
-                variant="outline"
-                className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 h-12 text-base font-semibold rounded-xl"
-                onClick={closeSuccessModal}
-              >
-                Voltar ao Painel
-              </Button>
-            </div>
+                </div>
+              </>
+            )}
+            <Button
+              variant="outline"
+              className="w-full border-slate-200 text-slate-600 hover:bg-slate-100 h-10 text-xs font-semibold rounded-xl mt-1"
+              onClick={closeSuccessModal}
+            >
+              Voltar ao Painel
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Modal do Cliente */}
       <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
-        <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto rounded-2xl p-5 sm:p-6">
+        <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl p-5 sm:p-6">
           <form onSubmit={submitOrder}>
             <DialogHeader>
               <DialogTitle>Finalizar Geração de Orçamento / Pedido</DialogTitle>
@@ -744,46 +1273,109 @@ function ParceiroPDV() {
             <div className="grid gap-4 py-4">
               <div className="space-y-3">
                 <h3 className="font-semibold text-brand text-sm border-b pb-1">Dados do Cliente</h3>
-                <div className="grid gap-2">
+                <div className="grid gap-2 relative">
                   <label className="text-sm font-medium">Nome / Empresa *</label>
                   <Input
                     required
                     placeholder="Ex: João Silva ou Construtora X"
                     value={clientForm.nome}
-                    onChange={(e) => setClientForm({ ...clientForm, nome: e.target.value })}
+                    onFocus={() => { if(clientForm.nome.length >= 2) setActiveSuggestionField("nome"); }}
+                    onBlur={() => setTimeout(() => setActiveSuggestionField(null), 200)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setClientForm({ ...clientForm, nome: val });
+                      searchClients(val);
+                      setActiveSuggestionField("nome");
+                    }}
                   />
+                  {activeSuggestionField === "nome" && clientSuggestions.length > 0 && (
+                    <div className="absolute top-[100%] left-0 right-0 z-[100] mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                      {clientSuggestions.map((c) => (
+                        <div
+                          key={c.id}
+                          className="flex items-center gap-3 px-3 py-2 hover:bg-zinc-800 cursor-pointer border-b border-zinc-800 last:border-0"
+                          onClick={() => selectClient(c)}
+                        >
+                          <div className="bg-zinc-800 rounded-full p-1.5 shrink-0">
+                            <User className="w-4 h-4 text-zinc-400" />
+                          </div>
+                          <div className="flex flex-col">
+                            <p className="text-sm font-medium text-zinc-100">{c.nome}</p>
+                            {(c.cpf_cnpj || c.telefone) && (
+                              <p className="text-[11px] text-zinc-400 mt-0.5">
+                                {[c.cpf_cnpj, c.telefone].filter(Boolean).join(" • ")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="grid gap-2">
+                <div className="grid gap-2 relative">
                   <label className="text-sm font-medium">CPF / CNPJ</label>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Apenas números (CPF/CNPJ)"
+                      placeholder="Apenas números"
                       value={clientForm.documento}
+                      onFocus={() => { if(clientForm.documento.length >= 2) setActiveSuggestionField("documento"); }}
+                      onBlur={() => setTimeout(() => setActiveSuggestionField(null), 200)}
                       onChange={(e) => {
                         const val = e.target.value;
+                        setCnpjErro("");
                         setClientForm({ ...clientForm, documento: val });
-                        if (val.replace(/\D/g, "").length === 14) {
-                          buscarCnpj(val);
-                        }
+                        searchClients(val);
+                        setActiveSuggestionField("documento");
                       }}
                     />
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="px-3 shrink-0"
-                      onClick={() => buscarCnpj(clientForm.documento)}
-                      title="Buscar dados do CNPJ"
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={buscarCnpj}
+                      disabled={cnpjLoading}
+                      title="Buscar dados pelo CNPJ"
+                      className="shrink-0"
                     >
-                      <Search className="h-4 w-4" />
+                      {cnpjLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
+                  {activeSuggestionField === "documento" && clientSuggestions.length > 0 && (
+                    <div className="absolute top-[100%] left-0 right-0 z-[100] mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                      {clientSuggestions.map((c) => (
+                        <div
+                          key={c.id}
+                          className="flex items-center gap-3 px-3 py-2 hover:bg-zinc-800 cursor-pointer border-b border-zinc-800 last:border-0"
+                          onClick={() => selectClient(c)}
+                        >
+                          <div className="bg-zinc-800 rounded-full p-1.5 shrink-0">
+                            <User className="w-4 h-4 text-zinc-400" />
+                          </div>
+                          <div className="flex flex-col">
+                            <p className="text-sm font-medium text-zinc-100">{c.nome}</p>
+                            {(c.cpf_cnpj || c.telefone) && (
+                              <p className="text-[11px] text-zinc-400 mt-0.5">
+                                {[c.cpf_cnpj, c.telefone].filter(Boolean).join(" • ")}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-red-500 font-medium -mt-1">Aperte na lupa para puxar os dados</p>
+                  {cnpjErro && <p className="text-xs text-destructive">{cnpjErro}</p>}
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Telefone / WhatsApp</label>
                   <Input
                     placeholder="(00) 00000-0000"
                     value={clientForm.telefone}
-                    onChange={(e) => setClientForm({ ...clientForm, telefone: formatPhone(e.target.value) })}
+                    onChange={(e) => setClientForm({ ...clientForm, telefone: e.target.value })}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -844,42 +1436,43 @@ function ParceiroPDV() {
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Forma de Pagamento</label>
                   <select
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                     value={clientForm.pagamento}
                     onChange={(e) => {
-                      setClientForm({
-                        ...clientForm,
-                        pagamento: e.target.value,
-                      })
+                      setClientForm({ ...clientForm, pagamento: e.target.value });
                     }}
                   >
-                    <option value="À vista - Pix">À vista - Pix</option>
-                    <option value="À vista - Dinheiro">À vista - Dinheiro</option>
-                    <option value="À vista - Boleto">À vista - Boleto</option>
-                    <option value="À vista - Cheque">À vista - Cheque</option>
-                    <option value="30 dias - Boleto">30 dias - Boleto</option>
-                    <option value="30 dias - Cheque">30 dias - Cheque</option>
-                    <option value="30/60 dias - Boleto">30/60 dias - Boleto</option>
-                    <option value="30/60 dias - Cheque">30/60 dias - Cheque</option>
-                    <option value="30/60/90 dias - Boleto">30/60/90 dias - Boleto</option>
-                    <option value="30/60/90 dias - Cheque">30/60/90 dias - Cheque</option>
-                    <option value="45 dias - Boleto">45 dias - Boleto</option>
-                    <option value="45/90 dias - Boleto">45/90 dias - Boleto</option>
-                    <option value="60 dias - Boleto">60 dias - Boleto</option>
-                    <option value="Cartão de crédito">Cartão de crédito</option>
-                    <option value="Cartão de débito">Cartão de débito</option>
+                    <option>Dinheiro / Pix</option>
+                    <option>Cartão de Crédito</option>
+                    <option>Cartão de Débito</option>
+                    <option>Boleto a Prazo</option>
                   </select>
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Desconto (%)</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={clientForm.descontoPercentual}
-                    onChange={(e) => setClientForm({ ...clientForm, descontoPercentual: Number(e.target.value) || 0 })}
-                    placeholder="Ex: 5"
-                  />
+                  {clientForm.pagamento === "Boleto a Prazo" && (
+                    <Input
+                      placeholder="Ex: 30/60/90 Dias"
+                      value={clientForm.condicaoBoleto}
+                      onChange={(e) =>
+                        setClientForm({ ...clientForm, condicaoBoleto: e.target.value })
+                      }
+                      className="mt-1"
+                    />
+                  )}
+                  <div className="mt-2">
+                    <label className="text-sm font-medium">Aplicar Desconto (%)</label>
+                    <div className="flex items-center mt-1 border rounded-md px-3 bg-white focus-within:ring-1 focus-within:ring-brand">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={descontoPercentual}
+                        onChange={(e) => setDescontoPercentual(parseFloat(e.target.value) || 0)}
+                        className="flex h-10 w-full outline-none bg-transparent text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="Ex: 5"
+                      />
+                      <span className="text-muted-foreground font-semibold">%</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">Forma do Frete</label>
@@ -903,14 +1496,112 @@ function ParceiroPDV() {
                 </div>
               </div>
             </div>
-            <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" onClick={() => setIsClientModalOpen(false)}>
-                Cancelar
+            <div className="bg-slate-50 border-t -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 mt-4 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] rounded-b-2xl">
+              <div>
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                  Total a Pagar
+                </p>
+                {descontoPercentual > 0 ? (
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground line-through">
+                      R$ {rawSubtotal.toFixed(2).replace(".", ",")}
+                    </span>
+                    <p className="text-xl font-extrabold text-brand font-display">
+                      R$ {subtotal.toFixed(2).replace(".", ",")}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xl font-extrabold text-brand font-display">
+                    R$ {subtotal.toFixed(2).replace(".", ",")}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col w-full sm:w-auto gap-2">
+                <div className="flex gap-2 w-full">
+                  <Button size="sm" type="button" variant="outline" className="flex-1 text-xs px-2" onClick={() => setIsClientModalOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                    className="flex-1 text-xs px-2 border-emerald-700 text-emerald-700 hover:bg-emerald-50"
+                    onClick={salvarRascunho}
+                    disabled={loading}
+                  >
+                    Salvar Carrinho
+                  </Button>
+                </div>
+                <Button size="sm" type="submit" disabled={loading} className="w-full text-xs bg-emerald-700 hover:bg-emerald-800 text-white">
+                  {loading ? "Processando..." : "Gerar Pedido"}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isNewClientModalOpen} onOpenChange={setIsNewClientModalOpen}>
+        <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl p-5 sm:p-6">
+          <form onSubmit={handleSaveNewClient}>
+            <DialogHeader>
+              <DialogTitle>Novo Cliente</DialogTitle>
+              <DialogDescription>
+                Cadastre um novo cliente rapidamente.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Nome / Empresa *</label>
+                <Input required placeholder="Ex: João Silva ou Construtora X" value={newClientForm.nome} onChange={e => setNewClientForm({...newClientForm, nome: e.target.value})} />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">CPF / CNPJ</label>
+                <div className="flex gap-2">
+                  <Input placeholder="Apenas números" value={newClientForm.cpf_cnpj} onChange={e => { setNewClientCnpjErro(""); setNewClientForm({...newClientForm, cpf_cnpj: e.target.value}); }} />
+                  <Button type="button" variant="outline" size="icon" onClick={buscarCnpjNovoCliente} disabled={newClientCnpjLoading}>
+                    {newClientCnpjLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-red-500 font-medium -mt-1">Aperte na lupa para puxar os dados</p>
+                {newClientCnpjErro && <p className="text-xs text-destructive">{newClientCnpjErro}</p>}
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Telefone / WhatsApp</label>
+                <Input placeholder="(00) 00000-0000" value={newClientForm.telefone} onChange={e => setNewClientForm({...newClientForm, telefone: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">CEP</label>
+                  <Input placeholder="00000-000" value={newClientForm.cep} onChange={e => setNewClientForm({...newClientForm, cep: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Endereço (Rua)</label>
+                  <Input placeholder="Rua Exemplo" value={newClientForm.endereco} onChange={e => setNewClientForm({...newClientForm, endereco: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Número</label>
+                  <Input placeholder="123" value={newClientForm.numero} onChange={e => setNewClientForm({...newClientForm, numero: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Bairro</label>
+                  <Input placeholder="Centro" value={newClientForm.bairro} onChange={e => setNewClientForm({...newClientForm, bairro: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Cidade</label>
+                  <Input placeholder="Sua Cidade" value={newClientForm.cidade} onChange={e => setNewClientForm({...newClientForm, cidade: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Estado (UF)</label>
+                  <Input placeholder="SP" maxLength={2} value={newClientForm.uf} onChange={e => setNewClientForm({...newClientForm, uf: e.target.value})} />
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-50 border-t -mx-5 -mb-5 sm:-mx-6 sm:-mb-6 mt-4 p-4 sm:p-5 flex justify-end gap-2 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] rounded-b-2xl">
+              <Button type="button" variant="outline" onClick={() => setIsNewClientModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={savingNewClient} className="bg-emerald-700 hover:bg-emerald-800 text-white">
+                {savingNewClient ? "Salvando..." : "Salvar Cliente"}
               </Button>
-              <Button type="submit" disabled={loading} className="bg-gradient-brand text-white">
-                {loading ? "Gerando..." : "Gerar Pedido e Orçamento"}
-              </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

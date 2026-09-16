@@ -1,288 +1,362 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search, ShoppingCart, RotateCw } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
-import {
-  getCachedProdutos,
-  setCachedProdutos,
-  isCacheStale,
-  getSavedScroll,
-  saveScroll,
-  getSavedBusca,
-  saveBusca,
-} from "@/lib/parceiro-cache";
+import { ShoppingCart, PackageOpen, Search, X, Trash2, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/parceiro/catalogo")({
-  head: () => ({ meta: [{ title: "Catálogo — Portal do Parceiro" }] }),
-  component: ParceiroCatalogo,
+  head: () => ({ meta: [{ title: "Meus Carrinhos — GARDEN PRIME" }] }),
+  component: ParceiroCarrinhos,
 });
 
-function ParceiroCatalogo() {
+function ParceiroCarrinhos() {
   const navigate = useNavigate();
-  const cached = getCachedProdutos();
-  const [produtos, setProdutos] = useState<any[]>(() => cached || []);
-  const [loading, setLoading] = useState(() => !cached || cached.length === 0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [busca, setBusca] = useState(() => getSavedBusca());
-  const isMountedRef = useRef(true);
+  const [carrinhos, setCarrinhos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCarrinho, setSelectedCarrinho] = useState<any | null>(null);
+  const [carrinhoItens, setCarrinhoItens] = useState<any[]>([]);
+  const [loadingItens, setLoadingItens] = useState(false);
 
-  const fetchProdutos = async (isBackground = false) => {
-    if (!isBackground) {
-      if (produtos.length === 0) {
-        setLoading(true);
-      } else {
-        setIsRefreshing(true);
-      }
-    }
-    try {
-      let currentVendedorId = null;
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  }>({ open: false, title: "", description: "", onConfirm: () => {} });
+
+  const openConfirm = (title: string, description: string, onConfirm: () => void) => {
+    setConfirmDialog({ open: true, title, description, onConfirm });
+  };
+  const closeConfirm = () => setConfirmDialog((p) => ({ ...p, open: false }));
+
+  useEffect(() => {
+    const fetchCarrinhos = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      if (session) {
-        const { data: vData } = await supabase
-          .from("vendedores")
-          .select("id")
-          .eq("user_id", session.user.id)
-          .single();
-        if (vData) currentVendedorId = vData.id;
+      if (!session) {
+        navigate({ to: "/parceiro/login" });
+        return;
       }
 
-      const { data } = await supabase
-        .from("produtos")
-        .select("*")
-        .eq("status", "Ativo")
-        .order("nome");
+      const { data: vendedor } = await supabase
+        .from("vendedores")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .single();
 
-      if (data && isMountedRef.current) {
-        let finalProducts = [...data];
-        if (currentVendedorId) {
-          const { data: precos } = await supabase
-            .from("vendedor_precos")
-            .select("produto_id, valor_personalizado")
-            .eq("vendedor_id", currentVendedorId);
+      if (vendedor) {
+        const { data, error } = await supabase
+          .from("vendas")
+          .select("*, clientes(nome)")
+          .eq("vendedor_id", vendedor.id)
+          .eq("tipo", "DAV")
+          .eq("status", "Rascunho")
+          .order("created_at", { ascending: false });
 
-          if (precos && precos.length > 0) {
-            finalProducts = finalProducts.map((p) => {
-              const custom = precos.find((c: any) => c.produto_id === p.id);
-              if (custom && custom.valor_personalizado != null) {
-                return { ...p, valor: custom.valor_personalizado };
-              }
-              return p;
-            });
-          }
-        }
-        setProdutos(finalProducts);
-        setCachedProdutos(finalProducts);
+        if (data) setCarrinhos(data);
+        if (error) console.error("Erro ao buscar carrinhos:", error);
       }
-    } catch (err) {
-      console.error("Erro ao carregar catálogo:", err);
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-        setIsRefreshing(false);
-      }
-    }
-  };
+      setLoading(false);
+    };
+    fetchCarrinhos();
+  }, [navigate]);
 
+  
   useEffect(() => {
-    isMountedRef.current = true;
-
-    // Se não há dados no cache ou o cache expirou, busca na nuvem
-    if (!cached || cached.length === 0 || isCacheStale()) {
-      fetchProdutos(cached && cached.length > 0);
+    if (selectedCarrinho) {
+      setLoadingItens(true);
+      const fetchItens = async () => {
+        const { data, error } = await supabase
+          .from("vendas_itens")
+          .select("*, produtos(nome, imagem)")
+          .eq("venda_id", selectedCarrinho.id);
+        if (data) setCarrinhoItens(data);
+        setLoadingItens(false);
+      };
+      fetchItens();
+    } else {
+      setCarrinhoItens([]);
     }
+  }, [selectedCarrinho]);
 
-    // Salva a rolagem atual para não perder a posição ao navegar entre as abas
-    let scrollTimeout: any = null;
-    const handleScroll = () => {
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        saveScroll(window.scrollY);
-      }, 100);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    // Restaura a posição anterior da rolagem
-    const savedY = getSavedScroll();
-    if (savedY > 0) {
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: savedY, behavior: "instant" as any });
-      });
-    }
-
-    return () => {
-      isMountedRef.current = false;
-      window.removeEventListener("scroll", handleScroll);
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-    };
-  }, []);
-
-  const handleBuscaChange = (val: string) => {
-    setBusca(val);
-    saveBusca(val);
+  const deleteCarrinho = async (id: string) => {
+    openConfirm(
+      "Excluir carrinho",
+      "Tem certeza que deseja excluir este carrinho salvo? Essa ação não pode ser desfeita.",
+      async () => {
+        try {
+          await supabase.from("vendas_itens").delete().eq("venda_id", id);
+          const { error } = await supabase.from("vendas").delete().eq("id", id);
+          if (error) throw error;
+          setCarrinhos((prev) => prev.filter((c) => c.id !== id));
+          if (selectedCarrinho?.id === id) setSelectedCarrinho(null);
+        } catch (err: any) {
+          alert("Erro ao excluir carrinho: " + err.message);
+        }
+      }
+    );
   };
 
-  const handlePedir = (produtoId: string) => {
-    // Salva scroll antes de ir ao PDV
-    saveScroll(window.scrollY);
-    navigate({
-      to: "/parceiro/pdv",
-      search: { produto: produtoId } as any,
-    });
+  const continuarCarrinho = (id: string) => {
+    navigate({ to: "/parceiro/pdv", search: { draft_id: id } as any });
   };
 
-  const filtrados = produtos.filter((p) => {
-    const term = busca.toLowerCase();
-    const matchBusca =
-      p.nome.toLowerCase().includes(term) ||
-      (p.codigo && p.codigo.toLowerCase().includes(term));
-    return matchBusca;
+  const filtered = carrinhos.filter((c) => {
+    if (!searchTerm) return true;
+    const nome = (c.clientes?.nome || "").toLowerCase();
+    return nome.includes(searchTerm.toLowerCase());
   });
 
-  const getGradient = (index: number) => {
-    const gradients = [
-      "from-emerald-100 to-green-200",
-      "from-lime-100 to-emerald-200",
-      "from-amber-100 to-orange-200",
-      "from-green-100 to-teal-200",
-      "from-pink-100 to-rose-200",
-      "from-stone-100 to-stone-200",
-      "from-slate-100 to-zinc-200",
-    ];
-    return gradients[index % gradients.length];
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold font-display text-slate-800">Catálogo de Produtos</h1>
-          <p className="text-sm text-muted-foreground">Escolha os produtos e inicie um pedido rapidamente.</p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchProdutos(false)}
-          disabled={isRefreshing || loading}
-          className="text-xs flex items-center gap-1.5 h-9 rounded-lg border-slate-200 hover:bg-slate-100 text-slate-600 shrink-0"
-          title="Atualizar produtos e preços"
-        >
-          <RotateCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin text-emerald-600" : ""}`} />
-          <span className="hidden sm:inline">{isRefreshing ? "Atualizando..." : "Atualizar"}</span>
-        </Button>
+    <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      {/* Page Title */}
+      <div>
+        <h1 className="text-2xl font-bold font-display text-slate-800 flex items-center gap-2">
+          <ShoppingCart className="h-6 w-6 text-brand" />
+          Meus Carrinhos
+        </h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Rascunhos e orçamentos salvos para finalizar depois.
+        </p>
       </div>
 
+      {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Buscar produto por nome ou código…"
-          className="h-12 pl-10 rounded-xl bg-white shadow-sm border-0 ring-1 ring-slate-900/5"
-          value={busca}
-          onChange={(e) => handleBuscaChange(e.target.value)}
+          placeholder="Buscar por cliente…"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="h-12 pl-10 pr-10 rounded-xl bg-white shadow-sm border-0 ring-1 ring-slate-900/5"
         />
-      </div>
-
-      <div className="space-y-8">
-        {loading ? (
-          <div className="text-center text-muted-foreground py-12 flex flex-col items-center justify-center gap-2">
-            <RotateCw className="h-6 w-6 animate-spin text-emerald-600" />
-            <p>Carregando catálogo...</p>
-          </div>
-        ) : filtrados.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">Nenhum produto encontrado.</p>
-        ) : (
-          Array.from(new Set(filtrados.map((p) => p.categoria || "Outros"))).map((cat) => {
-            const produtosDaCategoria = filtrados.filter(
-              (p) => (p.categoria || "Outros") === cat
-            );
-            return (
-              <div key={cat} className="space-y-4">
-                <h2 className="text-xl font-display font-bold text-slate-800 border-b pb-2">
-                  {cat}
-                </h2>
-                <div className="flex flex-col gap-3">
-                  {produtosDaCategoria.map((p, index) => (
-                    <Card
-                      key={p.id}
-                      className="overflow-hidden shadow-sm hover:shadow-md transition-all border-0 ring-1 ring-slate-900/5 flex flex-col p-4 gap-4 bg-white cursor-pointer"
-                      onClick={() => handlePedir(p.id)}
-                    >
-                      <div className="flex flex-row gap-4 items-center">
-                        <div
-                          className={`relative w-20 h-20 rounded-md overflow-hidden bg-gradient-to-br ${getGradient(
-                            index
-                          )} flex items-center justify-center text-4xl shrink-0`}
-                        >
-                          {p.imagem ? (
-                            <img
-                              src={p.imagem}
-                              alt={p.nome}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            p.emoji || "🪴"
-                          )}
-                        </div>
-                        
-                        <div className="flex flex-col flex-1 h-full min-w-0">
-                          <h3 className="font-bold text-sm text-slate-800 uppercase line-clamp-2">
-                            {p.nome}
-                          </h3>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 uppercase truncate">
-                            {p.codigo || "S/ SKU"}
-                          </p>
-                          
-                          <div className="text-[10px] text-slate-500 mt-1 line-clamp-2">
-                            {[
-                              p.cores && p.cores.length > 0 ? `Var: ${p.cores.join(", ")}` : null,
-                              (p.largura || p.altura || p.comprimento) ? `Dim: ${[p.largura, p.altura, p.comprimento].map(v => v || "0").join("x")}cm` : p.dimensao ? `Dim: ${p.dimensao}` : null,
-                              p.peso_bruto ? `Peso: ${p.peso_bruto}kg` : null,
-                              p.volume ? `Vol: ${p.volume}L` : null,
-                              p.multiplos_venda > 1 ? `Múltiplo: ${p.multiplos_venda} ${p.unidade_medida || "Un"}` : null
-                            ].filter(Boolean).join(" • ")}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-col gap-1.5 pt-1">
-                        <div className="flex items-center justify-between text-[13px]">
-                          <span className="text-slate-600">Quantidade em estoque:</span>
-                          <span className={p.estoque < 10 ? "text-warning font-medium" : "text-slate-800 font-medium"}>
-                            {p.estoque} {p.estoque < 10 ? "(Baixo)" : ""}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[13px]">
-                          <span className="text-brand font-medium">Valor:</span>
-                          <span className="text-slate-800 font-bold">
-                            R$ {Number(p.valor).toFixed(2).replace(".", ",")}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <Button
-                        className="w-full bg-gradient-brand hover:brightness-110 text-primary-foreground font-bold h-9 mt-1"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handlePedir(p.id); }}
-                      >
-                        <ShoppingCart className="h-4 w-4 mr-2" />
-                        Pedir
-                      </Button>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            );
-          })
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          >
+            <X className="w-4 h-4" />
+          </button>
         )}
       </div>
+
+      {loading ? (
+        <div className="grid gap-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-2xl p-4 shadow-sm ring-1 ring-slate-900/5 h-28 animate-pulse"
+            >
+              <div className="h-4 bg-slate-100 rounded w-1/2 mb-2" />
+              <div className="h-3 bg-slate-100 rounded w-1/4 mb-4" />
+              <div className="flex justify-between mt-auto">
+                <div className="h-6 bg-slate-100 rounded w-1/3" />
+                <div className="h-8 bg-slate-100 rounded-xl w-1/4" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : carrinhos.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-3xl">
+            🛒
+          </div>
+          <p className="font-semibold text-slate-700">Nenhum carrinho salvo</p>
+          <p className="text-sm text-muted-foreground max-w-[250px]">
+            Inicie uma nova venda no PDV e clique em "Salvar Carrinho" para continuar depois.
+          </p>
+          <button
+            onClick={() => navigate({ to: "/parceiro/pdv" })}
+            className="mt-4 px-6 py-2.5 bg-gradient-brand text-white font-bold rounded-xl shadow-sm active:scale-95 transition-transform"
+          >
+            Nova Venda
+          </button>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-3xl">
+            🔍
+          </div>
+          <p className="font-semibold text-slate-700">Nenhum resultado</p>
+          <p className="text-sm text-muted-foreground">Tente buscar por outro nome de cliente.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {filtered.map((c) => (
+            <div
+              key={c.id}
+              className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex flex-col gap-3 cursor-pointer hover:border-[#12794C]/30 transition-colors"
+              onClick={() => setSelectedCarrinho(c)}
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-bold text-slate-800 leading-tight">
+                    {c.clientes?.nome || "Cliente não informado"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {new Date(c.created_at).toLocaleDateString("pt-BR")} às{" "}
+                    {new Date(c.created_at).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteCarrinho(c.id); }}
+                  className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                  title="Excluir Carrinho"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="border-t border-dashed border-slate-200"></div>
+
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground">
+                    Valor Previsto
+                  </p>
+                  <p className="font-black text-brand text-lg">
+                    R$ {Number(c.valor_total || 0).toFixed(2).replace(".", ",")}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); continuarCarrinho(c.id); }}
+                  className="h-10 px-4 bg-[#12794C] hover:bg-emerald-800 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors active:scale-95 shadow-sm"
+                >
+                  Continuar <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sheet para Pré-visualização do Carrinho */}
+      <Sheet open={!!selectedCarrinho} onOpenChange={(open) => !open && setSelectedCarrinho(null)}>
+        <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl p-0 flex flex-col z-[100]">
+          <SheetHeader className="p-4 border-b text-left shrink-0">
+            <div className="flex justify-between items-start">
+              <div>
+                <SheetTitle className="flex items-center gap-2 text-lg text-slate-800">
+                  <PackageOpen className="w-5 h-5 text-[#12794C]" /> Resumo do Carrinho
+                </SheetTitle>
+                {selectedCarrinho && (
+                  <p className="text-sm font-bold text-[#12794C] mt-1">
+                    {selectedCarrinho.clientes?.nome || "Cliente não informado"}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setSelectedCarrinho(null)}
+                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {loadingItens ? (
+              <div className="flex flex-col items-center justify-center py-10 space-y-3">
+                <Loader2 className="w-8 h-8 animate-spin text-[#12794C]" />
+                <p className="text-sm text-slate-500">Carregando itens...</p>
+              </div>
+            ) : carrinhoItens.length === 0 ? (
+              <p className="text-center text-slate-500 py-10 text-sm">Nenhum item encontrado.</p>
+            ) : (
+              carrinhoItens.map((item) => (
+                <div key={item.id} className="flex gap-3 bg-white border rounded-xl p-3 shadow-sm">
+                  <div className="w-16 h-16 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden">
+                    {item.produtos?.imagem ? (
+                      <img src={item.produtos.imagem} alt={item.produtos.nome} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-2xl">🌱</div>
+                    )}
+                  </div>
+                  <div className="flex-1 flex flex-col justify-between">
+                    <p className="font-bold text-sm text-slate-800 leading-tight line-clamp-2">
+                      {item.produtos?.nome || "Produto desconhecido"}
+                    </p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                        {item.quantidade}x R$ {Number(item.valor_unitario).toFixed(2).replace(".", ",")}
+                      </span>
+                      <span className="font-black text-brand text-sm">
+                        R$ {Number(item.subtotal).toFixed(2).replace(".", ",")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {selectedCarrinho && (
+            <div className="p-4 bg-slate-50 border-t flex items-center justify-between shrink-0">
+              <div>
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground">
+                  Total
+                </p>
+                <p className="font-black text-brand text-2xl leading-none">
+                  R$ {Number(selectedCarrinho.valor_total || 0).toFixed(2).replace(".", ",")}
+                </p>
+              </div>
+              <button
+                onClick={() => continuarCarrinho(selectedCarrinho.id)}
+                className="h-12 px-6 bg-[#12794C] hover:bg-emerald-800 text-white text-base font-bold rounded-xl shadow-md active:scale-95 transition-transform flex items-center gap-2"
+              >
+                Continuar Venda <ArrowRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Confirm Dialog Modal */}
+      <Dialog open={confirmDialog.open} onOpenChange={(o) => !o && closeConfirm()}>
+        <DialogContent className="sm:max-w-[380px] rounded-2xl p-0 overflow-hidden">
+          <div className="p-6">
+            <DialogHeader>
+              <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <DialogTitle className="text-lg font-bold text-slate-900">
+                {confirmDialog.title}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-slate-500 mt-1">
+                {confirmDialog.description}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={closeConfirm}
+                className="flex-1 h-11 rounded-xl border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  confirmDialog.onConfirm();
+                  closeConfirm();
+                }}
+                className="flex-1 h-11 rounded-xl font-semibold text-sm text-white bg-rose-600 hover:bg-rose-700 transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

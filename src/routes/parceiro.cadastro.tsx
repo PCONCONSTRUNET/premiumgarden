@@ -4,7 +4,7 @@ import { supabaseParceiro as supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import premiumGardenLogo from "@/assets/premium-garden-logo.png";
+import { GardenPrimeLogo } from "@/components/garden-prime-logo";
 
 export const Route = createFileRoute("/parceiro/cadastro")({
   beforeLoad: async () => {
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/parceiro/cadastro")({
       await supabase.auth.signOut();
     }
   },
-  head: () => ({ meta: [{ title: "Cadastro de Parceiro — Premium Garden" }] }),
+  head: () => ({ meta: [{ title: "Cadastro de Parceiro — GARDEN PRIME" }] }),
   component: CadastroParceiro,
 });
 
@@ -85,13 +85,13 @@ function CadastroParceiro() {
     <div className="flex min-h-[80vh] items-center justify-center py-8">
       <Card className="w-full max-w-sm shadow-xl border-0 ring-1 ring-slate-900/5">
         <div className="pt-8 pb-4 flex justify-center">
-          <img src={premiumGardenLogo} alt="Premium Garden" className="h-24 w-auto object-contain" />
+          <GardenPrimeLogo size="small" />
         </div>
         <CardContent className="p-6">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold font-display text-slate-800">Criar Conta</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Seja um vendedor parceiro e fature com a Premium Garden.
+              Seja um vendedor parceiro e fature com a Garden Prime.
             </p>
           </div>
 

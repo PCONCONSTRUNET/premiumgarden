@@ -104,7 +104,7 @@ function ParceiroCarrinhos() {
   };
 
   const continuarCarrinho = (id: string) => {
-    navigate({ to: "/parceiro/pdv", search: { draft_id: id } as any });
+    window.location.href = `/parceiro/pdv?draft_id=${id}`;
   };
 
   const filtered = carrinhos.filter((c) => {

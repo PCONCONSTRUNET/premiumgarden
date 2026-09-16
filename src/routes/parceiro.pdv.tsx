@@ -105,7 +105,8 @@ function ParceiroPDV() {
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [descontoPercentual, setDescontoPercentual] = useState<number>(0);
 
-  const { draft_id } = Route.useSearch();
+  const routeSearch = Route.useSearch() as any;
+  const draft_id = routeSearch?.draft_id || (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("draft_id") : undefined);
 
   useEffect(() => {
     const loadDraft = async () => {
@@ -131,14 +132,19 @@ function ParceiroPDV() {
           if (itemsError) throw itemsError;
           
           if (itemsData) {
-            const restoredCart = itemsData.map((item: any) => ({
-              id: item.produtos?.id,
-              p: item.produtos?.nome,
-              preco: Number(item.valor_unitario) || Number(item.produtos?.preco),
-              q: Number(item.quantidade),
-              imagem: item.produtos?.imagem,
-              c: item.produtos?.codigo || item.produto_id
-            }));
+            const restoredCart = itemsData.map((item: any) => {
+              const u = Number(item.valor_unitario) || Number(item.produtos?.preco) || 0;
+              const q = Number(item.quantidade) || 1;
+              return {
+                id: item.produtos?.id || item.produto_id,
+                p: item.produtos?.nome || "Produto Removido",
+                u: u,
+                q: q,
+                t: u * q,
+                imagem: item.produtos?.imagem,
+                c: item.produtos?.codigo || item.produto_id
+              };
+            });
             setCart(restoredCart);
           }
 

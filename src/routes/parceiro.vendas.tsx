@@ -95,7 +95,7 @@ function VendasParceiro() {
     try {
       const { data, error } = await supabase
         .from("vendas_itens")
-        .select("*, produto:produtos(nome, codigo, emoji, imagem)")
+        .select("*, produto:produtos(nome, codigo, imagem)")
         .eq("venda_id", venda.id);
       
       if (!error && data && data.length > 0) {
@@ -103,7 +103,7 @@ function VendasParceiro() {
       } else {
         const { data: davData, error: davError } = await supabase
           .from("dav_items")
-          .select("*, produto:produtos(nome, codigo, emoji, imagem)")
+          .select("*, produto:produtos(nome, codigo, imagem)")
           .eq("dav_id", venda.id);
         
         if (!davError && davData) {

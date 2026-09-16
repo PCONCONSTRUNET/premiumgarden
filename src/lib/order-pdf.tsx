@@ -315,7 +315,7 @@ export async function enrichOrderAndItems(
         const vi = await queryDb<any[]>((client) =>
           client
             .from("vendas_itens")
-            .select("*, produtos(nome, codigo, emoji, imagem)")
+            .select("*, produtos(nome, codigo, imagem)")
             .eq("venda_id", order.id)
         );
 
@@ -336,7 +336,7 @@ export async function enrichOrderAndItems(
           const di = await queryDb<any[]>((client) =>
             client
               .from("dav_items")
-              .select("*, produtos(nome, codigo, emoji, imagem)")
+              .select("*, produtos(nome, codigo, imagem)")
               .eq("dav_id", order.id)
           );
 

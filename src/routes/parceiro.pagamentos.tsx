@@ -73,7 +73,7 @@ function ParceiroPagamentos() {
     setLoadingItens(vendaId);
     const { data } = await supabase
       .from("vendas_itens")
-      .select("*, produto:produtos(nome, emoji)")
+      .select("*, produto:produtos(nome)")
       .eq("venda_id", vendaId);
     if (data) setItensMap((prev) => ({ ...prev, [vendaId]: data }));
     setLoadingItens(null);

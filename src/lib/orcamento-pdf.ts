@@ -691,18 +691,22 @@ export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData 
     let clienteEndereco = venda.cliente_endereco || null;
     if (!clienteEndereco && (venda.clientes || venda.cliente)) {
       const c = venda.clientes || venda.cliente;
-      if (c.endereco) {
+      if (c.endereco || c.numero || c.bairro || c.cidade || c.uf || c.cep) {
         const partes = [];
-        let logradouro = c.endereco;
-        if (c.numero) logradouro += `, ${c.numero}`;
-        partes.push(logradouro);
+        let logradouro = c.endereco || "";
+        if (logradouro && c.numero) {
+          logradouro += `, ${c.numero}`;
+        } else if (!logradouro && c.numero) {
+          logradouro = `Nº ${c.numero}`;
+        }
+        if (logradouro) partes.push(logradouro);
         
         const bairroCidadeUf = [];
         if (c.bairro) bairroCidadeUf.push(c.bairro);
         if (c.cidade) bairroCidadeUf.push(c.cidade + (c.uf ? `-${c.uf}` : ""));
         if (bairroCidadeUf.length > 0) partes.push(bairroCidadeUf.join(", "));
         
-        if (c.cep) partes.push(`CEP ${c.cep}`);
+        if (c.cep) partes.push(`CEP: ${c.cep}`);
         
         clienteEndereco = partes.join("\n");
       }

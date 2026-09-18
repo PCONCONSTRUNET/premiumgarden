@@ -661,6 +661,7 @@ function ParceiroPDV() {
           .from("clientes")
           .select("id")
           .eq("cpf_cnpj", clientForm.documento.trim())
+          .limit(1)
           .maybeSingle();
         if (existingClient) finalClienteId = existingClient.id;
       }
@@ -780,6 +781,7 @@ function ParceiroPDV() {
           .from("clientes")
           .select("id")
           .eq("cpf_cnpj", clientForm.documento.trim())
+          .limit(1)
           .maybeSingle();
 
         if (existingClient) {

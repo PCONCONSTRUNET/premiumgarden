@@ -761,7 +761,7 @@ function VendasParceiros() {
                 </div>
                 <div className="flex flex-col gap-1 p-3.5 sm:p-4 bg-slate-100 rounded-lg">
                   {(() => {
-                    const sumItens = (saleDetailsItems || []).reduce((acc: number, it: any) => acc + Number(it.subtotal || it.valor_total || 0), 0);
+                    const sumItens = (saleItems || []).reduce((acc: number, it: any) => acc + Number(it.subtotal || it.valor_total || 0), 0);
                     const orderTotal = Number(selectedSaleForDetails?.valor_total || 0);
                     const freteVal = Number(selectedSaleForDetails?.frete_valor || 0);
                     let computedDescVal = Number(selectedSaleForDetails?.desconto_valor || 0);

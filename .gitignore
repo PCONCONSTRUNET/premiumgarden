@@ -32,4 +32,19 @@ dist-ssr
 *.sw?
 
 .env
+.vercel
 .vercel 
+
+# Local PostgreSQL installations (não devem ir pro repositório)
+pgsql/
+pgsql15/
+pgsql17/
+*.zip
+
+# Arquivos de debug/scripts locais
+scratch/
+debug.js
+dump_data.sql
+dump_public_schema.sql
+dump_schema.sql
+env_search.txt

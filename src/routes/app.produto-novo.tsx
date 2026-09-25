@@ -86,23 +86,39 @@ function NovoProduto() {
   const [novaCategoria, setNovaCategoria] = useState("");
   const [isCriandoRepresentante, setIsCriandoRepresentante] = useState(false);
   const [novoRepresentante, setNovoRepresentante] = useState("");
+  const [allCategoriasData, setAllCategoriasData] = useState<{categoria: string, representante: string}[]>([]);
 
   const fetchCategorias = async () => {
     try {
       const { data } = await supabase.from("produtos").select("categoria, representante");
       if (data) {
+        setAllCategoriasData(data as any);
+        
+        // As categorias disponíveis serão filtradas dinamicamente
         const unicasCategorias = Array.from(new Set(data.map((p) => p.categoria))).filter(Boolean);
-        const mergedCategorias = Array.from(new Set([...categoriasDB, ...unicasCategorias]));
+        const mergedCategorias = Array.from(new Set(["Sem categoria", ...unicasCategorias]));
         setCategoriasDB(mergedCategorias);
 
         const unicasRepresentantes = Array.from(new Set(data.map((p) => p.representante))).filter(Boolean);
-        const mergedRepresentantes = Array.from(new Set([...representantesDB, ...unicasRepresentantes]));
+        const mergedRepresentantes = Array.from(new Set(["Sem representante", "Premium Garden", ...unicasRepresentantes]));
         setRepresentantesDB(mergedRepresentantes);
       }
     } catch (err) {
       console.error(err);
     }
   };
+
+  // Filtrar categorias dinamicamente com base no representante selecionado
+  const categoriasFiltradas = produto.representante 
+    ? Array.from(new Set(
+        allCategoriasData
+          .filter(p => p.representante === produto.representante)
+          .map(p => p.categoria)
+      )).filter(Boolean)
+    : [];
+    
+  const categoriasMostrar = Array.from(new Set(["Sem categoria", ...categoriasFiltradas, ...categoriasDB.filter(c => produto.categoria === c)])); // Garante que a categoria atual sempre apareça
+
 
   useEffect(() => {
     fetchCategorias();
@@ -235,6 +251,7 @@ function NovoProduto() {
       if (!categoriasDB.includes(nome)) {
         setCategoriasDB(prev => [...prev, nome]);
       }
+      setAllCategoriasData(prev => [...prev, { categoria: nome, representante: produto.representante }]);
       setProduto(prev => ({ ...prev, categoria: nome }));
     }
     setIsCriandoCategoria(false);
@@ -452,7 +469,7 @@ function NovoProduto() {
                           <SelectValue placeholder="Sem categoria" />
                         </SelectTrigger>
                         <SelectContent>
-                          {categoriasDB.map((cat) => (
+                          {categoriasMostrar.map((cat) => (
                             <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                           ))}
                           <SelectItem value="nova_categoria" className="text-[#4b2781] font-medium border-t rounded-none mt-1 focus:bg-[#4b2781]/10 focus:text-[#4b2781]">

@@ -202,9 +202,18 @@ function PublicCatalogo() {
     Boolean,
   ) as string[];
 
-  const categorias = Array.from(new Set(produtos.map((p) => p.categoria))).filter(
-    Boolean,
-  ) as string[];
+  const categorias = Array.from(new Set(
+    produtos
+      .filter((p) => representanteAtivo === "Todos" || (p.representante || "Sem representante") === representanteAtivo)
+      .map((p) => p.categoria)
+  )).filter(Boolean) as string[];
+
+  // Se a categoria selecionada não pertencer ao representante escolhido, reseta para "Todas"
+  useEffect(() => {
+    if (categoriaAtiva !== "Todas" && !categorias.includes(categoriaAtiva)) {
+      setCategoriaAtiva("Todas");
+    }
+  }, [representanteAtivo, categorias, categoriaAtiva]);
 
   const filtrados = produtos.filter((p) => {
     const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(busca.toLowerCase()));

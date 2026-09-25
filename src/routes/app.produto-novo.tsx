@@ -76,6 +76,8 @@ function NovoProduto() {
 
   const [variacaoInput, setVariacaoInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isCriandoCategoria, setIsCriandoCategoria] = useState(false);
+  const [novaCategoria, setNovaCategoria] = useState("");
 
   const fetchCategorias = async () => {
     try {
@@ -211,6 +213,18 @@ function NovoProduto() {
       setProduto(prev => ({ ...prev, variacoes: [...prev.variacoes, val], cores: [...prev.cores, val] }));
       setVariacaoInput("");
     }
+  };
+
+  const handleSalvarNovaCategoria = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const nome = novaCategoria.trim();
+    if (nome) {
+      if (!categoriasDB.includes(nome)) {
+        setCategoriasDB(prev => [...prev, nome]);
+      }
+      setProduto(prev => ({ ...prev, categoria: nome }));
+    }
+    setIsCriandoCategoria(false);
   };
 
   const handleSalvar = async (cadastrarOutro = false) => {
@@ -379,16 +393,48 @@ function NovoProduto() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground font-normal">Categoria</Label>
-                    <Select value={produto.categoria} onValueChange={(val) => setProduto({...produto, categoria: val})}>
-                      <SelectTrigger className="border-slate-300">
-                        <SelectValue placeholder="Sem categoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categoriasDB.map((cat) => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {isCriandoCategoria ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          autoFocus
+                          placeholder="Nome da categoria" 
+                          className="border-slate-300 h-9 flex-1"
+                          value={novaCategoria}
+                          onChange={(e) => setNovaCategoria(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                               e.preventDefault();
+                               handleSalvarNovaCategoria();
+                            } else if (e.key === "Escape") {
+                               setIsCriandoCategoria(false);
+                            }
+                          }}
+                        />
+                        <Button type="button" className="h-9 px-3 bg-[#4b2781] hover:bg-[#4b2781]/90 text-xs font-medium" onClick={handleSalvarNovaCategoria}>Salvar</Button>
+                        <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setIsCriandoCategoria(false)}>Cancelar</Button>
+                      </div>
+                    ) : (
+                      <Select value={produto.categoria} onValueChange={(val) => {
+                        if (val === "nova_categoria") {
+                          setIsCriandoCategoria(true);
+                          setNovaCategoria("");
+                        } else {
+                          setProduto({...produto, categoria: val});
+                        }
+                      }}>
+                        <SelectTrigger className="border-slate-300 h-9">
+                          <SelectValue placeholder="Sem categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categoriasDB.map((cat) => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                          <SelectItem value="nova_categoria" className="text-[#4b2781] font-medium border-t rounded-none mt-1 focus:bg-[#4b2781]/10 focus:text-[#4b2781]">
+                            + Criar nova categoria
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </div>
               </div>

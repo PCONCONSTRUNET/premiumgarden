@@ -45,6 +45,8 @@ function PublicCatalogo() {
   const [busca, setBusca] = useState("");
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>("Todas");
   const [openCategoria, setOpenCategoria] = useState(false);
+  const [representanteAtivo, setRepresentanteAtivo] = useState<string>("Todos");
+  const [openRepresentante, setOpenRepresentante] = useState(false);
   const [cart, setCart] = useState<{ produto: any; qtd: number }[]>([]);
   const [partner, setPartner] = useState<any>(null);
   
@@ -196,6 +198,10 @@ function PublicCatalogo() {
     fetchProdutos();
   }, []);
 
+  const representantes = Array.from(new Set(produtos.map((p) => p.representante || "Sem representante"))).filter(
+    Boolean,
+  ) as string[];
+
   const categorias = Array.from(new Set(produtos.map((p) => p.categoria))).filter(
     Boolean,
   ) as string[];
@@ -203,7 +209,8 @@ function PublicCatalogo() {
   const filtrados = produtos.filter((p) => {
     const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(busca.toLowerCase()));
     const matchCategoria = categoriaAtiva === "Todas" || p.categoria === categoriaAtiva;
-    return matchBusca && matchCategoria;
+    const matchRepresentante = representanteAtivo === "Todos" || (p.representante || "Sem representante") === representanteAtivo;
+    return matchBusca && matchCategoria && matchRepresentante;
   });
 
   const getGradient = (index: number) => {
@@ -331,66 +338,129 @@ function PublicCatalogo() {
           />
         </div>
 
-        {categorias.length > 0 && (
-          <div className="flex justify-center mb-10 px-4">
-            <Popover open={openCategoria} onOpenChange={setOpenCategoria}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  className="w-full max-w-sm justify-between rounded-full bg-white shadow-sm h-12 text-base font-medium"
+        {(categorias.length > 0 || representantes.length > 0) && (
+          <div className="flex flex-col sm:flex-row justify-center gap-4 mb-10 px-4 max-w-3xl mx-auto">
+            {representantes.length > 0 && (
+              <Popover open={openRepresentante} onOpenChange={setOpenRepresentante}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full sm:flex-1 justify-between rounded-full bg-white shadow-sm h-12 text-base font-medium"
+                  >
+                    {representanteAtivo === "Todos" ? "Todos os Representantes" : representanteAtivo}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[--radix-popover-trigger-width] max-w-[350px] p-0 rounded-xl"
+                  align="center"
                 >
-                  {categoriaAtiva === "Todas" ? "Todas as Categorias" : categoriaAtiva}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-[--radix-popover-trigger-width] max-w-[350px] p-0 rounded-xl"
-                align="center"
-              >
-                <Command>
-                  <CommandInput placeholder="Buscar categoria..." />
-                  <CommandList>
-                    <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
-                    <CommandGroup>
-                      <CommandItem
-                        value="Todas as Categorias"
-                        onSelect={() => {
-                          setCategoriaAtiva("Todas");
-                          setOpenCategoria(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            categoriaAtiva === "Todas" ? "opacity-100" : "opacity-0",
-                          )}
-                        />
-                        Todas as Categorias
-                      </CommandItem>
-                      {categorias.map((c) => (
+                  <Command>
+                    <CommandInput placeholder="Buscar representante..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum representante encontrado.</CommandEmpty>
+                      <CommandGroup>
                         <CommandItem
-                          key={c}
-                          value={c}
+                          value="Todos os Representantes"
                           onSelect={() => {
-                            setCategoriaAtiva(c);
+                            setRepresentanteAtivo("Todos");
+                            setOpenRepresentante(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              representanteAtivo === "Todos" ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          Todos os Representantes
+                        </CommandItem>
+                        {representantes.map((r) => (
+                          <CommandItem
+                            key={r}
+                            value={r}
+                            onSelect={() => {
+                              setRepresentanteAtivo(r);
+                              setOpenRepresentante(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                representanteAtivo === r ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                            {r}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )}
+
+            {categorias.length > 0 && (
+              <Popover open={openCategoria} onOpenChange={setOpenCategoria}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full sm:flex-1 justify-between rounded-full bg-white shadow-sm h-12 text-base font-medium"
+                  >
+                    {categoriaAtiva === "Todas" ? "Todas as Categorias" : categoriaAtiva}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[--radix-popover-trigger-width] max-w-[350px] p-0 rounded-xl"
+                  align="center"
+                >
+                  <Command>
+                    <CommandInput placeholder="Buscar categoria..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="Todas as Categorias"
+                          onSelect={() => {
+                            setCategoriaAtiva("Todas");
                             setOpenCategoria(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              categoriaAtiva === c ? "opacity-100" : "opacity-0",
+                              categoriaAtiva === "Todas" ? "opacity-100" : "opacity-0",
                             )}
                           />
-                          {c}
+                          Todas as Categorias
                         </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+                        {categorias.map((c) => (
+                          <CommandItem
+                            key={c}
+                            value={c}
+                            onSelect={() => {
+                              setCategoriaAtiva(c);
+                              setOpenCategoria(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                categoriaAtiva === c ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                            {c}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
         )}
 

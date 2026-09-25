@@ -66,6 +66,7 @@ function NovoProduto() {
     dimensao: "",
     volume: "",
     cores: [] as string[],
+    representante: "",
   });
 
   const [categoriasDB, setCategoriasDB] = useState<string[]>([
@@ -74,18 +75,29 @@ function NovoProduto() {
     "Vasos Decorativos",
   ]);
 
+  const [representantesDB, setRepresentantesDB] = useState<string[]>([
+    "Sem representante",
+    "Premium Garden",
+  ]);
+
   const [variacaoInput, setVariacaoInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCriandoCategoria, setIsCriandoCategoria] = useState(false);
   const [novaCategoria, setNovaCategoria] = useState("");
+  const [isCriandoRepresentante, setIsCriandoRepresentante] = useState(false);
+  const [novoRepresentante, setNovoRepresentante] = useState("");
 
   const fetchCategorias = async () => {
     try {
-      const { data } = await supabase.from("produtos").select("categoria");
+      const { data } = await supabase.from("produtos").select("categoria, representante");
       if (data) {
-        const unicas = Array.from(new Set(data.map((p) => p.categoria))).filter(Boolean);
-        const merged = Array.from(new Set([...categoriasDB, ...unicas]));
-        setCategoriasDB(merged);
+        const unicasCategorias = Array.from(new Set(data.map((p) => p.categoria))).filter(Boolean);
+        const mergedCategorias = Array.from(new Set([...categoriasDB, ...unicasCategorias]));
+        setCategoriasDB(mergedCategorias);
+
+        const unicasRepresentantes = Array.from(new Set(data.map((p) => p.representante))).filter(Boolean);
+        const mergedRepresentantes = Array.from(new Set([...representantesDB, ...unicasRepresentantes]));
+        setRepresentantesDB(mergedRepresentantes);
       }
     } catch (err) {
       console.error(err);
@@ -110,6 +122,7 @@ function NovoProduto() {
               codigo: data.codigo || "",
               nome: data.nome || "",
               categoria: data.categoria || "Sem categoria",
+              representante: data.representante || "Sem representante",
               valor: data.valor || 0,
               preco_tabela: data.valor ? String(data.valor) : "",
               status: data.status || "Ativo",
@@ -227,6 +240,18 @@ function NovoProduto() {
     setIsCriandoCategoria(false);
   };
 
+  const handleSalvarNovoRepresentante = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const nome = novoRepresentante.trim();
+    if (nome) {
+      if (!representantesDB.includes(nome)) {
+        setRepresentantesDB(prev => [...prev, nome]);
+      }
+      setProduto(prev => ({ ...prev, representante: nome }));
+    }
+    setIsCriandoRepresentante(false);
+  };
+
   const handleSalvar = async (cadastrarOutro = false) => {
     if (!produto.nome) {
       toast.error("Preencha o nome do produto.");
@@ -242,6 +267,7 @@ function NovoProduto() {
         codigo: produto.codigo,
         nome: produto.nome,
         categoria: produto.categoria === "Sem categoria" ? "" : produto.categoria,
+        representante: produto.representante === "Sem representante" ? "" : produto.representante,
         estoque: produto.estoque,
         valor: valorNumerico,
         status: produto.status,
@@ -372,7 +398,7 @@ function NovoProduto() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-[150px_150px_1fr] gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground font-normal">Unidade de medida</Label>
                     <Input 
@@ -431,6 +457,51 @@ function NovoProduto() {
                           ))}
                           <SelectItem value="nova_categoria" className="text-[#4b2781] font-medium border-t rounded-none mt-1 focus:bg-[#4b2781]/10 focus:text-[#4b2781]">
                             + Criar nova categoria
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground font-normal">Representante</Label>
+                    {isCriandoRepresentante ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          autoFocus
+                          placeholder="Nome do representante" 
+                          className="border-slate-300 h-9 flex-1"
+                          value={novoRepresentante}
+                          onChange={(e) => setNovoRepresentante(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                               e.preventDefault();
+                               handleSalvarNovoRepresentante();
+                            } else if (e.key === "Escape") {
+                               setIsCriandoRepresentante(false);
+                            }
+                          }}
+                        />
+                        <Button type="button" className="h-9 px-3 bg-[#4b2781] hover:bg-[#4b2781]/90 text-xs font-medium" onClick={handleSalvarNovoRepresentante}>Salvar</Button>
+                        <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setIsCriandoRepresentante(false)}>Cancelar</Button>
+                      </div>
+                    ) : (
+                      <Select value={produto.representante} onValueChange={(val) => {
+                        if (val === "novo_representante") {
+                          setIsCriandoRepresentante(true);
+                          setNovoRepresentante("");
+                        } else {
+                          setProduto({...produto, representante: val});
+                        }
+                      }}>
+                        <SelectTrigger className="border-slate-300 h-9">
+                          <SelectValue placeholder="Sem representante" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {representantesDB.map((rep) => (
+                            <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                          ))}
+                          <SelectItem value="novo_representante" className="text-[#4b2781] font-medium border-t rounded-none mt-1 focus:bg-[#4b2781]/10 focus:text-[#4b2781]">
+                            + Criar novo representante
                           </SelectItem>
                         </SelectContent>
                       </Select>

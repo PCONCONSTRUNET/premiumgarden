@@ -34,6 +34,7 @@ function NovoProduto() {
   const search = Route.useSearch();
   const isEditing = !!search.id;
   const [loading, setLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isFetchingInfo, setIsFetchingInfo] = useState(isEditing);
   const { fetchProdutos } = useProdutos();
 
@@ -194,6 +195,7 @@ function NovoProduto() {
   const processFile = async (file: File) => {
     if (!file.type.startsWith("image/")) return toast.info("Selecione uma imagem.");
     const loadingToast = toast.loading("Enviando imagem...");
+    setIsUploading(true);
     try {
       const compressedBase64 = await compressImage(file) as string;
       
@@ -218,6 +220,8 @@ function NovoProduto() {
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao enviar imagem.", { id: loadingToast });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -771,16 +775,16 @@ function NovoProduto() {
             <Button 
               className="bg-[#4b2781] hover:bg-[#4b2781]/90 h-10 px-6 font-medium"
               onClick={() => handleSalvar(false)}
-              disabled={loading}
+              disabled={loading || isUploading}
             >
-              {loading ? "Salvando..." : "Salvar"}
+              {loading ? "Salvando..." : (isUploading ? "Enviando foto..." : "Salvar")}
             </Button>
             <Button 
               className="bg-[#4b2781] hover:bg-[#4b2781]/90 h-10 px-6 font-medium"
               onClick={() => handleSalvar(true)}
-              disabled={loading}
+              disabled={loading || isUploading}
             >
-              {loading ? "Salvando..." : "Salvar e cadastrar outro"}
+              {loading ? "Salvando..." : (isUploading ? "Enviando foto..." : "Salvar e cadastrar outro")}
             </Button>
             <Button 
               variant="outline" 

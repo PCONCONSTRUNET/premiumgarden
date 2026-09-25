@@ -160,36 +160,47 @@ function NovoProduto() {
     });
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const processFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) return toast.info("Selecione uma imagem.");
+    const loadingToast = toast.loading("Enviando imagem...");
+    try {
+      const compressedBase64 = await compressImage(file) as string;
+      
+      // Convert to Blob
+      const res = await fetch(compressedBase64);
+      const blob = await res.blob();
+      
+      const fileName = `produto_${Date.now()}_${Math.random().toString(36).substring(7)}.webp`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("produtos-imagens")
+        .upload(fileName, blob, { contentType: "image/webp" });
+        
+      if (uploadError) throw uploadError;
+      
+      const { data: publicUrlData } = supabase.storage
+        .from("produtos-imagens")
+        .getPublicUrl(fileName);
+        
+      setProduto((prev) => ({ ...prev, imagem: publicUrlData.publicUrl }));
+      toast.success("Imagem enviada com sucesso!", { id: loadingToast });
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao enviar imagem.", { id: loadingToast });
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith("image/")) return toast.info("Selecione uma imagem.");
-      const loadingToast = toast.loading("Enviando imagem...");
-      try {
-        const compressedBase64 = await compressImage(file) as string;
-        
-        // Convert to Blob
-        const res = await fetch(compressedBase64);
-        const blob = await res.blob();
-        
-        const fileName = `produto_${Date.now()}_${Math.random().toString(36).substring(7)}.webp`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from("produtos-imagens")
-          .upload(fileName, blob, { contentType: "image/webp" });
-          
-        if (uploadError) throw uploadError;
-        
-        const { data: publicUrlData } = supabase.storage
-          .from("produtos-imagens")
-          .getPublicUrl(fileName);
-          
-        setProduto((prev) => ({ ...prev, imagem: publicUrlData.publicUrl }));
-        toast.success("Imagem enviada com sucesso!", { id: loadingToast });
-      } catch (err: any) {
-        console.error(err);
-        toast.error("Erro ao enviar imagem.", { id: loadingToast });
-      }
+      processFile(file);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const file = e.clipboardData?.files?.[0] || Array.from(e.clipboardData?.items || []).find(item => item.type.startsWith("image/"))?.getAsFile();
+    if (file && file.type.startsWith("image/")) {
+      processFile(file);
     }
   };
 
@@ -270,7 +281,7 @@ function NovoProduto() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F6F8]">
+    <div className="min-h-screen bg-[#F5F6F8]" onPaste={handlePaste}>
       {/* Header */}
       <div className="bg-white border-b px-8 py-5">
         <h1 className="text-sm font-semibold text-slate-800 uppercase tracking-wide">
@@ -289,6 +300,16 @@ function NovoProduto() {
                 <div 
                   className="w-24 h-24 bg-muted/30 border-2 border-dashed border-border rounded flex flex-col items-center justify-center text-muted-foreground cursor-pointer hover:bg-muted/50 overflow-hidden"
                   onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) processFile(file);
+                  }}
                 >
                   {produto.imagem ? (
                     <img src={produto.imagem} alt="Preview" className="w-full h-full object-cover" />

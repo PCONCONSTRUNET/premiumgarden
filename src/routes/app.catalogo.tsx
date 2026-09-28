@@ -43,6 +43,8 @@ function Catalogo() {
   const [busca, setBusca] = useState("");
   const [categoria, setCategoria] = useState("Todos");
   const [openCategoria, setOpenCategoria] = useState(false);
+  const [representanteAtivo, setRepresentanteAtivo] = useState("Premium Garden");
+  const [openRepresentante, setOpenRepresentante] = useState(false);
 
   const fetchProdutos = async () => {
     try {
@@ -79,7 +81,8 @@ function Catalogo() {
   const filtrados = produtos.filter((p) => {
     const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(busca.toLowerCase()));
     const matchCategoria = categoria === "Todos" || p.categoria === categoria;
-    return matchBusca && matchCategoria;
+    const matchRepresentante = representanteAtivo === "Todos" || (p.representante || "Sem representante") === representanteAtivo;
+    return matchBusca && matchCategoria && matchRepresentante;
   });
 
   const gerarPDF = async () => {
@@ -253,7 +256,15 @@ function Catalogo() {
 
   const categoriasUnicas = [
     "Todos",
-    ...Array.from(new Set(produtos.map((p) => p.categoria))).filter(Boolean),
+    ...Array.from(new Set(produtos
+      .filter((p) => representanteAtivo === "Todos" || (p.representante || "Sem representante") === representanteAtivo)
+      .map((p) => p.categoria)
+    )).filter(Boolean),
+  ] as string[];
+
+  const representantesUnicas = [
+    "Todos",
+    ...Array.from(new Set(produtos.map((p) => p.representante || "Sem representante"))).filter(Boolean),
   ] as string[];
 
   // Cores fixas para a vitrine para não precisar gravar background no banco
@@ -315,6 +326,47 @@ function Catalogo() {
               onChange={(e) => setBusca(e.target.value)}
             />
           </div>
+          <Popover open={openRepresentante} onOpenChange={setOpenRepresentante}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={openRepresentante}
+                className="w-full sm:w-[240px] justify-between"
+              >
+                {representanteAtivo === "Todos" ? "Todos os Representantes" : representanteAtivo}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full sm:w-[240px] p-0" align="end">
+              <Command>
+                <CommandInput placeholder="Buscar representante..." />
+                <CommandList>
+                  <CommandEmpty>Nenhum representante encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {representantesUnicas.map((r) => (
+                      <CommandItem
+                        key={r}
+                        value={r === "Todos" ? "Todos os Representantes" : r}
+                        onSelect={() => {
+                          setRepresentanteAtivo(r);
+                          setOpenRepresentante(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            representanteAtivo === r ? "opacity-100" : "opacity-0",
+                          )}
+                        />
+                        {r === "Todos" ? "Todos os Representantes" : r}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           <Popover open={openCategoria} onOpenChange={setOpenCategoria}>
             <PopoverTrigger asChild>
               <Button

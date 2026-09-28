@@ -45,7 +45,7 @@ function PublicCatalogo() {
   const [busca, setBusca] = useState("");
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>("Todas");
   const [openCategoria, setOpenCategoria] = useState(false);
-  const [representanteAtivo, setRepresentanteAtivo] = useState<string>("Todos");
+  const [representanteAtivo, setRepresentanteAtivo] = useState<string>("Premium Garden");
   const [openRepresentante, setOpenRepresentante] = useState(false);
   const [cart, setCart] = useState<{ produto: any; qtd: number }[]>([]);
   const [partner, setPartner] = useState<any>(null);

@@ -3,7 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, ShoppingCart, RotateCw } from "lucide-react";
+import { Search, ShoppingCart, RotateCw, Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { useEffect, useState, useRef } from "react";
 import { supabaseParceiro as supabase } from "@/lib/supabase";
 import {
@@ -28,6 +31,8 @@ function ParceiroCatalogo() {
   const [loading, setLoading] = useState(() => !cached || cached.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [busca, setBusca] = useState(() => getSavedBusca());
+  const [representanteAtivo, setRepresentanteAtivo] = useState("Premium Garden");
+  const [openRepresentante, setOpenRepresentante] = useState(false);
   const isMountedRef = useRef(true);
 
   const fetchProdutos = async (isBackground = false) => {
@@ -143,8 +148,14 @@ function ParceiroCatalogo() {
     const matchBusca =
       p.nome.toLowerCase().includes(term) ||
       (p.codigo && p.codigo.toLowerCase().includes(term));
-    return matchBusca;
+    const matchRepresentante = representanteAtivo === "Todos" || (p.representante || "Sem representante") === representanteAtivo;
+    return matchBusca && matchRepresentante;
   });
+
+  const representantesUnicas = [
+    "Todos",
+    ...Array.from(new Set(produtos.map((p) => p.representante || "Sem representante"))).filter(Boolean),
+  ] as string[];
 
   const getGradient = (index: number) => {
     const gradients = [
@@ -179,14 +190,57 @@ function ParceiroCatalogo() {
         </Button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Buscar produto por nome ou código…"
-          className="h-12 pl-10 rounded-xl bg-white shadow-sm border-0 ring-1 ring-slate-900/5"
-          value={busca}
-          onChange={(e) => handleBuscaChange(e.target.value)}
-        />
+      <div className="flex flex-col sm:flex-row gap-3 relative">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar produto por nome ou código…"
+            className="h-12 pl-10 rounded-xl bg-white shadow-sm border-0 ring-1 ring-slate-900/5 w-full"
+            value={busca}
+            onChange={(e) => handleBuscaChange(e.target.value)}
+          />
+        </div>
+        <Popover open={openRepresentante} onOpenChange={setOpenRepresentante}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={openRepresentante}
+              className="w-full sm:w-[240px] justify-between h-12 rounded-xl bg-white shadow-sm border-0 ring-1 ring-slate-900/5"
+            >
+              {representanteAtivo === "Todos" ? "Todos os Representantes" : representanteAtivo}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-full sm:w-[240px] p-0" align="end">
+            <Command>
+              <CommandInput placeholder="Buscar representante..." />
+              <CommandList>
+                <CommandEmpty>Nenhum representante encontrado.</CommandEmpty>
+                <CommandGroup>
+                  {representantesUnicas.map((r) => (
+                    <CommandItem
+                      key={r}
+                      value={r === "Todos" ? "Todos os Representantes" : r}
+                      onSelect={() => {
+                        setRepresentanteAtivo(r);
+                        setOpenRepresentante(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          representanteAtivo === r ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      {r === "Todos" ? "Todos os Representantes" : r}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="space-y-8">

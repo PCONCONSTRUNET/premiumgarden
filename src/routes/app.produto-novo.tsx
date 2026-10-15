@@ -18,6 +18,7 @@ import { ImageIcon, Plus, Info, Folder } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useProdutos } from "@/contexts/ProdutosContext";
+import { PASTAS_PADRAO } from "@/lib/pastas";
 
 export const Route = createFileRoute("/app/produto-novo")({
   validateSearch: (search: Record<string, unknown>): { id?: string } => {
@@ -71,11 +72,7 @@ function NovoProduto() {
     representante: "",
   });
 
-  const [pastasDB, setPastasDB] = useState<string[]>([
-    "Vasos",
-    "ABC Cerâmica",
-    "Jardinagem",
-  ]);
+  const [pastasDB, setPastasDB] = useState<string[]>(PASTAS_PADRAO.map(p => p.nome));
   const [isCriandoPasta, setIsCriandoPasta] = useState(false);
   const [novaPasta, setNovaPasta] = useState("");
 
@@ -105,7 +102,7 @@ function NovoProduto() {
         supabase.from("pastas").select("nome").order("ordem", { ascending: true }),
       ]);
       if (pastasData && pastasData.length > 0) {
-        setPastasDB(Array.from(new Set(["Vasos", "ABC Cerâmica", "Jardinagem", ...pastasData.map((p: any) => p.nome)])));
+        setPastasDB(Array.from(new Set([...PASTAS_PADRAO.map(p => p.nome), ...pastasData.map((p: any) => p.nome)])));
       }
       if (data) {
         setAllCategoriasData(data as any);

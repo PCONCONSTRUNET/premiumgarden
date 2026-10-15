@@ -28,6 +28,7 @@ import {
   Sprout,
   Package,
   Layers,
+  Heart,
   Check
 } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -183,8 +184,8 @@ function Produtos() {
 
   // Exclusão de pasta customizada
   const handleDeletePasta = async (pasta: any) => {
-    if (["Vasos", "ABC Cerâmica", "Jardinagem"].includes(pasta.nome)) {
-      toast.error("As 3 pastas principais do sistema não podem ser excluídas.");
+    if (PASTAS_PADRAO.some(p => p.nome === pasta.nome)) {
+      toast.error("As pastas principais do sistema não podem ser excluídas.");
       return;
     }
     const ok = await confirm({
@@ -637,7 +638,11 @@ function Produtos() {
                           {pasta.nome === "Vasos" && <Package className="w-4 h-4 text-blue-500" />}
                           {pasta.nome === "ABC Cerâmica" && <Sparkles className="w-4 h-4 text-amber-500" />}
                           {pasta.nome === "Jardinagem" && <Sprout className="w-4 h-4 text-emerald-500" />}
-                          {!["Vasos", "ABC Cerâmica", "Jardinagem"].includes(pasta.nome) && (
+                          {pasta.nome === "Suportes e Estruturas" && <Layers className="w-4 h-4 text-indigo-500" />}
+                          {pasta.nome === "Decoração e Paisagismo" && <Sparkles className="w-4 h-4 text-pink-500" />}
+                          {pasta.nome === "Linha Pet e Aves" && <Heart className="w-4 h-4 text-orange-500" />}
+                          {pasta.nome === "Ferramentas e Equipamentos" && <Folder className="w-4 h-4 text-cyan-500" />}
+                          {!PASTAS_PADRAO.some(p => p.nome === pasta.nome) && (
                             <Folder className="w-4 h-4 text-[#4b2781]" />
                           )}
                         </div>
@@ -1000,7 +1005,7 @@ function Produtos() {
               <div className="divide-y border rounded-lg overflow-hidden bg-slate-50/50 max-h-48 overflow-y-auto">
                 {pastas.map((pasta) => {
                   const count = pastaCounts[pasta.nome] || 0;
-                  const isProtected = ["Vasos", "ABC Cerâmica", "Jardinagem"].includes(pasta.nome);
+                  const isProtected = PASTAS_PADRAO.some(p => p.nome === pasta.nome);
                   return (
                     <div key={pasta.id} className="p-2.5 flex items-center justify-between bg-white hover:bg-slate-50 text-sm">
                       <div className="flex items-center gap-2.5 min-w-0">

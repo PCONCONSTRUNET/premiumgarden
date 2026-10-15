@@ -9,6 +9,9 @@ function copyTslibIntoVercelFunction() {
     return;
   }
   const src = path.resolve("node_modules/tslib");
+  if (!fs.existsSync(src)) {
+    return;
+  }
   const dest = path.join(vercelFunctionDir, "node_modules/tslib");
   if (fs.existsSync(dest)) {
     fs.rmSync(dest, { recursive: true });

@@ -10,8 +10,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Plus, Upload, ChevronDown, Eye, EyeOff, PenLine, RotateCcw, ArrowDownUp } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { 
+  Search, 
+  Plus, 
+  Upload, 
+  ChevronDown, 
+  Eye, 
+  EyeOff, 
+  PenLine, 
+  RotateCcw, 
+  ArrowDownUp, 
+  Download, 
+  Trash2,
+  Folder,
+  FolderPlus,
+  Sparkles,
+  Sprout,
+  Package,
+  Layers,
+  Check
+} from "lucide-react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useProdutos } from "@/contexts/ProdutosContext";
 import {
@@ -27,7 +46,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Download, Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
@@ -45,9 +72,18 @@ function Produtos() {
   
   // Tabelas State
   const [busca, setBusca] = useState("");
+  const [pastaFilter, setPastaFilter] = useState("Todas");
   const [categoriaFilter, setCategoriaFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState("Ativo");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  
+  // Pastas Management State
+  const [pastas, setPastas] = useState<any[]>([]);
+  const [isModalPastaOpen, setIsModalPastaOpen] = useState(false);
+  const [novaPastaNome, setNovaPastaNome] = useState("");
+  const [novaPastaDesc, setNovaPastaDesc] = useState("");
+  const [novaPastaCor, setNovaPastaCor] = useState("#2563eb");
+  const [savingPasta, setSavingPasta] = useState(false);
   
   // Estoque State
   const [estoqueMode, setEstoqueMode] = useState<"ajuste" | "entrada">("ajuste");
@@ -64,10 +100,136 @@ function Produtos() {
 
   const confirm = useConfirm();
 
-  // Carrega produtos usando cache (não rebusca se já estiver carregado)
+  // Carrega pastas do banco
+  const fetchPastas = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from("pastas").select("*").order("ordem", { ascending: true });
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setPastas(data);
+      } else {
+        setPastas([
+          { id: "1", nome: "Vasos", descricao: "Linha tradicional de vasos", cor: "#2563eb", icone: "Package", ordem: 1 },
+          { id: "2", nome: "ABC Cerâmica", descricao: "Vasos e cerâmicas ABC", cor: "#d97706", icone: "Sparkles", ordem: 2 },
+          { id: "3", nome: "Jardinagem", descricao: "Insumos, substratos e adubos Mogi Mirim", cor: "#16a34a", icone: "Sprout", ordem: 3 },
+        ]);
+      }
+    } catch (err) {
+      console.error("Erro ao buscar pastas:", err);
+    }
+  }, []);
+
+  // Carrega produtos usando cache e busca pastas
   useEffect(() => {
     fetchProdutos();
-  }, [fetchProdutos]);
+    fetchPastas();
+  }, [fetchProdutos, fetchPastas]);
+
+  // Contagem dinâmica de produtos em cada pasta
+  const pastaCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    products.forEach((p) => {
+      const pst = p.pasta || "Vasos";
+      counts[pst] = (counts[pst] || 0) + 1;
+    });
+    return counts;
+  }, [products]);
+
+  // Criação de nova pasta
+  const handleCreatePasta = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const nome = novaPastaNome.trim();
+    if (!nome) {
+      toast.error("Informe o nome da pasta.");
+      return;
+    }
+    if (pastas.some((p) => p.nome.toLowerCase() === nome.toLowerCase())) {
+      toast.error("Já existe uma pasta com esse nome!");
+      return;
+    }
+
+    setSavingPasta(true);
+    try {
+      const nextOrdem = pastas.length + 1;
+      const { data, error } = await supabase
+        .from("pastas")
+        .insert([
+          {
+            nome,
+            descricao: novaPastaDesc.trim() || null,
+            cor: novaPastaCor || "#4b2781",
+            icone: "Folder",
+            ordem: nextOrdem,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast.success(`Pasta "${nome}" criada com sucesso!`);
+      setPastas((prev) => [...prev, data]);
+      setNovaPastaNome("");
+      setNovaPastaDesc("");
+      setIsModalPastaOpen(false);
+      setPastaFilter(nome);
+      setCategoriaFilter("Todas");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao criar pasta: " + (err.message || "Tente novamente"));
+    } finally {
+      setSavingPasta(false);
+    }
+  };
+
+  // Exclusão de pasta customizada
+  const handleDeletePasta = async (pasta: any) => {
+    if (["Vasos", "ABC Cerâmica", "Jardinagem"].includes(pasta.nome)) {
+      toast.error("As 3 pastas principais do sistema não podem ser excluídas.");
+      return;
+    }
+    const ok = await confirm({
+      title: `Excluir pasta "${pasta.nome}"?`,
+      description: `Os produtos atualmente nesta pasta serão transferidos para a pasta "Vasos".`,
+    });
+    if (!ok) return;
+
+    try {
+      await supabase.from("produtos").update({ pasta: "Vasos" }).eq("pasta", pasta.nome);
+      await supabase.from("pastas").delete().eq("id", pasta.id);
+      
+      products.forEach((p) => {
+        if (p.pasta === pasta.nome) updateProdutoLocal(p.id, { pasta: "Vasos" });
+      });
+
+      setPastas((prev) => prev.filter((p) => p.id !== pasta.id));
+      if (pastaFilter === pasta.nome) setPastaFilter("Todas");
+      toast.success("Pasta excluída.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao excluir pasta.");
+    }
+  };
+
+  // Mover produto de pasta (inline rápido)
+  const handleUpdateProdutoPasta = async (produtoId: string, novaPasta: string) => {
+    try {
+      const { error } = await supabase.from("produtos").update({ pasta: novaPasta }).eq("id", produtoId);
+      if (error) throw error;
+      updateProdutoLocal(produtoId, { pasta: novaPasta });
+      toast.success(`Produto movido para a pasta "${novaPasta}"!`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao atualizar pasta do produto.");
+    }
+  };
+
+  // Categorias disponíveis filtradas pela pasta selecionada
+  const availableCategories = useMemo(() => {
+    const prodsInPasta = pastaFilter === "Todas" 
+      ? products 
+      : products.filter((p) => (p.pasta || "Vasos") === pastaFilter);
+    return Array.from(new Set(prodsInPasta.map((p) => p.categoria).filter(Boolean))).sort();
+  }, [products, pastaFilter]);
 
   const handleExcluirProduto = async (produto: any) => {
     const ok = await confirm({
@@ -129,16 +291,17 @@ function Produtos() {
     }
   };
 
-
   const filteredProducts = useMemo(() => {
     let result = products.filter((p) => {
       const searchStr = busca.trim().toLowerCase();
       const matchBusca = p.nome.toLowerCase().includes(searchStr) ||
           (p.codigo && String(p.codigo).toLowerCase().includes(searchStr));
 
+      const pPasta = p.pasta || "Vasos";
+      const matchPasta = pastaFilter === "Todas" || pPasta === pastaFilter;
       const matchCat = categoriaFilter === "Todas" || p.categoria === categoriaFilter;
       const matchStatus = statusFilter === "Todos" || p.status === statusFilter;
-      return matchBusca && matchCat && matchStatus;
+      return matchBusca && matchPasta && matchCat && matchStatus;
     });
     
     result.sort((a, b) => {
@@ -314,9 +477,20 @@ function Produtos() {
                   >
                     <Plus className="mr-2 h-4 w-4" /> Cadastrar produto
                   </Button>
-                    <Button variant="outline" className="text-[#4b2781] hover:text-[#4b2781] hover:bg-slate-50 font-medium h-9 border-slate-300" onClick={() => navigate({ to: "/app/produtos-importar" })}>
-                      <Upload className="mr-2 h-4 w-4" /> Importar produtos
-                    </Button>
+                  <Button 
+                    variant="outline" 
+                    className="text-[#4b2781] hover:text-[#4b2781] hover:bg-slate-50 font-medium h-9 border-slate-300" 
+                    onClick={() => navigate({ to: "/app/produtos-importar" })}
+                  >
+                    <Upload className="mr-2 h-4 w-4" /> Importar produtos
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="text-[#4b2781] hover:text-[#4b2781] hover:bg-[#4b2781]/5 font-semibold h-9 border-[#4b2781]/30 bg-purple-50/40" 
+                    onClick={() => setIsModalPastaOpen(true)}
+                  >
+                    <FolderPlus className="mr-2 h-4 w-4 text-[#4b2781]" /> Pastas ({pastas.length})
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" className="text-[#4b2781] hover:text-[#4b2781] hover:bg-slate-50 font-medium h-9 border-slate-300">
@@ -343,19 +517,38 @@ function Produtos() {
                   </DropdownMenu>
                 </div>
                 <div className="flex flex-wrap gap-2 w-full xl:w-auto">
+                  {/* Filtro por Pasta */}
+                  <Select value={pastaFilter} onValueChange={(val) => { setPastaFilter(val); setCategoriaFilter("Todas"); }}>
+                    <SelectTrigger className="w-full sm:w-[170px] bg-[#f8f9fa] border-none h-9 text-slate-700 font-medium">
+                      <Folder className="w-3.5 h-3.5 mr-1.5 text-[#4b2781]" />
+                      <SelectValue placeholder="Todas as pastas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Todas">Todas as pastas ({products.length})</SelectItem>
+                      {pastas.map((p) => (
+                        <SelectItem key={p.id} value={p.nome}>
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.cor || "#4b2781" }} />
+                            <span>{p.nome}</span>
+                            <span className="text-xs text-muted-foreground ml-1">({pastaCounts[p.nome] || 0})</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Filtro por Categoria */}
                   <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
                     <SelectTrigger className="w-full sm:w-[180px] bg-[#f8f9fa] border-none h-9 text-slate-600 font-medium">
                       <SelectValue placeholder="Todas as categorias" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Todas">Todas as categorias</SelectItem>
-                      {Array.from(new Set(products.map((p) => p.categoria).filter(Boolean)))
-                        .sort()
-                        .map((cat: any) => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat}
-                          </SelectItem>
-                        ))}
+                      {availableCategories.map((cat: any) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Button 
@@ -376,6 +569,93 @@ function Produtos() {
                     />
                     <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   </div>
+                </div>
+              </div>
+
+              {/* Preview Cards das Pastas (Estilo Mercos) */}
+              <div className="p-4 bg-slate-50/80 border-b">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Folder className="w-4 h-4 text-[#4b2781]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Pastas de Catálogo (Linhas de Venda)</span>
+                    <span className="text-xs text-muted-foreground hidden sm:inline">• Clique para abrir a pasta</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-[#4b2781] hover:bg-[#4b2781]/10 gap-1 font-semibold"
+                    onClick={() => setIsModalPastaOpen(true)}
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Nova Pasta
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {/* Card Todas */}
+                  <div
+                    onClick={() => { setPastaFilter("Todas"); setCategoriaFilter("Todas"); }}
+                    className={cn(
+                      "cursor-pointer rounded-lg p-3 transition-all border flex flex-col justify-between",
+                      pastaFilter === "Todas"
+                        ? "bg-white border-[#4b2781] shadow-sm ring-2 ring-[#4b2781]/20"
+                        : "bg-white/80 border-slate-200 hover:border-slate-300 hover:bg-white"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-slate-500">Visão Geral</span>
+                      <Layers className="w-4 h-4 text-slate-400" />
+                    </div>
+                    <div className="flex items-baseline justify-between mt-1">
+                      <span className="font-semibold text-sm text-slate-900">Todas as Pastas</span>
+                      <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{products.length}</span>
+                    </div>
+                  </div>
+
+                  {/* Cards das Pastas */}
+                  {pastas.map((pasta) => {
+                    const isSelected = pastaFilter === pasta.nome;
+                    const count = pastaCounts[pasta.nome] || 0;
+                    return (
+                      <div
+                        key={pasta.id}
+                        onClick={() => { setPastaFilter(pasta.nome); setCategoriaFilter("Todas"); }}
+                        className={cn(
+                          "cursor-pointer rounded-lg p-3 transition-all border flex flex-col justify-between relative overflow-hidden",
+                          isSelected
+                            ? "bg-white shadow-sm ring-2"
+                            : "bg-white/80 border-slate-200 hover:border-slate-300 hover:bg-white"
+                        )}
+                        style={{
+                          borderColor: isSelected ? (pasta.cor || "#4b2781") : undefined,
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: pasta.cor || "#4b2781" }} />
+                            <span className="text-[11px] font-medium text-slate-500 truncate max-w-[100px]">{pasta.descricao || "Linha"}</span>
+                          </div>
+                          {pasta.nome === "Vasos" && <Package className="w-4 h-4 text-blue-500" />}
+                          {pasta.nome === "ABC Cerâmica" && <Sparkles className="w-4 h-4 text-amber-500" />}
+                          {pasta.nome === "Jardinagem" && <Sprout className="w-4 h-4 text-emerald-500" />}
+                          {!["Vasos", "ABC Cerâmica", "Jardinagem"].includes(pasta.nome) && (
+                            <Folder className="w-4 h-4 text-[#4b2781]" />
+                          )}
+                        </div>
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="font-semibold text-sm text-slate-900 truncate mr-2" title={pasta.nome}>{pasta.nome}</span>
+                          <span
+                            className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                            style={{
+                              backgroundColor: `${pasta.cor || "#4b2781"}15`,
+                              color: pasta.cor || "#4b2781"
+                            }}
+                          >
+                            {count}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -400,6 +680,8 @@ function Produtos() {
                       <TableHead className="font-semibold text-slate-700 w-16">Fotos</TableHead>
                       <TableHead className="font-semibold text-slate-700">Código</TableHead>
                       <TableHead className="font-semibold text-slate-700">Nome</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Pasta</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Categoria</TableHead>
                       <TableHead className="font-semibold text-slate-700">Variações</TableHead>
                       <TableHead className="font-semibold text-slate-700">Estoque</TableHead>
                       <TableHead className="font-semibold text-slate-700">Unidade</TableHead>
@@ -411,14 +693,14 @@ function Produtos() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                           Carregando produtos...
                         </TableCell>
                       </TableRow>
                     ) : filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                          Nenhum produto encontrado.
+                        <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                          Nenhum produto encontrado nesta pasta.
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -448,6 +730,44 @@ function Produtos() {
                           <TableCell className="text-sm font-medium text-[#4b2781] flex items-center gap-2 min-h-[48px]">
                             <PenLine className="w-3.5 h-3.5 text-[#4b2781] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => navigate({ to: "/app/produto-novo", search: { id: p.id } })} />
                             <span className="cursor-pointer hover:underline" onClick={() => navigate({ to: "/app/produto-novo", search: { id: p.id } })}>{p.nome}</span>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button 
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer border border-slate-200 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800"
+                                  title="Clique para alterar a pasta deste produto"
+                                >
+                                  <span 
+                                    className="w-2 h-2 rounded-full flex-shrink-0" 
+                                    style={{ 
+                                      backgroundColor: pastas.find(pst => pst.nome === (p.pasta || "Vasos"))?.cor || "#4b2781" 
+                                    }} 
+                                  />
+                                  <span className="truncate max-w-[100px]">{p.pasta || "Vasos"}</span>
+                                  <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5 opacity-60" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-48">
+                                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase">Mover para pasta:</div>
+                                {pastas.map((pst) => (
+                                  <DropdownMenuItem 
+                                    key={pst.id} 
+                                    onClick={() => handleUpdateProdutoPasta(p.id, pst.nome)}
+                                    className="gap-2 cursor-pointer text-xs py-1.5"
+                                  >
+                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: pst.cor || "#4b2781" }} />
+                                    <span className="truncate">{pst.nome}</span>
+                                    {(p.pasta || "Vasos") === pst.nome && <Check className="w-3.5 h-3.5 ml-auto text-emerald-600" />}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-medium">
+                              {p.categoria || "Sem categoria"}
+                            </span>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {p.cores && p.cores.length > 0 ? p.cores.join(", ") : "---"}
@@ -660,6 +980,129 @@ function Produtos() {
           )}
         </div>
       </div>
+
+      {/* Modal Gerenciar e Criar Pastas */}
+      <Dialog open={isModalPastaOpen} onOpenChange={setIsModalPastaOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg text-slate-900">
+              <FolderPlus className="w-5 h-5 text-[#4b2781]" /> Gerenciar Pastas de Produtos
+            </DialogTitle>
+            <DialogDescription>
+              Crie e organize pastas para separar seus produtos em linhas comerciais (ex: Vasos, ABC Cerâmica, Jardinagem).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Lista de pastas existentes */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase text-slate-500">Pastas Cadastradas ({pastas.length})</Label>
+              <div className="divide-y border rounded-lg overflow-hidden bg-slate-50/50 max-h-48 overflow-y-auto">
+                {pastas.map((pasta) => {
+                  const count = pastaCounts[pasta.nome] || 0;
+                  const isProtected = ["Vasos", "ABC Cerâmica", "Jardinagem"].includes(pasta.nome);
+                  return (
+                    <div key={pasta.id} className="p-2.5 flex items-center justify-between bg-white hover:bg-slate-50 text-sm">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: pasta.cor || "#4b2781" }} />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 text-xs truncate">{pasta.nome}</p>
+                          {pasta.descricao && <p className="text-[11px] text-muted-foreground truncate">{pasta.descricao}</p>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                          {count} {count === 1 ? "produto" : "produtos"}
+                        </span>
+                        {!isProtected && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeletePasta(pasta)}
+                            title="Excluir pasta"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Formulário para Nova Pasta */}
+            <div className="pt-2 border-t space-y-3">
+              <Label className="text-xs font-bold uppercase text-slate-700 flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5 text-[#4b2781]" /> Adicionar Nova Pasta
+              </Label>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="nomePasta" className="text-xs text-slate-600">Nome da Pasta</Label>
+                <Input
+                  id="nomePasta"
+                  placeholder="Ex: Vasos Decorativos, Linha Pet, Ferragens..."
+                  value={novaPastaNome}
+                  onChange={(e) => setNovaPastaNome(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="descPasta" className="text-xs text-slate-600">Descrição (opcional)</Label>
+                <Input
+                  id="descPasta"
+                  placeholder="Breve descrição da linha de produtos..."
+                  value={novaPastaDesc}
+                  onChange={(e) => setNovaPastaDesc(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-600">Cor de Identificação</Label>
+                <div className="flex items-center gap-2 pt-1">
+                  {[
+                    { color: "#2563eb", name: "Azul" },
+                    { color: "#d97706", name: "Âmbar" },
+                    { color: "#16a34a", name: "Verde" },
+                    { color: "#4b2781", name: "Roxo" },
+                    { color: "#dc2626", name: "Vermelho" },
+                    { color: "#0891b2", name: "Ciano" },
+                    { color: "#ea580c", name: "Laranja" },
+                    { color: "#4f46e5", name: "Índigo" },
+                  ].map(({ color }) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setNovaPastaCor(color)}
+                      className={cn(
+                        "w-6 h-6 rounded-full transition-transform cursor-pointer border-2",
+                        novaPastaCor === color ? "scale-125 border-slate-900 shadow" : "border-transparent hover:scale-110"
+                      )}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsModalPastaOpen(false)} className="h-9">
+              Fechar
+            </Button>
+            <Button
+              onClick={handleCreatePasta}
+              disabled={savingPasta || !novaPastaNome.trim()}
+              className="bg-[#4b2781] hover:bg-[#4b2781]/90 text-white font-medium h-9"
+            >
+              {savingPasta ? "Criando..." : "Criar Pasta"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

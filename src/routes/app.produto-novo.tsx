@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ImageIcon, Plus, Info } from "lucide-react";
+import { ImageIcon, Plus, Info, Folder } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useProdutos } from "@/contexts/ProdutosContext";
@@ -42,6 +42,7 @@ function NovoProduto() {
     codigo: "",
     nome: "",
     categoria: "",
+    pasta: "Vasos",
     unidade_medida: "Un",
     multiplos_venda: 1,
     moeda: "R$",
@@ -70,6 +71,14 @@ function NovoProduto() {
     representante: "",
   });
 
+  const [pastasDB, setPastasDB] = useState<string[]>([
+    "Vasos",
+    "ABC Cerâmica",
+    "Jardinagem",
+  ]);
+  const [isCriandoPasta, setIsCriandoPasta] = useState(false);
+  const [novaPasta, setNovaPasta] = useState("");
+
   const [categoriasDB, setCategoriasDB] = useState<string[]>([
     "Sem categoria",
     "Vasos Plásticos",
@@ -91,7 +100,13 @@ function NovoProduto() {
 
   const fetchCategorias = async () => {
     try {
-      const { data } = await supabase.from("produtos").select("categoria, representante");
+      const [{ data }, { data: pastasData }] = await Promise.all([
+        supabase.from("produtos").select("categoria, representante"),
+        supabase.from("pastas").select("nome").order("ordem", { ascending: true }),
+      ]);
+      if (pastasData && pastasData.length > 0) {
+        setPastasDB(pastasData.map(p => p.nome));
+      }
       if (data) {
         setAllCategoriasData(data as any);
         
@@ -139,6 +154,7 @@ function NovoProduto() {
               codigo: data.codigo || "",
               nome: data.nome || "",
               categoria: data.categoria || "Sem categoria",
+              pasta: data.pasta || "Vasos",
               representante: data.representante || "Sem representante",
               valor: data.valor || 0,
               preco_tabela: data.valor ? String(data.valor) : "",
@@ -261,6 +277,23 @@ function NovoProduto() {
     setIsCriandoCategoria(false);
   };
 
+  const handleSalvarNovaPasta = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const nome = novaPasta.trim();
+    if (nome) {
+      if (!pastasDB.includes(nome)) {
+        setPastasDB(prev => [...prev, nome]);
+        try {
+          await supabase.from("pastas").insert([{ nome, ordem: pastasDB.length + 1 }]);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      setProduto(prev => ({ ...prev, pasta: nome }));
+    }
+    setIsCriandoPasta(false);
+  };
+
   const handleSalvarNovoRepresentante = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
     const nome = novoRepresentante.trim();
@@ -288,6 +321,7 @@ function NovoProduto() {
         codigo: produto.codigo,
         nome: produto.nome,
         categoria: produto.categoria === "Sem categoria" ? "" : produto.categoria,
+        pasta: produto.pasta || "Vasos",
         representante: produto.representante === "Sem representante" ? "" : produto.representante,
         estoque: produto.estoque,
         valor: valorNumerico,
@@ -484,45 +518,52 @@ function NovoProduto() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground font-normal">Representante</Label>
-                    {isCriandoRepresentante ? (
+                    <Label className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
+                      <Folder className="w-3.5 h-3.5 text-[#4b2781]" /> Pasta do Catálogo
+                    </Label>
+                    {isCriandoPasta ? (
                       <div className="flex gap-2">
                         <Input 
                           autoFocus
-                          placeholder="Nome do representante" 
-                          className="border-slate-300 h-9 flex-1"
-                          value={novoRepresentante}
-                          onChange={(e) => setNovoRepresentante(e.target.value)}
+                          placeholder="Nome da pasta" 
+                          className="border-slate-300 h-9 flex-1 text-sm"
+                          value={novaPasta}
+                          onChange={(e) => setNovaPasta(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                                e.preventDefault();
-                               handleSalvarNovoRepresentante();
+                               handleSalvarNovaPasta();
                             } else if (e.key === "Escape") {
-                               setIsCriandoRepresentante(false);
+                               setIsCriandoPasta(false);
                             }
                           }}
                         />
-                        <Button type="button" className="h-9 px-3 bg-[#4b2781] hover:bg-[#4b2781]/90 text-xs font-medium" onClick={handleSalvarNovoRepresentante}>Salvar</Button>
-                        <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setIsCriandoRepresentante(false)}>Cancelar</Button>
+                        <Button type="button" className="h-9 px-3 bg-[#4b2781] hover:bg-[#4b2781]/90 text-xs font-medium" onClick={handleSalvarNovaPasta}>Salvar</Button>
+                        <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setIsCriandoPasta(false)}>Cancelar</Button>
                       </div>
                     ) : (
-                      <Select value={produto.representante} onValueChange={(val) => {
-                        if (val === "novo_representante") {
-                          setIsCriandoRepresentante(true);
-                          setNovoRepresentante("");
+                      <Select value={produto.pasta || "Vasos"} onValueChange={(val) => {
+                        if (val === "nova_pasta") {
+                          setIsCriandoPasta(true);
+                          setNovaPasta("");
                         } else {
-                          setProduto({...produto, representante: val});
+                          setProduto({...produto, pasta: val});
                         }
                       }}>
                         <SelectTrigger className="border-slate-300 h-9">
-                          <SelectValue placeholder="Sem representante" />
+                          <SelectValue placeholder="Selecione a pasta" />
                         </SelectTrigger>
                         <SelectContent>
-                          {representantesDB.map((rep) => (
-                            <SelectItem key={rep} value={rep}>{rep}</SelectItem>
+                          {pastasDB.map((pst) => (
+                            <SelectItem key={pst} value={pst}>
+                              <div className="flex items-center gap-2">
+                                <Folder className="w-3.5 h-3.5 text-[#4b2781]" />
+                                <span>{pst}</span>
+                              </div>
+                            </SelectItem>
                           ))}
-                          <SelectItem value="novo_representante" className="text-[#4b2781] font-medium border-t rounded-none mt-1 focus:bg-[#4b2781]/10 focus:text-[#4b2781]">
-                            + Criar novo representante
+                          <SelectItem value="nova_pasta" className="text-[#4b2781] font-medium border-t rounded-none mt-1 focus:bg-[#4b2781]/10 focus:text-[#4b2781]">
+                            + Criar nova pasta
                           </SelectItem>
                         </SelectContent>
                       </Select>

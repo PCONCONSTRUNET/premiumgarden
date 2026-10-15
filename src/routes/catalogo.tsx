@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { ShoppingCart, Trash2, Search, Check, ChevronsUpDown } from "lucide-react";
+import { ShoppingCart, Trash2, Search, Check, ChevronsUpDown, Folder } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import premiumGardenLogo from "@/assets/premium-garden-logo.png";
@@ -45,8 +45,8 @@ function PublicCatalogo() {
   const [busca, setBusca] = useState("");
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>("Todas");
   const [openCategoria, setOpenCategoria] = useState(false);
-  const [representanteAtivo, setRepresentanteAtivo] = useState<string>("Premium Garden");
-  const [openRepresentante, setOpenRepresentante] = useState(false);
+  const [pastaAtiva, setPastaAtiva] = useState<string>("Todas");
+  const [openPasta, setOpenPasta] = useState(false);
   const [cart, setCart] = useState<{ produto: any; qtd: number }[]>([]);
   const [partner, setPartner] = useState<any>(null);
   
@@ -198,28 +198,28 @@ function PublicCatalogo() {
     fetchProdutos();
   }, []);
 
-  const representantes = Array.from(new Set(produtos.map((p) => p.representante || "Sem representante"))).filter(
+  const pastas = Array.from(new Set(produtos.map((p) => p.pasta || "Vasos"))).filter(
     Boolean,
   ) as string[];
 
   const categorias = Array.from(new Set(
     produtos
-      .filter((p) => representanteAtivo === "Todos" || (p.representante || "Sem representante") === representanteAtivo)
+      .filter((p) => pastaAtiva === "Todas" || (p.pasta || "Vasos") === pastaAtiva)
       .map((p) => p.categoria)
   )).filter(Boolean) as string[];
 
-  // Se a categoria selecionada não pertencer ao representante escolhido, reseta para "Todas"
+  // Se a categoria selecionada não pertencer à pasta escolhida, reseta para "Todas"
   useEffect(() => {
     if (categoriaAtiva !== "Todas" && !categorias.includes(categoriaAtiva)) {
       setCategoriaAtiva("Todas");
     }
-  }, [representanteAtivo, categorias, categoriaAtiva]);
+  }, [pastaAtiva, categorias, categoriaAtiva]);
 
   const filtrados = produtos.filter((p) => {
     const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(busca.toLowerCase()));
     const matchCategoria = categoriaAtiva === "Todas" || p.categoria === categoriaAtiva;
-    const matchRepresentante = representanteAtivo === "Todos" || (p.representante || "Sem representante") === representanteAtivo;
-    return matchBusca && matchCategoria && matchRepresentante;
+    const matchPasta = pastaAtiva === "Todas" || (p.pasta || "Vasos") === pastaAtiva;
+    return matchBusca && matchCategoria && matchPasta;
   });
 
   const getGradient = (index: number) => {
@@ -347,17 +347,20 @@ function PublicCatalogo() {
           />
         </div>
 
-        {(categorias.length > 0 || representantes.length > 0) && (
+        {(categorias.length > 0 || pastas.length > 0) && (
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-10 px-4 max-w-3xl mx-auto">
-            {representantes.length > 0 && (
-              <Popover open={openRepresentante} onOpenChange={setOpenRepresentante}>
+            {pastas.length > 0 && (
+              <Popover open={openPasta} onOpenChange={setOpenPasta}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     role="combobox"
                     className="w-full sm:flex-1 justify-between rounded-full bg-white shadow-sm h-12 text-base font-medium"
                   >
-                    {representanteAtivo === "Todos" ? "Todos os Representantes" : representanteAtivo}
+                    <div className="flex items-center gap-2">
+                      <Folder className="w-4 h-4 text-[#4b2781]" />
+                      <span>{pastaAtiva === "Todas" ? "Todas as Pastas" : pastaAtiva}</span>
+                    </div>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -366,41 +369,41 @@ function PublicCatalogo() {
                   align="center"
                 >
                   <Command>
-                    <CommandInput placeholder="Buscar representante..." />
+                    <CommandInput placeholder="Buscar pasta..." />
                     <CommandList>
-                      <CommandEmpty>Nenhum representante encontrado.</CommandEmpty>
+                      <CommandEmpty>Nenhuma pasta encontrada.</CommandEmpty>
                       <CommandGroup>
                         <CommandItem
-                          value="Todos os Representantes"
+                          value="Todas as Pastas"
                           onSelect={() => {
-                            setRepresentanteAtivo("Todos");
-                            setOpenRepresentante(false);
+                            setPastaAtiva("Todas");
+                            setOpenPasta(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              representanteAtivo === "Todos" ? "opacity-100" : "opacity-0",
+                              pastaAtiva === "Todas" ? "opacity-100" : "opacity-0",
                             )}
                           />
-                          Todos os Representantes
+                          Todas as Pastas
                         </CommandItem>
-                        {representantes.map((r) => (
+                        {pastas.map((p) => (
                           <CommandItem
-                            key={r}
-                            value={r}
+                            key={p}
+                            value={p}
                             onSelect={() => {
-                              setRepresentanteAtivo(r);
-                              setOpenRepresentante(false);
+                              setPastaAtiva(p);
+                              setOpenPasta(false);
                             }}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                representanteAtivo === r ? "opacity-100" : "opacity-0",
+                                pastaAtiva === p ? "opacity-100" : "opacity-0",
                               )}
                             />
-                            {r}
+                            {p}
                           </CommandItem>
                         ))}
                       </CommandGroup>

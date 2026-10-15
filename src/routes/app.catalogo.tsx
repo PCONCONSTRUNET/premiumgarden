@@ -15,7 +15,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown, Search, Heart, ShoppingCart, FileText, Copy } from "lucide-react";
+import { Check, ChevronsUpDown, Search, Heart, ShoppingCart, FileText, Copy, Folder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -43,8 +43,8 @@ function Catalogo() {
   const [busca, setBusca] = useState("");
   const [categoria, setCategoria] = useState("Todos");
   const [openCategoria, setOpenCategoria] = useState(false);
-  const [representanteAtivo, setRepresentanteAtivo] = useState("Premium Garden");
-  const [openRepresentante, setOpenRepresentante] = useState(false);
+  const [pastaAtiva, setPastaAtiva] = useState("Todas");
+  const [openPasta, setOpenPasta] = useState(false);
 
   const fetchProdutos = async () => {
     try {
@@ -81,8 +81,8 @@ function Catalogo() {
   const filtrados = produtos.filter((p) => {
     const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(busca.toLowerCase()));
     const matchCategoria = categoria === "Todos" || p.categoria === categoria;
-    const matchRepresentante = representanteAtivo === "Todos" || (p.representante || "Sem representante") === representanteAtivo;
-    return matchBusca && matchCategoria && matchRepresentante;
+    const matchPasta = pastaAtiva === "Todas" || (p.pasta || "Vasos") === pastaAtiva;
+    return matchBusca && matchCategoria && matchPasta;
   });
 
   const gerarPDF = async () => {
@@ -257,14 +257,14 @@ function Catalogo() {
   const categoriasUnicas = [
     "Todos",
     ...Array.from(new Set(produtos
-      .filter((p) => representanteAtivo === "Todos" || (p.representante || "Sem representante") === representanteAtivo)
+      .filter((p) => pastaAtiva === "Todas" || (p.pasta || "Vasos") === pastaAtiva)
       .map((p) => p.categoria)
     )).filter(Boolean),
   ] as string[];
 
-  const representantesUnicas = [
-    "Todos",
-    ...Array.from(new Set(produtos.map((p) => p.representante || "Sem representante"))).filter(Boolean),
+  const pastasUnicas = [
+    "Todas",
+    ...Array.from(new Set(produtos.map((p) => p.pasta || "Vasos"))).filter(Boolean),
   ] as string[];
 
   // Cores fixas para a vitrine para não precisar gravar background no banco
@@ -326,40 +326,44 @@ function Catalogo() {
               onChange={(e) => setBusca(e.target.value)}
             />
           </div>
-          <Popover open={openRepresentante} onOpenChange={setOpenRepresentante}>
+          <Popover open={openPasta} onOpenChange={setOpenPasta}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
-                aria-expanded={openRepresentante}
-                className="w-full sm:w-[240px] justify-between"
+                aria-expanded={openPasta}
+                className="w-full sm:w-[240px] justify-between font-medium"
               >
-                {representanteAtivo === "Todos" ? "Todos os Representantes" : representanteAtivo}
+                <div className="flex items-center gap-2 truncate">
+                  <Folder className="w-4 h-4 text-[#4b2781]" />
+                  <span>{pastaAtiva === "Todas" ? "Todas as Pastas" : pastaAtiva}</span>
+                </div>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-full sm:w-[240px] p-0" align="end">
               <Command>
-                <CommandInput placeholder="Buscar representante..." />
+                <CommandInput placeholder="Buscar pasta..." />
                 <CommandList>
-                  <CommandEmpty>Nenhum representante encontrado.</CommandEmpty>
+                  <CommandEmpty>Nenhuma pasta encontrada.</CommandEmpty>
                   <CommandGroup>
-                    {representantesUnicas.map((r) => (
+                    {pastasUnicas.map((p) => (
                       <CommandItem
-                        key={r}
-                        value={r === "Todos" ? "Todos os Representantes" : r}
+                        key={p}
+                        value={p === "Todas" ? "Todas as Pastas" : p}
                         onSelect={() => {
-                          setRepresentanteAtivo(r);
-                          setOpenRepresentante(false);
+                          setPastaAtiva(p);
+                          setCategoria("Todos");
+                          setOpenPasta(false);
                         }}
                       >
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4",
-                            representanteAtivo === r ? "opacity-100" : "opacity-0",
+                            pastaAtiva === p ? "opacity-100" : "opacity-0",
                           )}
                         />
-                        {r === "Todos" ? "Todos os Representantes" : r}
+                        {p === "Todas" ? "Todas as Pastas" : p}
                       </CommandItem>
                     ))}
                   </CommandGroup>

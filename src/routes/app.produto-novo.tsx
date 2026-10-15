@@ -105,7 +105,7 @@ function NovoProduto() {
         supabase.from("pastas").select("nome").order("ordem", { ascending: true }),
       ]);
       if (pastasData && pastasData.length > 0) {
-        setPastasDB(pastasData.map(p => p.nome));
+        setPastasDB(Array.from(new Set(["Vasos", "ABC Cerâmica", "Jardinagem", ...pastasData.map((p: any) => p.nome)])));
       }
       if (data) {
         setAllCategoriasData(data as any);

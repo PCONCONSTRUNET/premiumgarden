@@ -21,6 +21,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ColorDock } from "@/components/color-dock";
 import jsPDF from "jspdf";
+import { PASTAS_PADRAO, getProdutoPasta } from "@/lib/pastas";
 const WhatsAppIcon = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -45,11 +46,20 @@ function Catalogo() {
   const [openCategoria, setOpenCategoria] = useState(false);
   const [pastaAtiva, setPastaAtiva] = useState("Todas");
   const [openPasta, setOpenPasta] = useState(false);
+  const [customPastas, setCustomPastas] = useState<string[]>([]);
 
   const fetchProdutos = async () => {
     try {
-      const { data } = await supabase.from("produtos").select("*").eq("status", "Ativo").order("nome");
+      const [{ data }, { data: dbPastas }] = await Promise.all([
+        supabase.from("produtos").select("*").eq("status", "Ativo").order("nome"),
+        supabase.from("pastas").select("nome").order("ordem", { ascending: true }),
+      ]);
       if (data) setProdutos(data);
+      if (dbPastas && dbPastas.length > 0) {
+        setCustomPastas(dbPastas.map((p: any) => p.nome));
+      }
+    } catch {
+      // Falha silenciosa caso tabela pastas não exista
     } finally {
       setLoading(false);
     }
@@ -81,7 +91,7 @@ function Catalogo() {
   const filtrados = produtos.filter((p) => {
     const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(busca.toLowerCase()));
     const matchCategoria = categoria === "Todos" || p.categoria === categoria;
-    const matchPasta = pastaAtiva === "Todas" || (p.pasta || "Vasos") === pastaAtiva;
+    const matchPasta = pastaAtiva === "Todas" || getProdutoPasta(p) === pastaAtiva;
     return matchBusca && matchCategoria && matchPasta;
   });
 
@@ -257,14 +267,18 @@ function Catalogo() {
   const categoriasUnicas = [
     "Todos",
     ...Array.from(new Set(produtos
-      .filter((p) => pastaAtiva === "Todas" || (p.pasta || "Vasos") === pastaAtiva)
+      .filter((p) => pastaAtiva === "Todas" || getProdutoPasta(p) === pastaAtiva)
       .map((p) => p.categoria)
     )).filter(Boolean),
   ] as string[];
 
   const pastasUnicas = [
     "Todas",
-    ...Array.from(new Set(produtos.map((p) => p.pasta || "Vasos"))).filter(Boolean),
+    ...Array.from(new Set([
+      ...PASTAS_PADRAO.map((p) => p.nome),
+      ...customPastas,
+      ...produtos.map(getProdutoPasta),
+    ])).filter(Boolean),
   ] as string[];
 
   // Cores fixas para a vitrine para não precisar gravar background no banco

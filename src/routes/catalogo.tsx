@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { CnpjLoader } from "@/components/cnpj-loader";
+import { PASTAS_PADRAO, getProdutoPasta } from "@/lib/pastas";
 
 export const Route = createFileRoute("/catalogo")({
   head: () => ({ meta: [{ title: "Catálogo — Premium Garden" }] }),
@@ -47,6 +48,7 @@ function PublicCatalogo() {
   const [openCategoria, setOpenCategoria] = useState(false);
   const [pastaAtiva, setPastaAtiva] = useState<string>("Todas");
   const [openPasta, setOpenPasta] = useState(false);
+  const [customPastas, setCustomPastas] = useState<string[]>([]);
   const [cart, setCart] = useState<{ produto: any; qtd: number }[]>([]);
   const [partner, setPartner] = useState<any>(null);
   
@@ -194,17 +196,30 @@ function PublicCatalogo() {
 
       setProdutos(finalProducts);
       setLoading(false);
+
+      try {
+        const { data: dbPastas } = await supabase.from("pastas").select("nome").order("ordem", { ascending: true });
+        if (dbPastas && dbPastas.length > 0) {
+          setCustomPastas(dbPastas.map((p: any) => p.nome));
+        }
+      } catch (err) {
+        // Tabela pastas opcional
+      }
     };
     fetchProdutos();
   }, []);
 
-  const pastas = Array.from(new Set(produtos.map((p) => p.pasta || "Vasos"))).filter(
-    Boolean,
-  ) as string[];
+  const pastas = Array.from(
+    new Set([
+      ...PASTAS_PADRAO.map((p) => p.nome),
+      ...customPastas,
+      ...produtos.map(getProdutoPasta),
+    ])
+  ).filter(Boolean) as string[];
 
   const categorias = Array.from(new Set(
     produtos
-      .filter((p) => pastaAtiva === "Todas" || (p.pasta || "Vasos") === pastaAtiva)
+      .filter((p) => pastaAtiva === "Todas" || getProdutoPasta(p) === pastaAtiva)
       .map((p) => p.categoria)
   )).filter(Boolean) as string[];
 
@@ -218,7 +233,7 @@ function PublicCatalogo() {
   const filtrados = produtos.filter((p) => {
     const matchBusca = p.nome.toLowerCase().includes(busca.toLowerCase()) || (p.codigo && p.codigo.toLowerCase().includes(busca.toLowerCase()));
     const matchCategoria = categoriaAtiva === "Todas" || p.categoria === categoriaAtiva;
-    const matchPasta = pastaAtiva === "Todas" || (p.pasta || "Vasos") === pastaAtiva;
+    const matchPasta = pastaAtiva === "Todas" || getProdutoPasta(p) === pastaAtiva;
     return matchBusca && matchCategoria && matchPasta;
   });
 

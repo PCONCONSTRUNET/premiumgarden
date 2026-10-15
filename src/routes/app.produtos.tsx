@@ -33,6 +33,7 @@ import {
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useProdutos } from "@/contexts/ProdutosContext";
+import { PASTAS_PADRAO, getProdutoPasta } from "@/lib/pastas";
 import {
   Select,
   SelectContent,
@@ -78,7 +79,7 @@ function Produtos() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   
   // Pastas Management State
-  const [pastas, setPastas] = useState<any[]>([]);
+  const [pastas, setPastas] = useState<any[]>(PASTAS_PADRAO);
   const [isModalPastaOpen, setIsModalPastaOpen] = useState(false);
   const [novaPastaNome, setNovaPastaNome] = useState("");
   const [novaPastaDesc, setNovaPastaDesc] = useState("");
@@ -106,16 +107,15 @@ function Produtos() {
       const { data, error } = await supabase.from("pastas").select("*").order("ordem", { ascending: true });
       if (error) throw error;
       if (data && data.length > 0) {
-        setPastas(data);
+        const nomesDb = new Set(data.map((d: any) => d.nome));
+        const faltantes = PASTAS_PADRAO.filter((def) => !nomesDb.has(def.nome));
+        setPastas([...faltantes, ...data]);
       } else {
-        setPastas([
-          { id: "1", nome: "Vasos", descricao: "Linha tradicional de vasos", cor: "#2563eb", icone: "Package", ordem: 1 },
-          { id: "2", nome: "ABC Cerâmica", descricao: "Vasos e cerâmicas ABC", cor: "#d97706", icone: "Sparkles", ordem: 2 },
-          { id: "3", nome: "Jardinagem", descricao: "Insumos, substratos e adubos Mogi Mirim", cor: "#16a34a", icone: "Sprout", ordem: 3 },
-        ]);
+        setPastas(PASTAS_PADRAO);
       }
     } catch (err) {
       console.error("Erro ao buscar pastas:", err);
+      setPastas(PASTAS_PADRAO);
     }
   }, []);
 
@@ -129,7 +129,7 @@ function Produtos() {
   const pastaCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     products.forEach((p) => {
-      const pst = p.pasta || "Vasos";
+      const pst = getProdutoPasta(p);
       counts[pst] = (counts[pst] || 0) + 1;
     });
     return counts;
@@ -227,7 +227,7 @@ function Produtos() {
   const availableCategories = useMemo(() => {
     const prodsInPasta = pastaFilter === "Todas" 
       ? products 
-      : products.filter((p) => (p.pasta || "Vasos") === pastaFilter);
+      : products.filter((p) => getProdutoPasta(p) === pastaFilter);
     return Array.from(new Set(prodsInPasta.map((p) => p.categoria).filter(Boolean))).sort();
   }, [products, pastaFilter]);
 
@@ -297,7 +297,7 @@ function Produtos() {
       const matchBusca = p.nome.toLowerCase().includes(searchStr) ||
           (p.codigo && String(p.codigo).toLowerCase().includes(searchStr));
 
-      const pPasta = p.pasta || "Vasos";
+      const pPasta = getProdutoPasta(p);
       const matchPasta = pastaFilter === "Todas" || pPasta === pastaFilter;
       const matchCat = categoriaFilter === "Todas" || p.categoria === categoriaFilter;
       const matchStatus = statusFilter === "Todos" || p.status === statusFilter;
@@ -741,10 +741,10 @@ function Produtos() {
                                   <span 
                                     className="w-2 h-2 rounded-full flex-shrink-0" 
                                     style={{ 
-                                      backgroundColor: pastas.find(pst => pst.nome === (p.pasta || "Vasos"))?.cor || "#4b2781" 
+                                      backgroundColor: pastas.find(pst => pst.nome === getProdutoPasta(p))?.cor || "#4b2781" 
                                     }} 
                                   />
-                                  <span className="truncate max-w-[100px]">{p.pasta || "Vasos"}</span>
+                                  <span className="truncate max-w-[100px]">{getProdutoPasta(p)}</span>
                                   <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5 opacity-60" />
                                 </button>
                               </DropdownMenuTrigger>
@@ -758,7 +758,7 @@ function Produtos() {
                                   >
                                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: pst.cor || "#4b2781" }} />
                                     <span className="truncate">{pst.nome}</span>
-                                    {(p.pasta || "Vasos") === pst.nome && <Check className="w-3.5 h-3.5 ml-auto text-emerald-600" />}
+                                    {getProdutoPasta(p) === pst.nome && <Check className="w-3.5 h-3.5 ml-auto text-emerald-600" />}
                                   </DropdownMenuItem>
                                 ))}
                               </DropdownMenuContent>

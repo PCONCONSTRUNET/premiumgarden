@@ -24,11 +24,11 @@ import {
 import {
   WhatsAppIcon,
   shareOrderWhatsApp,
-  openOrderPdf,
   downloadOrderPdf,
   getOrderNumber,
   isOrderDav,
 } from "@/lib/order-pdf";
+import { ParceiroPedidoModal } from "@/components/parceiro-pedido-modal";
 
 export const Route = createFileRoute("/parceiro/vendas")({
   head: () => ({ meta: [{ title: "Minhas Vendas — PREMIUM GARDEN" }] }),
@@ -44,9 +44,8 @@ function VendasParceiro() {
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
   const [selectedVenda, setSelectedVenda] = useState<any>(null);
-  const [vendaItens, setVendaItens] = useState<any[]>([]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [loadingItens, setLoadingItens] = useState(false);
+  const [vendedorInfo, setVendedorInfo] = useState<any>(null);
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -87,34 +86,9 @@ function VendasParceiro() {
     }
   };
 
-  const openDetails = async (venda: any) => {
+  const openDetails = (venda: any) => {
     setSelectedVenda(venda);
     setIsDetailsOpen(true);
-    setLoadingItens(true);
-    setVendaItens([]);
-    try {
-      const { data, error } = await supabase
-        .from("vendas_itens")
-        .select("*, produto:produtos(nome, codigo, imagem)")
-        .eq("venda_id", venda.id);
-      
-      if (!error && data && data.length > 0) {
-        setVendaItens(data);
-      } else {
-        const { data: davData, error: davError } = await supabase
-          .from("dav_items")
-          .select("*, produto:produtos(nome, codigo, imagem)")
-          .eq("dav_id", venda.id);
-        
-        if (!davError && davData) {
-          setVendaItens(davData);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingItens(false);
-    }
   };
 
   useEffect(() => {
@@ -127,11 +101,12 @@ function VendasParceiro() {
 
         const { data: vendedor } = await supabase
           .from("vendedores")
-          .select("id")
+          .select("id, tipo_comissao, valor_comissao, nome")
           .eq("user_id", session.user.id)
           .single();
 
         if (vendedor) {
+          setVendedorInfo(vendedor);
           const { data, error } = await supabase
             .from("vendas")
             .select("*, clientes(*)")
@@ -448,200 +423,23 @@ function VendasParceiro() {
         </div>
       )}
 
-      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="sm:max-w-[440px]">
-          <DialogHeader>
-            <DialogTitle>
-              {isOrderDav(selectedVenda || {}) ? "Ficha do Orçamento" : "Ficha do Pedido"}
-            </DialogTitle>
-            <DialogDescription asChild>
-              <div>
-                {isOrderDav(selectedVenda || {}) ? "Orçamento" : "Pedido"} #
-                {getOrderNumber(selectedVenda || {})} •{" "}
-                {selectedVenda && new Date(selectedVenda.created_at).toLocaleDateString("pt-BR")}
-                {selectedVenda?.clientes?.nome && (
-                  <div className="mt-3 text-sm text-slate-700 bg-slate-100 p-3 rounded-xl border border-slate-200 text-left">
-                    <p className="font-semibold text-slate-900 flex items-center gap-2">
-                      👤 {selectedVenda.clientes.nome}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2">
-            {loadingItens ? (
-              <div className="text-center py-6 text-muted-foreground flex flex-col items-center gap-2">
-                <Loader2 className="w-6 h-6 animate-spin text-brand" />
-                <span>Carregando itens...</span>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="max-h-[260px] overflow-y-auto divide-y border rounded-xl">
-                  {vendaItens.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      Nenhum item encontrado.
-                    </div>
-                  ) : (
-                    vendaItens.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 bg-slate-50/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="text-2xl">{item.produto?.emoji || "📦"}</div>
-                          <div>
-                            <p className="font-semibold text-sm text-slate-800">
-                              {item.produto?.nome || "Produto Excluído"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.quantidade}x R${" "}
-                              {Number(item.valor_unitario).toFixed(2).replace(".", ",")}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="font-bold text-brand">
-                          R$ {Number(item.subtotal).toFixed(2).replace(".", ",")}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-                
-                {Number(selectedVenda?.desconto_valor) > 0 && (
-                  <>
-                    <div className="flex justify-between items-center px-4 pt-4 text-sm">
-                      <span className="text-slate-500">Subtotal:</span>
-                      <span className="text-slate-600 font-medium">
-                        R$ {Number(selectedVenda.subtotal || selectedVenda.valor_total || 0).toFixed(2).replace(".", ",")}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 pt-2 pb-2 text-sm text-red-500">
-                      <span>
-                        Descontos (-){selectedVenda.desconto_percentual ? ` (${selectedVenda.desconto_percentual}%)` : ""}
-                      </span>
-                      <span className="font-medium">
-                        R$ {Number(selectedVenda.desconto_valor).toFixed(2).replace(".", ",")}
-                      </span>
-                    </div>
-                  </>
-                )}
+      <ParceiroPedidoModal
+        open={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+        venda={selectedVenda}
+        vendedor={vendedorInfo}
+        onVendaUpdated={(updatedVenda) => {
+          setVendas((prev) =>
+            prev.map((v) => (v.id === updatedVenda.id ? { ...v, ...updatedVenda } : v)),
+          );
+          setSelectedVenda(updatedVenda);
+        }}
+        onVendaDeleted={(id) => {
+          setVendas((prev) => prev.filter((v) => v.id !== id));
+          setSelectedVenda(null);
+        }}
+      />
 
-                <div className="flex justify-between items-center p-4 bg-slate-100 rounded-xl mt-3">
-                  <span className="font-semibold text-slate-700">Total do Pedido:</span>
-                  <span className="text-xl font-bold font-display text-slate-900">
-                    R${" "}
-                    {Number(selectedVenda?.valor_total || 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {!loadingItens && selectedVenda && (
-              <div className="pt-4 space-y-2.5">
-                {/* Botão principal de WhatsApp com PDF */}
-                <Button
-                  className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2"
-                  onClick={() => handleShare(selectedVenda, vendaItens)}
-                  disabled={sharingId === selectedVenda.id}
-                >
-                  {sharingId === selectedVenda.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  ) : (
-                    <WhatsAppIcon className="w-4 h-4 shrink-0" />
-                  )}
-                  <span>Enviar PDF no WhatsApp</span>
-                </Button>
-
-                {/* Botões secundários: Ver / Imprimir PDF e Baixar PDF */}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5"
-                    onClick={() => openOrderPdf(selectedVenda.id)}
-                  >
-                    <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span>Ver / Imprimir PDF</span>
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={downloadingPdfId === selectedVenda.id}
-                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    onClick={() => handleDownloadPdf(selectedVenda, vendaItens)}
-                  >
-                    {downloadingPdfId === selectedVenda.id ? (
-                      <Loader2 className="w-3.5 h-3.5 text-slate-500 shrink-0 animate-spin" />
-                    ) : (
-                      <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    )}
-                    <span>{downloadingPdfId === selectedVenda.id ? "Baixando..." : "Baixar PDF"}</span>
-                  </Button>
-                </div>
-
-                {/* Clonar Pedido */}
-                {vendaItens.length > 0 && (
-                  <Button
-                    variant="secondary"
-                    className="w-full h-10 font-bold border border-slate-200 rounded-xl flex items-center justify-center gap-1.5 text-xs text-slate-700"
-                    onClick={() => {
-                      const itemsMagic = vendaItens
-                        .map((i) => `${i.produto_id}:${i.quantidade}`)
-                        .join(",");
-                      window.location.href = `/parceiro/pdv?c=${itemsMagic}`;
-                    }}
-                  >
-                    <Copy className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span>Clonar Pedido no PDV</span>
-                  </Button>
-                )}
-
-                {/* Ações de Cancelamento e Exclusão */}
-                <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
-                  {isOrderDav(selectedVenda) ? (
-                    <>
-                      {selectedVenda.status !== "Cancelado" && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full h-10 font-bold border-amber-300 text-amber-800 hover:bg-amber-50 rounded-xl flex items-center justify-center gap-1.5 text-xs"
-                          onClick={() => cancelarOrcamento(selectedVenda.id)}
-                        >
-                          <Ban className="w-4 h-4 text-amber-600" />
-                          <span>Cancelar Orçamento</span>
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="w-full h-9 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl flex items-center justify-center gap-1.5 text-xs font-semibold"
-                        onClick={() => deleteVenda(selectedVenda.id, true)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Excluir Orçamento Definitivamente</span>
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full h-10 font-bold border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl flex items-center justify-center gap-1.5 text-xs"
-                      onClick={() => deleteVenda(selectedVenda.id, false)}
-                    >
-                      <Trash2 className="w-4 h-4 text-rose-500" />
-                      <span>Excluir Pedido</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Confirm Dialog Modal */}
       <Dialog open={confirmDialog.open} onOpenChange={(o) => !o && closeConfirm()}>

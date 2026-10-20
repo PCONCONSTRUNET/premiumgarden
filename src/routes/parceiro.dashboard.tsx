@@ -5,14 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   Wallet,
   Clock,
   CheckCircle2,
@@ -27,11 +19,11 @@ import {
 import {
   WhatsAppIcon,
   shareOrderWhatsApp,
-  openOrderPdf,
   downloadOrderPdf,
   getOrderNumber,
   isOrderDav,
 } from "@/lib/order-pdf";
+import { ParceiroPedidoModal } from "@/components/parceiro-pedido-modal";
 
 export const Route = createFileRoute("/parceiro/dashboard")({
   head: () => ({ meta: [{ title: "Meu Painel — PREMIUM GARDEN" }] }),
@@ -50,14 +42,7 @@ function ParceiroDashboard() {
   const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
 
   const [selectedSaleForDetails, setSelectedSaleForDetails] = useState<any>(null);
-  const [saleItems, setSaleItems] = useState<any[]>([]);
   const [isSaleDetailsOpen, setIsSaleDetailsOpen] = useState(false);
-  const [loadingSaleDetails, setLoadingSaleDetails] = useState(false);
-
-  const [isEditingClient, setIsEditingClient] = useState(false);
-  const [editClientData, setEditClientData] = useState({ nome: "", cpf_cnpj: "", telefone: "" });
-  const [savingClient, setSavingClient] = useState(false);
-  const [deletingOrder, setDeletingOrder] = useState(false);
 
   const handleShare = async (venda: any, itens?: any[]) => {
     setSharingId(venda.id);
@@ -79,35 +64,9 @@ function ParceiroDashboard() {
     }
   };
 
-  const openSaleDetails = async (venda: any) => {
+  const openSaleDetails = (venda: any) => {
     setSelectedSaleForDetails(venda);
     setIsSaleDetailsOpen(true);
-    setLoadingSaleDetails(true);
-    setSaleItems([]);
-
-    try {
-      const { data, error } = await supabase
-        .from("vendas_itens")
-        .select("*, produto:produtos(nome, codigo, imagem)")
-        .eq("venda_id", venda.id);
-
-      if (!error && data && data.length > 0) {
-        setSaleItems(data);
-      } else {
-        const { data: davData, error: davError } = await supabase
-          .from("dav_items")
-          .select("*, produto:produtos(nome, codigo, imagem)")
-          .eq("dav_id", venda.id);
-        
-        if (!davError && davData) {
-          setSaleItems(davData);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingSaleDetails(false);
-    }
   };
 
   const handleDeleteSale = async (venda: any) => {
@@ -116,19 +75,18 @@ function ParceiroDashboard() {
     if (!confirm(`Tem certeza que deseja excluir este ${label}? Esta ação não pode ser desfeita.`))
       return;
 
-    setDeletingOrder(true);
     try {
-      // Exclui os itens primeiro para integridade referencial
       await supabase.from("vendas_itens").delete().eq("venda_id", venda.id);
-      // Exclui a venda
+      await supabase.from("dav_items").delete().eq("dav_id", venda.id);
       const { error } = await supabase.from("vendas").delete().eq("id", venda.id);
       if (error) throw error;
       setVendas((prev) => prev.filter((v) => v.id !== venda.id));
-      setIsSaleDetailsOpen(false);
+      if (selectedSaleForDetails?.id === venda.id) {
+        setIsSaleDetailsOpen(false);
+        setSelectedSaleForDetails(null);
+      }
     } catch (err: any) {
       alert(`Erro ao excluir ${label}: ` + err.message);
-    } finally {
-      setDeletingOrder(false);
     }
   };
 
@@ -416,78 +374,6 @@ function ParceiroDashboard() {
     );
   }
 
-  const handleEnviarPedido = async () => {
-    if (!selectedSaleForDetails) return;
-    try {
-      setLoadingSaleDetails(true);
-      // Notifica o admin
-      await supabase.from("notificacoes").insert([
-        {
-          tipo: "venda",
-          titulo: `Pedido reenviado pelo parceiro: ${nome.split(" ")[0]}`,
-          mensagem: `O parceiro reenviou o pedido #${selectedSaleForDetails.numero_venda} para aprovação.`,
-        },
-      ]);
-      alert("Pedido enviado para o dono com sucesso!");
-      setIsSaleDetailsOpen(false);
-    } catch (err: any) {
-      alert("Erro ao enviar pedido: " + err.message);
-    } finally {
-      setLoadingSaleDetails(false);
-    }
-  };
-
-  const openEditClient = () => {
-    setEditClientData({
-      nome: selectedSaleForDetails.cliente?.nome || "",
-      cpf_cnpj: selectedSaleForDetails.cliente?.cpf_cnpj || "",
-      telefone: selectedSaleForDetails.cliente?.telefone || "",
-    });
-    setIsEditingClient(true);
-  };
-
-  const handleSalvarCliente = async () => {
-    if (!selectedSaleForDetails?.cliente_id) return;
-    try {
-      setSavingClient(true);
-      const { error } = await supabase
-        .from("clientes")
-        .update({
-          nome: editClientData.nome,
-          cpf_cnpj: editClientData.cpf_cnpj,
-          telefone: editClientData.telefone,
-        })
-        .eq("id", selectedSaleForDetails.cliente_id);
-
-      if (error) throw error;
-
-      // Atualiza estado local
-      setSelectedSaleForDetails((prev: any) => ({
-        ...prev,
-        cliente: {
-          ...prev.cliente,
-          nome: editClientData.nome,
-          cpf_cnpj: editClientData.cpf_cnpj,
-          telefone: editClientData.telefone,
-        },
-      }));
-      setVendas((prev) =>
-        prev.map((v) =>
-          v.id === selectedSaleForDetails.id
-            ? { ...v, cliente: { ...v.cliente, ...editClientData } }
-            : v,
-        ),
-      );
-
-      alert("Informações do cliente atualizadas!");
-      setIsEditingClient(false);
-    } catch (err: any) {
-      alert("Erro ao atualizar cliente: " + err.message);
-    } finally {
-      setSavingClient(false);
-    }
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div>
@@ -699,254 +585,27 @@ function ParceiroDashboard() {
         </div>
       </div>
 
-      <Dialog open={isSaleDetailsOpen} onOpenChange={setIsSaleDetailsOpen}>
-        <DialogContent className="sm:max-w-[440px]">
-          <DialogHeader>
-            <DialogTitle>
-              {isOrderDav(selectedSaleForDetails || {}) ? "Ficha do Orçamento" : "Ficha do Pedido"}
-            </DialogTitle>
-            <DialogDescription asChild>
-              <div>
-                {isOrderDav(selectedSaleForDetails || {}) ? "Orçamento" : "Pedido"} #
-                {getOrderNumber(selectedSaleForDetails || {})} •{" "}
-                {selectedSaleForDetails &&
-                  new Date(selectedSaleForDetails?.created_at).toLocaleDateString("pt-BR")}
-                {selectedSaleForDetails?.cliente?.nome && (
-                  <div className="mt-3 text-sm text-slate-700 bg-slate-100 p-3 rounded-xl border border-slate-200 text-left">
-                    <p className="font-semibold text-slate-900 flex items-center gap-2">
-                      👤 {selectedSaleForDetails.cliente.nome}
-                    </p>
-                    {selectedSaleForDetails.cliente.cpf_cnpj && (
-                      <p className="mt-1">📄 {selectedSaleForDetails.cliente.cpf_cnpj}</p>
-                    )}
-                    {selectedSaleForDetails.cliente.telefone && (
-                      <p className="mt-1">📞 {selectedSaleForDetails.cliente.telefone}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2">
-            {loadingSaleDetails ? (
-              <div className="text-center py-6 text-muted-foreground flex flex-col items-center gap-2">
-                <Loader2 className="w-6 h-6 animate-spin text-brand" />
-                <span>Carregando itens...</span>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="max-h-[260px] overflow-y-auto divide-y border rounded-xl">
-                  {saleItems.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      Nenhum item encontrado.
-                    </div>
-                  ) : (
-                    saleItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 bg-slate-50/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="text-2xl">{item.produto?.emoji || "📦"}</div>
-                          <div>
-                            <p className="font-semibold text-sm text-slate-800">
-                              {item.produto?.nome || "Produto Excluído"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.quantidade}x R${" "}
-                              {Number(item.valor_unitario).toFixed(2).replace(".", ",")}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="font-bold text-brand">
-                          R$ {Number(item.subtotal).toFixed(2).replace(".", ",")}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-                
-                {Number(selectedSaleForDetails?.desconto_valor) > 0 && (
-                  <>
-                    <div className="flex justify-between items-center px-4 pt-4 text-sm">
-                      <span className="text-slate-500">Subtotal:</span>
-                      <span className="text-slate-600 font-medium">
-                        R$ {Number(selectedSaleForDetails.subtotal || selectedSaleForDetails.valor_total || 0).toFixed(2).replace(".", ",")}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 pt-2 pb-2 text-sm text-red-500">
-                      <span>
-                        Descontos (-){selectedSaleForDetails.desconto_percentual ? ` (${selectedSaleForDetails.desconto_percentual}%)` : ""}
-                      </span>
-                      <span className="font-medium">
-                        R$ {Number(selectedSaleForDetails.desconto_valor).toFixed(2).replace(".", ",")}
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                <div className="flex justify-between items-center p-4 bg-slate-100 rounded-xl mt-3">
-                  <span className="font-semibold text-slate-700">Total do Pedido:</span>
-                  <span className="text-xl font-bold font-display text-slate-900">
-                    R${" "}
-                    {Number(selectedSaleForDetails?.valor_total || 0)
-                      .toFixed(2)
-                      .replace(".", ",")}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="pt-2 flex flex-col gap-2.5 w-full">
-            {/* Botão principal de WhatsApp com PDF */}
-            {selectedSaleForDetails && (
-              <>
-                <Button
-                  className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2"
-                  onClick={() => handleShare(selectedSaleForDetails, saleItems)}
-                  disabled={sharingId === selectedSaleForDetails.id}
-                >
-                  {sharingId === selectedSaleForDetails.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  ) : (
-                    <WhatsAppIcon className="w-4 h-4 shrink-0" />
-                  )}
-                  <span>Enviar PDF no WhatsApp</span>
-                </Button>
-
-                {/* Botões secundários: Ver / Imprimir PDF e Baixar PDF */}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5"
-                    onClick={() => openOrderPdf(selectedSaleForDetails.id)}
-                  >
-                    <FileText className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span>Ver / Imprimir PDF</span>
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={downloadingPdfId === selectedSaleForDetails.id}
-                    className="h-10 border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
-                    onClick={() => handleDownloadPdf(selectedSaleForDetails, saleItems)}
-                  >
-                    {downloadingPdfId === selectedSaleForDetails.id ? (
-                      <Loader2 className="w-3.5 h-3.5 text-slate-500 shrink-0 animate-spin" />
-                    ) : (
-                      <Download className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    )}
-                    <span>{downloadingPdfId === selectedSaleForDetails.id ? "Baixando..." : "Baixar PDF"}</span>
-                  </Button>
-                </div>
-              </>
-            )}
-
-            {selectedSaleForDetails?.status_aprovacao === "Pendente" && (
-              <>
-                <Button
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl"
-                  onClick={handleEnviarPedido}
-                >
-                  🚀 Enviar pedido para o dono
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full border-slate-300 text-slate-800 font-semibold rounded-xl"
-                  onClick={openEditClient}
-                >
-                  ✏️ Editar Informações do Cliente
-                </Button>
-              </>
-            )}
-            {/* Ações de Cancelar Orçamento e Excluir */}
-            {isOrderDav(selectedSaleForDetails || {}) ? (
-              <div className="space-y-2">
-                {selectedSaleForDetails?.status !== "Cancelado" && (
-                  <Button
-                    variant="outline"
-                    className="w-full border-amber-300 text-amber-800 hover:bg-amber-50 font-semibold rounded-xl flex items-center justify-center gap-1.5"
-                    onClick={() => handleCancelDav(selectedSaleForDetails)}
-                  >
-                    <Ban className="h-4 w-4 text-amber-600" />
-                    <span>Cancelar Orçamento</span>
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 font-semibold rounded-xl flex items-center justify-center gap-1.5 text-xs"
-                  disabled={deletingOrder}
-                  onClick={() => handleDeleteSale(selectedSaleForDetails)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>
-                    {deletingOrder ? "Excluindo..." : "Excluir Orçamento Definitivamente"}
-                  </span>
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                className="w-full border-red-200 text-red-600 hover:bg-red-50 font-semibold rounded-xl flex items-center justify-center gap-1.5"
-                disabled={deletingOrder}
-                onClick={() => handleDeleteSale(selectedSaleForDetails)}
-              >
-                <Trash2 className="h-4 w-4 text-red-500" />
-                <span>{deletingOrder ? "Excluindo..." : "Excluir Pedido"}</span>
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              className="w-full border-slate-200 text-slate-600 rounded-xl"
-              onClick={() => setIsSaleDetailsOpen(false)}
-            >
-              Fechar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isEditingClient} onOpenChange={setIsEditingClient}>
-        <DialogContent className="sm:max-w-[350px]">
-          <DialogHeader>
-            <DialogTitle>Editar Informações</DialogTitle>
-            <DialogDescription>Corrija os dados do cliente para este pedido.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nome</label>
-              <Input
-                value={editClientData.nome}
-                onChange={(e) => setEditClientData((p) => ({ ...p, nome: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">CPF/CNPJ</label>
-              <Input
-                value={editClientData.cpf_cnpj}
-                onChange={(e) => setEditClientData((p) => ({ ...p, cpf_cnpj: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Telefone</label>
-              <Input
-                value={editClientData.telefone}
-                onChange={(e) => setEditClientData((p) => ({ ...p, telefone: e.target.value }))}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditingClient(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSalvarCliente} disabled={savingClient}>
-              {savingClient ? "Salvando..." : "Salvar Alterações"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ParceiroPedidoModal
+        open={isSaleDetailsOpen}
+        onOpenChange={setIsSaleDetailsOpen}
+        venda={selectedSaleForDetails}
+        vendedor={{
+          id: vendedorId || undefined,
+          tipo_comissao: tipoComissao,
+          valor_comissao: valorComissao,
+          nome,
+        }}
+        onVendaUpdated={(updatedVenda) => {
+          setVendas((prev) =>
+            prev.map((v) => (v.id === updatedVenda.id ? { ...v, ...updatedVenda } : v)),
+          );
+          setSelectedSaleForDetails(updatedVenda);
+        }}
+        onVendaDeleted={(id) => {
+          setVendas((prev) => prev.filter((v) => v.id !== id));
+          setSelectedSaleForDetails(null);
+        }}
+      />
     </div>
   );
 }

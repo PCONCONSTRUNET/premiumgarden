@@ -763,70 +763,55 @@ export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData 
 }
 
 /**
- * Baixa diretamente o PDF de uma venda/orçamento, buscando os itens (com imagem) se necessário.
+ * Busca itens de uma venda tentando múltiplos clientes e tabelas como fallback.
  */
-export async function downloadVendaPdf(venda: any, itens?: any[], customClient?: any): Promise<void> {
-  let finalItens = itens;
-  const client = customClient || supabase;
-  
-  if (!finalItens || finalItens.length === 0) {
-    const { data, error } = await client
-      .from("vendas_itens")
-      .select("*, produtos(nome, codigo, imagem)")
-      .eq("venda_id", venda.id);
-    if (error) console.error("Error fetching vendas_itens for PDF:", error);
-    finalItens = data || [];
-    
-    if (finalItens.length === 0) {
-      const { data: davData, error: davError } = await client
+async function fetchItensParaPdf(vendaId: string, customClient?: any): Promise<any[]> {
+  const clients = [customClient, supabase].filter(Boolean);
+  const selectItens = "*, produtos(nome, codigo, imagem)";
+
+  // Tenta vendas_itens
+  for (const client of clients) {
+    try {
+      const { data, error } = await client
+        .from("vendas_itens")
+        .select(selectItens)
+        .eq("venda_id", vendaId);
+      if (!error && data && data.length > 0) return data;
+    } catch {}
+  }
+
+  // Tenta dav_items
+  for (const client of clients) {
+    try {
+      const { data, error } = await client
         .from("dav_items")
-        .select("*, produtos(nome, codigo, imagem)")
-        .eq("dav_id", venda.id);
-      if (davError) console.error("Error fetching dav_items for PDF:", davError);
-      
-      if (davData && davData.length > 0) {
-        finalItens = davData.map((d: any) => ({
+        .select(selectItens)
+        .eq("dav_id", vendaId);
+      if (!error && data && data.length > 0) {
+        return data.map((d: any) => ({
           ...d,
           quantidade: d.quantidade ?? d.qtd,
           valor_unitario: d.valor_unitario ?? d.preco_unitario,
           subtotal: d.subtotal ?? d.total,
         }));
       }
-    }
+    } catch {}
   }
+
+  return [];
+}
+
+/**
+ * Baixa diretamente o PDF de uma venda/orçamento, buscando os itens (com imagem) se necessário.
+ */
+export async function downloadVendaPdf(venda: any, itens?: any[], customClient?: any): Promise<void> {
+  const finalItens = (itens && itens.length > 0) ? itens : await fetchItensParaPdf(venda.id, customClient);
   const pdfData = vendaToPdfData(venda, finalItens);
   return downloadOrcamentoPDF(pdfData);
 }
 
 export async function printVendaPdf(venda: any, itens?: any[], customClient?: any): Promise<void> {
-  let finalItens = itens;
-  const client = customClient || supabase;
-  
-  if (!finalItens || finalItens.length === 0) {
-    const { data, error } = await client
-      .from("vendas_itens")
-      .select("*, produtos(nome, codigo, imagem)")
-      .eq("venda_id", venda.id);
-    if (error) console.error("Error fetching vendas_itens for PDF:", error);
-    finalItens = data || [];
-
-    if (finalItens.length === 0) {
-      const { data: davData, error: davError } = await client
-        .from("dav_items")
-        .select("*, produtos(nome, codigo, imagem)")
-        .eq("dav_id", venda.id);
-      if (davError) console.error("Error fetching dav_items for PDF:", davError);
-      
-      if (davData && davData.length > 0) {
-        finalItens = davData.map((d: any) => ({
-          ...d,
-          quantidade: d.quantidade ?? d.qtd,
-          valor_unitario: d.valor_unitario ?? d.preco_unitario,
-          subtotal: d.subtotal ?? d.total,
-        }));
-      }
-    }
-  }
+  const finalItens = (itens && itens.length > 0) ? itens : await fetchItensParaPdf(venda.id, customClient);
   const pdfData = vendaToPdfData(venda, finalItens);
   return printOrcamentoPDF(pdfData);
 }
@@ -835,34 +820,7 @@ export async function printVendaPdf(venda: any, itens?: any[], customClient?: an
  * Compartilha o PDF de uma venda/orçamento no WhatsApp, buscando os itens (com imagem) se necessário.
  */
 export async function shareVendaWhatsApp(venda: any, itens?: any[], customClient?: any): Promise<void> {
-  let finalItens = itens;
-  const client = customClient || supabase;
-  
-  if (!finalItens || finalItens.length === 0) {
-    const { data, error } = await client
-      .from("vendas_itens")
-      .select("*, produtos(nome, codigo, imagem)")
-      .eq("venda_id", venda.id);
-    if (error) console.error("Error fetching vendas_itens for PDF:", error);
-    finalItens = data || [];
-
-    if (finalItens.length === 0) {
-      const { data: davData, error: davError } = await client
-        .from("dav_items")
-        .select("*, produtos(nome, codigo, imagem)")
-        .eq("dav_id", venda.id);
-      if (davError) console.error("Error fetching dav_items for PDF:", davError);
-      
-      if (davData && davData.length > 0) {
-        finalItens = davData.map((d: any) => ({
-          ...d,
-          quantidade: d.quantidade ?? d.qtd,
-          valor_unitario: d.valor_unitario ?? d.preco_unitario,
-          subtotal: d.subtotal ?? d.total,
-        }));
-      }
-    }
-  }
+  const finalItens = (itens && itens.length > 0) ? itens : await fetchItensParaPdf(venda.id, customClient);
   const pdfData = vendaToPdfData(venda, finalItens);
   return shareOrcamentoPDF(pdfData);
 }

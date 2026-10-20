@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { supabaseParceiro as supabase } from "@/lib/supabase";
+import { supabaseParceiro as supabase, supabase as supabaseAdmin } from "@/lib/supabase";
 import {
   Dialog,
   DialogContent,
@@ -97,27 +97,49 @@ export function ParceiroPedidoModal({
     const fetchItens = async () => {
       setLoadingItens(true);
       try {
-        const { data, error } = await supabase
+        // Tenta carregar com o cliente parceiro primeiro, depois admin como fallback (RLS)
+        const selectItens = "*, produto:produtos(nome, codigo, imagem, emoji, valor, preco_venda)";
+
+        let items: any[] | null = null;
+
+        // 1. Tenta vendas_itens com parceiro
+        const { data: vi1, error: ve1 } = await supabase
           .from("vendas_itens")
-          .select("*, produto:produtos(nome, codigo, imagem, emoji, valor, preco_venda)")
+          .select(selectItens)
           .eq("venda_id", venda.id);
+        if (!ve1 && vi1 && vi1.length > 0) items = vi1;
 
-        if (!error && data && data.length > 0) {
-          setItens(data);
-        } else {
-          const { data: davData, error: davError } = await supabase
-            .from("dav_items")
-            .select("*, produto:produtos(nome, codigo, imagem, emoji, valor, preco_venda)")
-            .eq("dav_id", venda.id);
-
-          if (!davError && davData) {
-            setItens(davData);
-          } else {
-            setItens([]);
-          }
+        // 2. Fallback admin para vendas_itens
+        if (!items) {
+          const { data: vi2, error: ve2 } = await supabaseAdmin
+            .from("vendas_itens")
+            .select(selectItens)
+            .eq("venda_id", venda.id);
+          if (!ve2 && vi2 && vi2.length > 0) items = vi2;
         }
+
+        // 3. Tenta dav_items com parceiro
+        if (!items) {
+          const { data: di1, error: de1 } = await supabase
+            .from("dav_items")
+            .select(selectItens)
+            .eq("dav_id", venda.id);
+          if (!de1 && di1 && di1.length > 0) items = di1;
+        }
+
+        // 4. Fallback admin para dav_items
+        if (!items) {
+          const { data: di2, error: de2 } = await supabaseAdmin
+            .from("dav_items")
+            .select(selectItens)
+            .eq("dav_id", venda.id);
+          if (!de2 && di2 && di2.length > 0) items = di2;
+        }
+
+        setItens(items || []);
       } catch (err) {
         console.error("Erro ao carregar itens da venda:", err);
+        setItens([]);
       } finally {
         setLoadingItens(false);
       }

@@ -470,19 +470,40 @@ export async function generateOrderPdfDoc(
   logos?: { prime?: string | null; plus?: string | null; icons?: any },
 ): Promise<{ doc: jsPDF; blob: Blob; file: File; filename: string }> {
     // Load images
-  const toBase64 = (url: string): Promise<string | null> =>
-    fetch(url)
-      .then((r) => r.blob())
-      .then(
-        (blob) =>
-          new Promise<string | null>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-          }),
-      )
-      .catch(() => null);
+  const toBase64 = async (url: string): Promise<string | null> => {
+    if (!url) return null;
+    // Tenta via fetch primeiro
+    try {
+      const r = await fetch(url, { mode: 'cors', cache: 'no-cache' });
+      if (r.ok) {
+        const blob = await r.blob();
+        return await new Promise<string | null>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        });
+      }
+    } catch { /* ignora erro CORS, tenta via canvas */ }
+    // Fallback: via canvas
+    return await new Promise<string | null>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(null); return; }
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  };
 
   for (const it of items) {
     const imgUrl = (it as any).imagem || (it.produto as any)?.imagem || (it.produtos as any)?.imagem;
@@ -703,7 +724,10 @@ export async function generateOrderPdfDoc(
         const imgBase64 = rowData[6];
         if (imgBase64) {
           try {
-            doc.addImage(imgBase64, "JPEG", data.cell.x + 2, data.cell.y + 1, 10, 10);
+            let fmt: string = "JPEG";
+            if (imgBase64.startsWith("data:image/png")) fmt = "PNG";
+            else if (imgBase64.startsWith("data:image/webp")) fmt = "WEBP";
+            doc.addImage(imgBase64, fmt, data.cell.x + 2, data.cell.y + 1, 10, 10);
           } catch {}
         }
       }

@@ -58,19 +58,41 @@ const formatCurrency = (val: number | string | null | undefined): string => {
   return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 };
 
-const toBase64 = (url: string): Promise<string | null> =>
-  fetch(url)
-    .then((r) => r.blob())
-    .then(
-      (blob) =>
-        new Promise<string | null>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => resolve(null);
-          reader.readAsDataURL(blob);
-        }),
-    )
-    .catch(() => null);
+const toBase64 = async (url: string): Promise<string | null> => {
+  if (!url) return null;
+  // Tenta via fetch primeiro
+  try {
+    const r = await fetch(url, { mode: 'cors', cache: 'no-cache' });
+    if (r.ok) {
+      const blob = await r.blob();
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch { /* ignora erro CORS e tenta via canvas */ }
+
+  // Fallback: via canvas (contorna CORS em muitos casos)
+  return await new Promise<string | null>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(null); return; }
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+};
 
 /** Tenta extrair a cidade do endereço do emissor. Ex: "Sorocaba-SP" → "Sorocaba" */
 function extractCity(endereco?: string | null): string {
@@ -322,7 +344,12 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
           const iW = hook.cell.width - pad * 2;
           const iH = hook.cell.height - pad * 2;
           try {
-            doc.addImage(imgData, "JPEG", iX, iY, iW, iH, undefined, "FAST");
+            // Detecta o formato a partir do data URL
+            let fmt: string = "JPEG";
+            if (imgData.startsWith("data:image/png")) fmt = "PNG";
+            else if (imgData.startsWith("data:image/webp")) fmt = "WEBP";
+            else if (imgData.startsWith("data:image/gif")) fmt = "GIF";
+            doc.addImage(imgData, fmt, iX, iY, iW, iH, undefined, "FAST");
           } catch {
             // Produto sem imagem válida — ignora silenciosamente
           }

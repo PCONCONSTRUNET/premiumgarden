@@ -97,46 +97,141 @@ export function ParceiroPedidoModal({
     const fetchItens = async () => {
       setLoadingItens(true);
       try {
-        // Tenta carregar com o cliente parceiro primeiro, depois admin como fallback (RLS)
-        const selectItens = "*, produto:produtos(nome, codigo, imagem, emoji, valor, preco_venda)";
+        let loadedItems: any[] = [];
+        const clients = [supabase, supabaseAdmin].filter(Boolean);
 
-        let items: any[] | null = null;
-
-        // 1. Tenta vendas_itens com parceiro
-        const { data: vi1, error: ve1 } = await supabase
-          .from("vendas_itens")
-          .select(selectItens)
-          .eq("venda_id", venda.id);
-        if (!ve1 && vi1 && vi1.length > 0) items = vi1;
-
-        // 2. Fallback admin para vendas_itens
-        if (!items) {
-          const { data: vi2, error: ve2 } = await supabaseAdmin
-            .from("vendas_itens")
-            .select(selectItens)
-            .eq("venda_id", venda.id);
-          if (!ve2 && vi2 && vi2.length > 0) items = vi2;
+        // 1. Tenta carregar com join em produtos (vendas_itens)
+        for (const client of clients) {
+          if (loadedItems.length > 0) break;
+          try {
+            const { data, error } = await client
+              .from("vendas_itens")
+              .select("*, produtos(id, nome, codigo, imagem, valor)")
+              .eq("venda_id", venda.id);
+            if (!error && data && data.length > 0) {
+              loadedItems = data;
+              break;
+            }
+          } catch (e) {
+            console.warn("Falha no select vendas_itens com join:", e);
+          }
         }
 
-        // 3. Tenta dav_items com parceiro
-        if (!items) {
-          const { data: di1, error: de1 } = await supabase
-            .from("dav_items")
-            .select(selectItens)
-            .eq("dav_id", venda.id);
-          if (!de1 && di1 && di1.length > 0) items = di1;
+        // 2. Se join falhou, tenta select simples de vendas_itens
+        if (loadedItems.length === 0) {
+          for (const client of clients) {
+            if (loadedItems.length > 0) break;
+            try {
+              const { data, error } = await client
+                .from("vendas_itens")
+                .select("*")
+                .eq("venda_id", venda.id);
+              if (!error && data && data.length > 0) {
+                loadedItems = data;
+                break;
+              }
+            } catch (e) {
+              console.warn("Falha no select simples de vendas_itens:", e);
+            }
+          }
         }
 
-        // 4. Fallback admin para dav_items
-        if (!items) {
-          const { data: di2, error: de2 } = await supabaseAdmin
-            .from("dav_items")
-            .select(selectItens)
-            .eq("dav_id", venda.id);
-          if (!de2 && di2 && di2.length > 0) items = di2;
+        // 3. Fallback para dav_items (com join)
+        if (loadedItems.length === 0) {
+          for (const client of clients) {
+            if (loadedItems.length > 0) break;
+            try {
+              const { data, error } = await client
+                .from("dav_items")
+                .select("*, produtos(id, nome, codigo, imagem, valor)")
+                .eq("dav_id", venda.id);
+              if (!error && data && data.length > 0) {
+                loadedItems = data;
+                break;
+              }
+            } catch (e) {
+              console.warn("Falha no select dav_items com join:", e);
+            }
+          }
         }
 
-        setItens(items || []);
+        // 4. Fallback para dav_items (simples)
+        if (loadedItems.length === 0) {
+          for (const client of clients) {
+            if (loadedItems.length > 0) break;
+            try {
+              const { data, error } = await client
+                .from("dav_items")
+                .select("*")
+                .eq("dav_id", venda.id);
+              if (!error && data && data.length > 0) {
+                loadedItems = data;
+                break;
+              }
+            } catch (e) {
+              console.warn("Falha no select simples de dav_items:", e);
+            }
+          }
+        }
+
+        // Se algum item está sem dados do produto, busca os produtos pelos IDs
+        const missingIds = loadedItems
+          .map((item) => item.produto_id || item.id_produto)
+          .filter((id): id is string => Boolean(id));
+
+        const productsMap: Record<string, any> = {};
+        if (missingIds.length > 0) {
+          try {
+            for (const client of clients) {
+              const { data: prods, error } = await client
+                .from("produtos")
+                .select("id, nome, codigo, imagem, valor")
+                .in("id", missingIds);
+              if (!error && prods && prods.length > 0) {
+                for (const p of prods) {
+                  productsMap[p.id] = p;
+                }
+                break;
+              }
+            }
+          } catch (e) {
+            console.warn("Falha ao buscar produtos complementares:", e);
+          }
+        }
+
+        // Normaliza cada item com consistência total
+        const normalized = loadedItems.map((item) => {
+          const prodObj = item.produtos || item.produto || productsMap[item.produto_id || item.id_produto] || {};
+          const nomeFinal = prodObj.nome || item.nome || item.produto || item.produto_nome || "Produto";
+          const imagemFinal = prodObj.imagem || item.imagem || null;
+          const codigoFinal = prodObj.codigo || item.codigo || null;
+          const valorUnit = Number(item.valor_unitario ?? prodObj.valor ?? 0);
+          const qtd = Number(item.quantidade ?? item.qtd ?? 1);
+          const subt = Number(item.subtotal ?? (qtd * valorUnit));
+
+          const productShape = {
+            id: prodObj.id || item.produto_id,
+            nome: nomeFinal,
+            codigo: codigoFinal,
+            imagem: imagemFinal,
+            emoji: "📦",
+            valor: valorUnit,
+          };
+
+          return {
+            ...item,
+            quantidade: qtd,
+            valor_unitario: valorUnit,
+            subtotal: subt,
+            produto_nome: nomeFinal,
+            imagem: imagemFinal,
+            codigo: codigoFinal,
+            produto: productShape,
+            produtos: productShape,
+          };
+        });
+
+        setItens(normalized);
       } catch (err) {
         console.error("Erro ao carregar itens da venda:", err);
         setItens([]);
@@ -161,13 +256,22 @@ export function ParceiroPedidoModal({
     if (catalogProducts.length > 0) return;
     setLoadingProducts(true);
     try {
-      const { data, error } = await supabase
-        .from("produtos")
-        .select("id, nome, codigo, imagem, emoji, valor, preco_venda, status")
-        .eq("status", "Ativo")
-        .order("nome");
-      if (!error && data) {
-        setCatalogProducts(data);
+      const clients = [supabase, supabaseAdmin].filter(Boolean);
+      for (const client of clients) {
+        const { data, error } = await client
+          .from("produtos")
+          .select("id, nome, codigo, imagem, valor, status")
+          .eq("status", "Ativo")
+          .order("nome");
+        if (!error && data && data.length > 0) {
+          setCatalogProducts(
+            data.map((p) => ({
+              ...p,
+              emoji: "📦",
+            }))
+          );
+          break;
+        }
       }
     } catch (err) {
       console.error("Erro ao carregar catálogo de produtos:", err);
@@ -180,12 +284,18 @@ export function ParceiroPedidoModal({
     // Clona os itens atuais para a lista editável
     const cloned = itens.map((i) => ({
       ...i,
-      produto_id: i.produto_id || i.produto?.id || i.id,
+      produto_id: i.produto_id || i.produto?.id || i.produtos?.id || i.id,
       quantidade: Number(i.quantidade || i.qtd || 1),
       valor_unitario: Number(i.valor_unitario || 0),
       subtotal:
         Number(i.quantidade || i.qtd || 1) * Number(i.valor_unitario || 0),
-      produto: i.produto || {
+      produto: i.produto || i.produtos || {
+        nome: i.produto_nome || "Produto",
+        codigo: i.codigo,
+        emoji: "📦",
+        imagem: i.imagem,
+      },
+      produtos: i.produtos || i.produto || {
         nome: i.produto_nome || "Produto",
         codigo: i.codigo,
         emoji: "📦",
@@ -326,22 +436,37 @@ export function ParceiroPedidoModal({
       if (vendaUpdateError) throw vendaUpdateError;
 
       // 3. Atualiza os itens da venda (deleta antigos e insere os novos)
-      await supabase.from("vendas_itens").delete().eq("venda_id", venda.id);
-      await supabase.from("dav_items").delete().eq("dav_id", venda.id);
+      const clients = [supabase, supabaseAdmin].filter(Boolean);
+      for (const client of clients) {
+        try {
+          await client.from("vendas_itens").delete().eq("venda_id", venda.id);
+          await client.from("dav_items").delete().eq("dav_id", venda.id);
+          break;
+        } catch {}
+      }
 
       const itensToInsert = editItens.map((i) => ({
         venda_id: venda.id,
-        produto_id: i.produto_id || i.produto?.id,
+        produto_id: i.produto_id || i.produto?.id || i.produtos?.id,
         quantidade: Number(i.quantidade),
         valor_unitario: Number(i.valor_unitario),
         subtotal: Number(i.quantidade) * Number(i.valor_unitario),
       }));
 
-      const { error: insertError } = await supabase
-        .from("vendas_itens")
-        .insert(itensToInsert);
+      let insertSuccess = false;
+      for (const client of clients) {
+        const { error: insertError } = await client
+          .from("vendas_itens")
+          .insert(itensToInsert);
+        if (!insertError) {
+          insertSuccess = true;
+          break;
+        }
+      }
 
-      if (insertError) throw insertError;
+      if (!insertSuccess) {
+        throw new Error("Não foi possível salvar os itens da venda.");
+      }
 
       // 4. Atualiza os dados do cliente se fornecidos e associados
       const clienteId = venda.cliente_id || venda.cliente?.id || venda.clientes?.id;
@@ -913,21 +1038,26 @@ export function ParceiroPedidoModal({
                         className="flex items-center justify-between p-3 bg-slate-50/40 hover:bg-slate-50 transition-colors"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden text-xl">
-                            {item.produto?.imagem ? (
+                          <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden text-xl shadow-xs">
+                            {(item.produto?.imagem || item.produtos?.imagem || item.imagem) ? (
                               <img
-                                src={item.produto.imagem}
-                                alt={item.produto?.nome}
+                                src={item.produto?.imagem || item.produtos?.imagem || item.imagem}
+                                alt={item.produto?.nome || item.produtos?.nome || item.produto_nome}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <span>{item.produto?.emoji || "📦"}</span>
+                              <span>{item.produto?.emoji || item.produtos?.emoji || "📦"}</span>
                             )}
                           </div>
                           <div className="min-w-0">
                             <p className="font-bold text-xs sm:text-sm text-slate-800 truncate">
-                              {item.produto?.nome || item.produto_nome || "Produto"}
+                              {item.produto?.nome || item.produtos?.nome || item.produto_nome || "Produto"}
                             </p>
+                            {Boolean(item.produto?.codigo || item.produtos?.codigo || item.codigo) && (
+                              <p className="text-[10px] text-muted-foreground font-mono">
+                                Cód: {item.produto?.codigo || item.produtos?.codigo || item.codigo}
+                              </p>
+                            )}
                             <p className="text-[11px] text-muted-foreground mt-0.5">
                               {item.quantidade}x R${" "}
                               {Number(item.valor_unitario)

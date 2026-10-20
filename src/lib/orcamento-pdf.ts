@@ -59,37 +59,75 @@ const formatCurrency = (val: number | string | null | undefined): string => {
 };
 
 const toBase64 = async (url: string): Promise<string | null> => {
-  if (!url) return null;
-  // Tenta via fetch primeiro
-  try {
-    const r = await fetch(url, { mode: 'cors', cache: 'no-cache' });
-    if (r.ok) {
-      const blob = await r.blob();
-      return await new Promise<string | null>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => resolve(null);
-        reader.readAsDataURL(blob);
-      });
-    }
-  } catch { /* ignora erro CORS e tenta via canvas */ }
+  if (!url || typeof url !== "string") return null;
 
-  // Fallback: via canvas (contorna CORS em muitos casos)
-  return await new Promise<string | null>((resolve) => {
+  // Se já for data URL de JPEG ou PNG, usa direto
+  if (url.startsWith("data:image/jpeg") || url.startsWith("data:image/png")) {
+    return url;
+  }
+
+  // Converte qualquer formato (especialmente WEBP do Supabase Storage) via Canvas para JPEG
+  return new Promise<string | null>((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(null); return; }
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width || 300;
+        canvas.height = img.naturalHeight || img.height || 300;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      } catch { resolve(null); }
+        // Exporta como JPEG aceito 100% pelo jsPDF
+        resolve(canvas.toDataURL("image/jpeg", 0.9));
+      } catch {
+        resolve(null);
+      }
     };
-    img.onerror = () => resolve(null);
+    img.onerror = async () => {
+      // Fallback via fetch + objectURL caso Image direto falhe
+      try {
+        const r = await fetch(url, { mode: "cors", cache: "no-cache" });
+        if (r.ok) {
+          const blob = await r.blob();
+          const objUrl = URL.createObjectURL(blob);
+          const fallbackImg = new Image();
+          fallbackImg.onload = () => {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = fallbackImg.naturalWidth || 300;
+              canvas.height = fallbackImg.naturalHeight || 300;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) {
+                URL.revokeObjectURL(objUrl);
+                resolve(null);
+                return;
+              }
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(fallbackImg, 0, 0);
+              URL.revokeObjectURL(objUrl);
+              resolve(canvas.toDataURL("image/jpeg", 0.9));
+            } catch {
+              URL.revokeObjectURL(objUrl);
+              resolve(null);
+            }
+          };
+          fallbackImg.onerror = () => {
+            URL.revokeObjectURL(objUrl);
+            resolve(null);
+          };
+          fallbackImg.src = objUrl;
+          return;
+        }
+      } catch {}
+      resolve(null);
+    };
     img.src = url;
   });
 };
@@ -344,12 +382,8 @@ export async function createOrcamentoPdfDoc(data: OrcamentoPdfData): Promise<jsP
           const iW = hook.cell.width - pad * 2;
           const iH = hook.cell.height - pad * 2;
           try {
-            // Detecta o formato a partir do data URL
-            let fmt: string = "JPEG";
-            if (imgData.startsWith("data:image/png")) fmt = "PNG";
-            else if (imgData.startsWith("data:image/webp")) fmt = "WEBP";
-            else if (imgData.startsWith("data:image/gif")) fmt = "GIF";
-            doc.addImage(imgData, fmt, iX, iY, iW, iH, undefined, "FAST");
+            // imgData garantido como JPEG pelo toBase64
+            doc.addImage(imgData, "JPEG", iX, iY, iW, iH, undefined, "FAST");
           } catch {
             // Produto sem imagem válida — ignora silenciosamente
           }
@@ -687,17 +721,18 @@ export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData 
     const qtd = Number(it.quantidade ?? it.qtd ?? 1);
     const unit = Number(it.valor_unitario ?? 0);
     const itSub = Number(it.subtotal ?? it.total ?? 0);
+    const prodObj = it.produtos || it.produto || {};
     return {
-      codigo: it.produtos?.codigo || it.produto?.codigo || it.codigo || "—",
-      nome: it.produtos?.nome || it.produto?.nome || it.nome || it.produto_nome || "Produto",
+      codigo: prodObj.codigo || it.codigo || "—",
+      nome: prodObj.nome || it.nome || it.produto_nome || it.produto || "Produto",
       quantidade: qtd,
       valor_unitario: unit > 0 ? unit : qtd > 0 && itSub > 0 ? itSub / qtd : 0,
       subtotal: itSub > 0 ? itSub : qtd * unit,
       total: itSub > 0 ? itSub : qtd * unit,
       // Campos enriquecidos — presentes quando a query inclui esses campos
-      imagem: it.produtos?.imagem || it.imagem || null,
-      marca: it.produtos?.marca || it.marca || null,
-      unidade: it.produtos?.unidade || it.unidade || null,
+      imagem: prodObj.imagem || it.imagem || null,
+      marca: prodObj.marca || it.marca || null,
+      unidade: prodObj.unidade || it.unidade || null,
     };
   });
 
@@ -767,38 +802,118 @@ export function vendaToPdfData(venda: any, itens: any[] = []): OrcamentoPdfData 
  */
 async function fetchItensParaPdf(vendaId: string, customClient?: any): Promise<any[]> {
   const clients = [customClient, supabase].filter(Boolean);
-  const selectItens = "*, produtos(nome, codigo, imagem)";
+  const selectItens = "*, produtos(nome, codigo, imagem, valor)";
 
-  // Tenta vendas_itens
+  let found: any[] = [];
+
+  // Tenta vendas_itens com join
   for (const client of clients) {
+    if (found.length > 0) break;
     try {
       const { data, error } = await client
         .from("vendas_itens")
         .select(selectItens)
         .eq("venda_id", vendaId);
-      if (!error && data && data.length > 0) return data;
-    } catch {}
-  }
-
-  // Tenta dav_items
-  for (const client of clients) {
-    try {
-      const { data, error } = await client
-        .from("dav_items")
-        .select(selectItens)
-        .eq("dav_id", vendaId);
       if (!error && data && data.length > 0) {
-        return data.map((d: any) => ({
-          ...d,
-          quantidade: d.quantidade ?? d.qtd,
-          valor_unitario: d.valor_unitario ?? d.preco_unitario,
-          subtotal: d.subtotal ?? d.total,
-        }));
+        found = data;
+        break;
       }
     } catch {}
   }
 
-  return [];
+  // Se join falhar, tenta vendas_itens simples
+  if (found.length === 0) {
+    for (const client of clients) {
+      if (found.length > 0) break;
+      try {
+        const { data, error } = await client
+          .from("vendas_itens")
+          .select("*")
+          .eq("venda_id", vendaId);
+        if (!error && data && data.length > 0) {
+          found = data;
+          break;
+        }
+      } catch {}
+    }
+  }
+
+  // Tenta dav_items
+  if (found.length === 0) {
+    for (const client of clients) {
+      if (found.length > 0) break;
+      try {
+        const { data, error } = await client
+          .from("dav_items")
+          .select(selectItens)
+          .eq("dav_id", vendaId);
+        if (!error && data && data.length > 0) {
+          found = data;
+          break;
+        }
+      } catch {}
+    }
+  }
+
+  if (found.length === 0) {
+    for (const client of clients) {
+      if (found.length > 0) break;
+      try {
+        const { data, error } = await client
+          .from("dav_items")
+          .select("*")
+          .eq("dav_id", vendaId);
+        if (!error && data && data.length > 0) {
+          found = data;
+          break;
+        }
+      } catch {}
+    }
+  }
+
+  if (found.length === 0) return [];
+
+  // Se algum item não tiver dados de produto ou imagem, busca na tabela produtos
+  const missingIds = found
+    .filter((d: any) => !d.produtos?.nome && (d.produto_id || d.id_produto))
+    .map((d: any) => d.produto_id || d.id_produto);
+
+  const prodMap: Record<string, any> = {};
+  if (missingIds.length > 0) {
+    for (const client of clients) {
+      try {
+        const { data: prods } = await client
+          .from("produtos")
+          .select("id, nome, codigo, imagem, valor")
+          .in("id", missingIds);
+        if (prods && prods.length > 0) {
+          for (const p of prods) {
+            prodMap[p.id] = p;
+          }
+          break;
+        }
+      } catch {}
+    }
+  }
+
+  return found.map((d: any) => {
+    const p = d.produtos || d.produto || prodMap[d.produto_id || d.id_produto] || {};
+    return {
+      ...d,
+      nome: p.nome || d.nome || d.produto || d.produto_nome || "Produto",
+      codigo: p.codigo || d.codigo || "—",
+      imagem: p.imagem || d.imagem || null,
+      quantidade: d.quantidade ?? d.qtd ?? 1,
+      valor_unitario: d.valor_unitario ?? d.preco_unitario ?? p.valor ?? 0,
+      subtotal: d.subtotal ?? d.total ?? (Number(d.quantidade ?? d.qtd ?? 1) * Number(d.valor_unitario ?? p.valor ?? 0)),
+      produtos: {
+        ...p,
+        nome: p.nome || d.nome || d.produto || "Produto",
+        imagem: p.imagem || d.imagem || null,
+        codigo: p.codigo || d.codigo || "—",
+      },
+    };
+  });
 }
 
 /**

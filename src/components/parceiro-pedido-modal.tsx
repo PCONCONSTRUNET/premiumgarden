@@ -794,7 +794,7 @@ export function ParceiroPedidoModal({
                   size="sm"
                   variant="outline"
                   onClick={() => setIsAddingProduct(true)}
-                  className="h-7 text-xs font-semibold gap-1 border-brand/30 text-brand hover:bg-brand/10 rounded-lg"
+                  className="h-7 text-xs font-semibold gap-1 border-emerald-600/30 text-emerald-700 hover:bg-emerald-50 rounded-lg"
                 >
                   <Plus className="w-3 h-3" /> Adicionar Produto
                 </Button>
@@ -821,7 +821,7 @@ export function ParceiroPedidoModal({
                       type="button"
                       size="sm"
                       onClick={() => setIsAddingProduct(true)}
-                      className="mt-2 text-xs font-bold bg-brand hover:bg-brand/90 text-white rounded-lg"
+                      className="mt-2 text-xs font-bold bg-[#12794C] hover:bg-[#0e643e] text-white rounded-lg shadow-sm active:scale-95 transition-all"
                     >
                       <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar Produto
                     </Button>
@@ -1011,7 +1011,7 @@ export function ParceiroPedidoModal({
                             <Button
                               type="button"
                               size="sm"
-                              className="h-7 px-2.5 text-xs font-bold bg-brand hover:bg-brand/90 text-white rounded-lg shrink-0 gap-1"
+                              className="h-7 px-3 text-xs font-bold bg-[#12794C] hover:bg-[#0e643e] text-white rounded-lg shrink-0 gap-1 shadow-sm active:scale-95 transition-all"
                               onClick={() => handleAddProductToOrder(prod)}
                             >
                               <Plus className="w-3 h-3" /> Incluir
@@ -1147,7 +1147,7 @@ export function ParceiroPedidoModal({
               </Button>
               <Button
                 type="button"
-                className="flex-1 h-11 bg-brand hover:bg-brand/90 font-bold text-white rounded-xl shadow-md gap-1.5"
+                className="flex-1 h-11 bg-[#12794C] hover:bg-[#0e643e] font-bold text-white rounded-xl shadow-md gap-1.5 active:scale-95 transition-all"
                 onClick={handleSaveOrder}
                 disabled={savingOrder}
               >

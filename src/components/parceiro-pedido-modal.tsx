@@ -425,7 +425,6 @@ export function ParceiroPedidoModal({
         subtotal: editSubtotal,
         valor_total: editTotal,
         valor_comissao: novaComissao,
-        updated_at: new Date().toISOString(),
       };
 
       const { error: vendaUpdateError } = await supabase
